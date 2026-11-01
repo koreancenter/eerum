@@ -19,7 +19,7 @@ import {
   sanitizeCardForVault,
   isPlatformHost,
   normalizeDomain,
-} from '../utils/cardSerializer';
+} from '@/utils/cardSerializer';
 import { SAMPLE_CARDS, loadUserCards } from '../utils/initialCards';
 import {
   CATEGORIES_UPDATED_EVENT,

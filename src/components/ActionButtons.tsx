@@ -1,7 +1,7 @@
 import React from 'react';
 import { CardData, CardOrientation } from '../types/card';
-import { downloadVCard } from '../utils/vcard';
-import { 
+import { downloadVCard } from '@/utils/cardSerializer';
+import {
   Phone,
   MessageSquare,
   Mail,
@@ -10,7 +10,8 @@ import {
   Share2,
   UserPlus,
   RectangleHorizontal,
-  RectangleVertical
+  RectangleVertical,
+  type LucideIcon,
 } from 'lucide-react';
 
 interface ActionButtonsProps {
@@ -25,6 +26,15 @@ interface ActionButtonsProps {
   onShowToast?: (msg: string) => void;
 }
 
+interface ContactChannelItem {
+  key: 'call' | 'sms' | 'email' | 'website';
+  href: string;
+  Icon: LucideIcon;
+  title: string;
+  ariaLabel: string;
+  external?: boolean;
+}
+
 export const ActionButtons: React.FC<ActionButtonsProps> = ({
   data,
   isOwner = true,
@@ -36,7 +46,42 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   onShowToast,
 }) => {
   const phoneTarget = data.phoneRaw || data.phone?.replace(/[^0-9+]/g, '');
-  const iconButtonClass = "w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-200 cursor-pointer";
+  const iconButtonClass =
+    'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-200 cursor-pointer';
+
+  const contactChannels = (
+    [
+      phoneTarget && {
+        key: 'call',
+        href: `tel:${phoneTarget}`,
+        Icon: Phone,
+        title: `전화 걸기 (${data.phone})`,
+        ariaLabel: '전화 걸기',
+      },
+      phoneTarget && {
+        key: 'sms',
+        href: `sms:${phoneTarget}`,
+        Icon: MessageSquare,
+        title: `문자 보내기 (${data.phone})`,
+        ariaLabel: '문자 보내기',
+      },
+      data.email && {
+        key: 'email',
+        href: `mailto:${data.email}`,
+        Icon: Mail,
+        title: `이메일 작성 (${data.email})`,
+        ariaLabel: '이메일 작성',
+      },
+      data.website && {
+        key: 'website',
+        href: data.website,
+        Icon: Globe,
+        title: isOwner ? '온라인 웹사이트 보기' : '웹사이트 방문',
+        ariaLabel: isOwner ? '온라인 웹사이트' : '웹사이트',
+        external: true,
+      },
+    ] as Array<ContactChannelItem | '' | undefined>
+  ).filter((item): item is ContactChannelItem => Boolean(item));
 
   // Direct recipient action: download .vcf contact directly without modal
   const handleDownloadContact = () => {
@@ -79,191 +124,95 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
     }
   };
 
-  // ================= 1. PUBLIC VISITOR VIEW MODE (isOwner === false) =================
-  if (!isOwner) {
-    const hasContactChannel = Boolean(phoneTarget || data.email || data.website);
-
-    return (
-      <div 
-        className="flex items-center justify-center gap-1.5 sm:gap-2.5 py-1"
-        role="toolbar" 
-        aria-label="명함 빠른 작업"
-      >
-        {/* 1. Call */}
-        {phoneTarget && (
-          <a
-            href={`tel:${phoneTarget}`}
-            className={iconButtonClass}
-            title={`전화 걸기 (${data.phone})`}
-            aria-label="전화 걸기"
-          >
-            <Phone className="w-4 h-4" />
-          </a>
-        )}
-
-        {/* 2. SMS */}
-        {phoneTarget && (
-          <a
-            href={`sms:${phoneTarget}`}
-            className={iconButtonClass}
-            title={`문자 보내기 (${data.phone})`}
-            aria-label="문자 보내기"
-          >
-            <MessageSquare className="w-4 h-4" />
-          </a>
-        )}
-
-        {/* 3. Mail */}
-        {data.email && (
-          <a
-            href={`mailto:${data.email}`}
-            className={iconButtonClass}
-            title={`이메일 작성 (${data.email})`}
-            aria-label="이메일 작성"
-          >
-            <Mail className="w-4 h-4" />
-          </a>
-        )}
-
-        {/* 4. Website */}
-        {data.website && (
-          <a
-            href={data.website}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={iconButtonClass}
-            title="웹사이트 방문"
-            aria-label="웹사이트"
-          >
-            <Globe className="w-4 h-4" />
-          </a>
-        )}
-
-        {/* 1px Vertical Divider */}
-        {hasContactChannel && (
-          <span className="border-r border-white/10 h-3.5 mx-1 self-center" />
-        )}
-
-        {/* 5. Add to Contacts (vCard) */}
-        <button
-          onClick={handleDownloadContact}
-          className={iconButtonClass}
-          title="연락처에 저장 (vCard 다운로드)"
-          aria-label="연락처 저장"
-        >
-          <UserPlus className="w-4 h-4" />
-        </button>
-
-        {/* 6. Share Card Link */}
-        <button
-          onClick={handleShareCardLink}
-          className={iconButtonClass}
-          title="명함 링크 공유"
-          aria-label="명함 링크 공유"
-        >
-          <Share2 className="w-4 h-4" />
-        </button>
-      </div>
-    );
-  }
-
-  // ================= 2. OWNER VIEW MODE (isOwner === true) =================
   return (
-    <div 
+    <div
       className="flex items-center justify-center gap-1.5 sm:gap-2.5 py-1"
-      role="toolbar" 
+      role="toolbar"
       aria-label="명함 빠른 작업"
     >
-      {/* 1. Phone */}
-      {phoneTarget && (
+      {/* Shared Contact Channels (Call, SMS, Email, Website) */}
+      {contactChannels.map(({ key, href, Icon, title, ariaLabel, external }) => (
         <a
-          href={`tel:${phoneTarget}`}
+          key={key}
+          href={href}
+          target={external ? '_blank' : undefined}
+          rel={external ? 'noopener noreferrer' : undefined}
           className={iconButtonClass}
-          title={`전화 걸기 (${data.phone})`}
-          aria-label="전화 걸기"
+          title={title}
+          aria-label={ariaLabel}
         >
-          <Phone className="w-4 h-4" />
+          <Icon className="w-4 h-4" />
         </a>
-      )}
-
-      {/* 2. Message / SMS */}
-      {phoneTarget && (
-        <a
-          href={`sms:${phoneTarget}`}
-          className={iconButtonClass}
-          title={`문자 보내기 (${data.phone})`}
-          aria-label="문자 보내기"
-        >
-          <MessageSquare className="w-4 h-4" />
-        </a>
-      )}
-
-      {/* 3. Mail */}
-      {data.email && (
-        <a
-          href={`mailto:${data.email}`}
-          className={iconButtonClass}
-          title={`이메일 작성 (${data.email})`}
-          aria-label="이메일 작성"
-        >
-          <Mail className="w-4 h-4" />
-        </a>
-      )}
-
-      {/* 4. Globe Website */}
-      {data.website && (
-        <a
-          href={data.website}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={iconButtonClass}
-          title="온라인 웹사이트 보기"
-          aria-label="온라인 웹사이트"
-        >
-          <Globe className="w-4 h-4" />
-        </a>
-      )}
+      ))}
 
       {/* 1px Vertical Divider */}
-      <span className="border-r border-white/10 h-3.5 mx-1 self-center" />
+      {contactChannels.length > 0 && (
+        <span className="border-r border-white/10 h-3.5 mx-1 self-center" />
+      )}
 
-      {/* 5. Orientation Toggle (명함 가로/세로 보기) */}
-      {onToggleOrientation && (
-        <button
-          onClick={onToggleOrientation}
-          className={iconButtonClass}
-          title={orientation === 'portrait' ? '명함 가로 보기' : '명함 세로 보기'}
-          aria-label={orientation === 'portrait' ? '명함 가로 보기' : '명함 세로 보기'}
-        >
-          {orientation === 'portrait' ? (
-            <RectangleHorizontal className="w-4 h-4" />
-          ) : (
-            <RectangleVertical className="w-4 h-4" />
+      {!isOwner ? (
+        <>
+          {/* Add to Contacts (vCard) */}
+          <button
+            onClick={handleDownloadContact}
+            className={iconButtonClass}
+            title="연락처에 저장 (vCard 다운로드)"
+            aria-label="연락처 저장"
+          >
+            <UserPlus className="w-4 h-4" />
+          </button>
+
+          {/* Share Card Link */}
+          <button
+            onClick={handleShareCardLink}
+            className={iconButtonClass}
+            title="명함 링크 공유"
+            aria-label="명함 링크 공유"
+          >
+            <Share2 className="w-4 h-4" />
+          </button>
+        </>
+      ) : (
+        <>
+          {/* Orientation Toggle (명함 가로/세로 보기) */}
+          {onToggleOrientation && (
+            <button
+              onClick={onToggleOrientation}
+              className={iconButtonClass}
+              title={orientation === 'portrait' ? '명함 가로 보기' : '명함 세로 보기'}
+              aria-label={orientation === 'portrait' ? '명함 가로 보기' : '명함 세로 보기'}
+            >
+              {orientation === 'portrait' ? (
+                <RectangleHorizontal className="w-4 h-4" />
+              ) : (
+                <RectangleVertical className="w-4 h-4" />
+              )}
+            </button>
           )}
-        </button>
-      )}
 
-      {/* 6. Edit */}
-      {onOpenEdit && (
-        <button
-          onClick={onOpenEdit}
-          className={iconButtonClass}
-          title="명함 편집"
-          aria-label="명함 편집"
-        >
-          <Edit3 className="w-4 h-4" />
-        </button>
-      )}
+          {/* Edit */}
+          {onOpenEdit && (
+            <button
+              onClick={onOpenEdit}
+              className={iconButtonClass}
+              title="명함 편집"
+              aria-label="명함 편집"
+            >
+              <Edit3 className="w-4 h-4" />
+            </button>
+          )}
 
-      {/* 7. Share */}
-      <button
-        onClick={onOpenShare}
-        className={iconButtonClass}
-        title="명함 공유 (QR, 링크, 인쇄, HTML 내보내기)"
-        aria-label="명함 공유"
-      >
-        <Share2 className="w-4 h-4" />
-      </button>
+          {/* Share */}
+          <button
+            onClick={onOpenShare}
+            className={iconButtonClass}
+            title="명함 공유 (QR, 링크, 인쇄, HTML 내보내기)"
+            aria-label="명함 공유"
+          >
+            <Share2 className="w-4 h-4" />
+          </button>
+        </>
+      )}
     </div>
   );
 };

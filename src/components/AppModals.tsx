@@ -2,7 +2,7 @@ import React, { Suspense } from 'react';
 import { StoredCard, PrintConfig } from '../types/card';
 import { ModalManager } from '../hooks/useModalState';
 import { loadUserCards } from '../utils/initialCards';
-import { getCardShareUrl } from '../utils/domain';
+import { getCardShareUrl } from '@/utils/cardSerializer';
 import { lazyWithRetry, LazyErrorBoundary } from '../utils/lazyWithRetry';
 
 const ShareModal = lazyWithRetry(() =>

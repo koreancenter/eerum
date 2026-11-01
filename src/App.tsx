@@ -40,7 +40,7 @@ import {
   isPlatformHost,
   normalizeDomain,
   sanitizeCardForVault,
-} from './utils/domain';
+} from '@/utils/cardSerializer';
 import { pullWalletFromEdge, pushWalletToEdge } from './utils/syncWallet';
 import { useAutoLock } from './hooks/useAutoLock';
 import { useModalState } from './hooks/useModalState';

@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Camera, Trash2, Plus } from 'lucide-react';
 import { CardData } from '../../types/card';
-import { APP_BASE_DOMAIN } from '../../utils/domain';
+import { APP_BASE_DOMAIN } from '@/utils/cardSerializer';
 import { cropAndCompressCardImage } from '../../utils/imageProcess';
 import {
   CATEGORIES_UPDATED_EVENT,

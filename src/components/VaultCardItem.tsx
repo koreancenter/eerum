@@ -12,7 +12,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { resolveThemeStyles } from '../constants/templates';
-import { downloadVCard } from '../utils/vcard';
+import { downloadVCard } from '@/utils/cardSerializer';
 
 export interface VaultCardItemProps {
   card: StoredCard;

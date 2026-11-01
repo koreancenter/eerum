@@ -8,7 +8,7 @@ import {
   CardCreationMode
 } from '../types/card';
 import { X, RotateCcw } from 'lucide-react';
-import { APP_BASE_DOMAIN, normalizeDomain } from '../utils/domain';
+import { APP_BASE_DOMAIN, normalizeDomain } from '@/utils/cardSerializer';
 import { TemplateModeEditor } from './editor/TemplateModeEditor';
 import {
   CustomHtmlEditor,

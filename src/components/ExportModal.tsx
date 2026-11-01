@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CardData, CardTheme } from '../types/card';
-import { generateStandaloneHtml } from '../utils/htmlExport';
+import { generateStandaloneHtml } from '@/utils/cardSerializer';
 import { X, Copy, Download, Check, ArrowLeft } from 'lucide-react';
 
 interface ExportModalProps {
