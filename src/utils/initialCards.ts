@@ -48,7 +48,11 @@ function enrichCard(c: StoredCard): StoredCard {
 
   const enriched: StoredCard = {
     ...c,
-    owner_key: c.owner_key || (c.isMyCard ? `key_${c.id}` : undefined),
+    isMyCard: Boolean(c.isMyCard),
+    isDefault: c.isMyCard ? Boolean(c.isDefault) : false,
+    owner_key: c.isMyCard ? (c.owner_key || `key_${c.id}`) : undefined,
+    slug: c.isMyCard ? c.slug : undefined,
+    customDomain: c.isMyCard ? c.customDomain : undefined,
     data: rawData
       ? {
           ...rawData,
@@ -61,10 +65,11 @@ function enrichCard(c: StoredCard): StoredCard {
       : c.data,
   };
   const isLegacyMasterSample =
-    c.id === 'sample-card-alexander-vance' ||
-    c.slug === 'vance' ||
-    ((c.id === 'sample-card-goguma-master' || c.slug === 'master') &&
-      (c.data?.organization === 'GOGUMA AI STUDIO' || c.data?.organizationKr === '고구마 AI 스튜디오'));
+    c.isMyCard &&
+    (c.id === 'sample-card-alexander-vance' ||
+      c.slug === 'vance' ||
+      ((c.id === 'sample-card-goguma-master' || c.slug === 'master') &&
+        (c.data?.organization === 'GOGUMA AI STUDIO' || c.data?.organizationKr === '고구마 AI 스튜디오')));
 
   if (isLegacyMasterSample) {
     return {
@@ -73,7 +78,7 @@ function enrichCard(c: StoredCard): StoredCard {
       slug: 'master',
       owner_key: c.owner_key || 'owner_master_sample',
       customDomain: 'card.goguma.app/master',
-      category: '글로벌 네트워크',
+      category: c.category || '글로벌 네트워크',
       theme: c.theme || 'pure_white',
       data: {
         ...CARD_DATA,
@@ -83,6 +88,81 @@ function enrichCard(c: StoredCard): StoredCard {
     };
   }
   return enriched;
+}
+
+/**
+ * Enforces strict wallet invariants across personal cards (`isMyCard: true`) and Vault cards (`isMyCard: false`):
+ * 1. Prevents any Vault card from colliding with an existing personal card's ID or carrying `isDefault: true` / `slug` / `owner_key`.
+ * 2. Ensures exactly one personal card has `isDefault: true` whenever at least one personal card exists.
+ */
+export function normalizeStoredCards(rawCards: StoredCard[]): StoredCard[] {
+  if (!Array.isArray(rawCards) || rawCards.length === 0) return [];
+
+  const enrichedList = rawCards.map(enrichCard);
+  const usedIds = new Set<string>();
+
+  // Reserve personal card IDs first so third-party Vault cards can never overwrite them
+  for (const card of enrichedList) {
+    if (card.isMyCard && card.id) {
+      usedIds.add(card.id);
+    }
+  }
+
+  let defaultAssigned = false;
+  const hasExplicitDefaultMyCard = enrichedList.some((c) => c.isMyCard && c.isDefault);
+
+  return enrichedList.map((card, idx) => {
+    if (card.isMyCard) {
+      let id = card.id || `my-card-${Date.now()}-${idx}`;
+      const shouldBeDefault = hasExplicitDefaultMyCard
+        ? Boolean(card.isDefault) && !defaultAssigned
+        : !defaultAssigned;
+      if (shouldBeDefault) {
+        defaultAssigned = true;
+      }
+      return {
+        ...card,
+        id,
+        isMyCard: true,
+        isDefault: shouldBeDefault,
+      };
+    }
+
+    let safeVaultId = card.id || `vault-card-${Date.now()}-${idx}`;
+    if (usedIds.has(safeVaultId)) {
+      safeVaultId = `vault-card-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`;
+    }
+    usedIds.add(safeVaultId);
+
+    return {
+      ...card,
+      id: safeVaultId,
+      isMyCard: false,
+      isDefault: false,
+      owner_key: undefined,
+      slug: undefined,
+      customDomain: undefined,
+    };
+  });
+}
+
+/**
+ * Checks whether this browser has an initialized local wallet (plain cards, encrypted vault, or active PIN)
+ */
+export function hasLocalWalletInitialized(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (memoryDecryptedCards && memoryDecryptedCards.length > 0) return true;
+  if (isPinSet()) return true;
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(FALLBACK_STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (isEncryptedEnvelope(parsed)) return true;
+    return Array.isArray(parsed) && parsed.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 export function loadUserCards(): StoredCard[] {
@@ -108,9 +188,9 @@ export function loadUserCards(): StoredCard[] {
 
     // 3. Unencrypted legacy cards (when no PIN is configured)
     if (Array.isArray(parsed) && parsed.length > 0) {
-      const enriched = parsed.map(enrichCard);
-      memoryDecryptedCards = enriched;
-      return enriched;
+      const normalized = normalizeStoredCards(parsed);
+      memoryDecryptedCards = normalized;
+      return normalized;
     }
     return [];
   } catch (e) {
@@ -141,15 +221,15 @@ export async function decryptStoredCards(keyOrPin?: CryptoKey | string): Promise
       }
 
       const decrypted = await decryptCardsVault(parsed, key);
-      const enriched = decrypted.map(enrichCard);
-      memoryDecryptedCards = enriched;
-      return enriched;
+      const normalized = normalizeStoredCards(decrypted);
+      memoryDecryptedCards = normalized;
+      return normalized;
     }
 
     if (Array.isArray(parsed)) {
-      const enriched = parsed.map(enrichCard);
-      memoryDecryptedCards = enriched;
-      return enriched;
+      const normalized = normalizeStoredCards(parsed);
+      memoryDecryptedCards = normalized;
+      return normalized;
     }
 
     return [];
@@ -167,10 +247,33 @@ export async function decryptStoredCards(keyOrPin?: CryptoKey | string): Promise
 export function saveUserCards(cards: StoredCard[]): void {
   if (typeof window === 'undefined') return;
 
-  memoryDecryptedCards = cards;
+  const pinActive = isPinSet();
+  const activeKey = getActiveSessionKey();
+  const activePin = getActiveSessionPin();
+
+  // Guard: Never overwrite or delete an encrypted localStorage vault while the session is locked
+  if (pinActive && !activeKey && !activePin) {
+    try {
+      const existingRaw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(FALLBACK_STORAGE_KEY);
+      if (existingRaw) {
+        const parsed = JSON.parse(existingRaw);
+        if (isEncryptedEnvelope(parsed)) {
+          return;
+        }
+      }
+    } catch {
+      return;
+    }
+    if (!cards || cards.length === 0) {
+      return;
+    }
+  }
+
+  const normalizedCards = cards && cards.length > 0 ? normalizeStoredCards(cards) : [];
+  memoryDecryptedCards = normalizedCards;
 
   try {
-    if (!cards || cards.length === 0) {
+    if (normalizedCards.length === 0) {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(FALLBACK_STORAGE_KEY);
       localStorage.removeItem(LEGACY_STORAGE_KEY);
@@ -178,27 +281,20 @@ export function saveUserCards(cards: StoredCard[]): void {
       return;
     }
 
-    const pinActive = isPinSet();
-
-    if (pinActive) {
-      const activeKey = getActiveSessionKey();
-      const activePin = getActiveSessionPin();
-
-      if (activeKey || activePin) {
-        encryptCardsVault(cards, activeKey || activePin!).then((envelope) => {
-          const encryptedPayload = JSON.stringify(envelope);
-          localStorage.setItem(STORAGE_KEY, encryptedPayload);
-          localStorage.setItem(FALLBACK_STORAGE_KEY, encryptedPayload);
-          localStorage.setItem('saved_cards', encryptedPayload);
-        }).catch((err) => {
-          console.warn('Background encryption save notice:', err);
-        });
-        return;
-      }
+    if (pinActive && (activeKey || activePin)) {
+      encryptCardsVault(normalizedCards, activeKey || activePin!).then((envelope) => {
+        const encryptedPayload = JSON.stringify(envelope);
+        localStorage.setItem(STORAGE_KEY, encryptedPayload);
+        localStorage.setItem(FALLBACK_STORAGE_KEY, encryptedPayload);
+        localStorage.setItem('saved_cards', encryptedPayload);
+      }).catch((err) => {
+        console.warn('Background encryption save notice:', err);
+      });
+      return;
     }
 
     // Default unencrypted write when PIN protection is disabled
-    const plainJson = JSON.stringify(cards);
+    const plainJson = JSON.stringify(normalizedCards);
     localStorage.setItem(STORAGE_KEY, plainJson);
     localStorage.setItem(FALLBACK_STORAGE_KEY, plainJson);
     localStorage.setItem('saved_cards', plainJson);
@@ -263,6 +359,7 @@ export function clearAllLocalData(): void {
     localStorage.removeItem('wallet_sync_id');
     localStorage.removeItem('card_sync_id');
     localStorage.removeItem('lazy_pin_dismissed');
+    localStorage.removeItem('vault_categories_v1');
     sessionStorage.clear();
   } catch (e) {
     console.warn('Notice resetting local data', e);

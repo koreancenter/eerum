@@ -224,8 +224,8 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen, handleDigit, handleBackspace, allowCancel, onClose]);
 
-  const handleDisableAllSecurity = () => {
-    clearAppPin();
+  const handleDisableAllSecurity = async () => {
+    await clearAppPin();
     removeBiometric();
     setBiometricRegistered(false);
     if (onSuccess) onSuccess();

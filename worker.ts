@@ -347,9 +347,14 @@ export default {
       );
     }
 
-    // 9. Static Asset Fallback (Vite Single Page App)
+    // 9. Static Asset Fallback (Vite Single Page App with /card/:slug route support)
     if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
-      return env.ASSETS.fetch(request);
+      const assetRes = await env.ASSETS.fetch(request);
+      if (assetRes.status === 404 && request.method === "GET" && !url.pathname.startsWith("/api/")) {
+        const spaRequest = new Request(new URL("/index.html", request.url), request);
+        return env.ASSETS.fetch(spaRequest);
+      }
+      return assetRes;
     }
 
     return new Response("Not Found", { status: 404 });

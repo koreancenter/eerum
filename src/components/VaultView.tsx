@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { StoredCard, CardCategory } from '../types/card';
+import { StoredCard } from '../types/card';
 import {
   Search,
   LayoutGrid,
@@ -7,18 +7,21 @@ import {
   Lock,
   KeyRound,
   X,
+  Plus,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { PhotoArchiveModal } from './PhotoArchiveModal';
 import { VaultCardItem, VaultCardListRow } from './VaultCardItem';
-
-const CATEGORIES: readonly CardCategory[] = [
-  '전체',
-  'VIP 파트너',
-  '글로벌 네트워크',
-  '공공·기관',
-  '투자·금융',
-  'IT·기술',
-];
+import { CategoryManagementPanel } from './CategoryManagementPanel';
+import {
+  CATEGORIES_UPDATED_EVENT,
+  loadVaultCategories,
+  addVaultCategory,
+  renameVaultCategory,
+  mergeVaultCategories,
+  deleteVaultCategory,
+  resetVaultCategories,
+} from '../utils/categories';
 
 const SEARCH_DEBOUNCE_MS = 180;
 
@@ -51,6 +54,9 @@ interface VaultViewProps {
   onOpenSync?: () => void;
   isLocked?: boolean;
   onUnlockRequest?: () => void;
+  onRenameCategory?: (oldName: string, newName: string) => void;
+  onMergeCategories?: (sourceCategory: string, targetCategory: string) => void;
+  onDeleteCategory?: (deletedName: string, fallbackCategory: string) => void;
 }
 
 export const VaultView: React.FC<VaultViewProps> = ({
@@ -62,12 +68,42 @@ export const VaultView: React.FC<VaultViewProps> = ({
   onOpenScan,
   isLocked = false,
   onUnlockRequest,
+  onRenameCategory,
+  onMergeCategories,
+  onDeleteCategory,
 }) => {
+  const cardsRef = useRef<StoredCard[]>(cards);
+  cardsRef.current = cards;
+
+  const [vaultCategories, setVaultCategories] = useState<string[]>(() =>
+    loadVaultCategories(cards)
+  );
   const [selectedCategory, setSelectedCategory] = useState<string>('전체');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
-  const [photoArchiveCard, setPhotoArchiveCard] = useState<StoredCard | null>(null);
+  const [photoArchiveCardId, setPhotoArchiveCardId] = useState<string | null>(null);
+
+  // Category Management Panel State
+  const [isCategoryPanelOpen, setIsCategoryPanelOpen] = useState<boolean>(false);
+  const [focusAddInPanel, setFocusAddInPanel] = useState<boolean>(false);
+
+  // Sync dynamic categories from storage and card changes
+  useEffect(() => {
+    const syncCategories = () => {
+      setVaultCategories(loadVaultCategories(cardsRef.current));
+    };
+    syncCategories();
+    window.addEventListener(CATEGORIES_UPDATED_EVENT, syncCategories);
+    return () => window.removeEventListener(CATEGORIES_UPDATED_EVENT, syncCategories);
+  }, [cards]);
+
+  // Ensure selectedCategory falls back to '전체' if removed externally
+  useEffect(() => {
+    if (selectedCategory !== '전체' && !vaultCategories.includes(selectedCategory)) {
+      setSelectedCategory('전체');
+    }
+  }, [selectedCategory, vaultCategories]);
 
   // Debounce searchQuery updates to prevent full list re-filtering & item re-renders on every keystroke
   useEffect(() => {
@@ -114,11 +150,11 @@ export const VaultView: React.FC<VaultViewProps> = ({
   }, []);
 
   const handleOpenPhotoArchive = useCallback((card: StoredCard) => {
-    setPhotoArchiveCard(card);
+    setPhotoArchiveCardId(card.id);
   }, []);
 
   const handleClosePhotoArchive = useCallback(() => {
-    setPhotoArchiveCard(null);
+    setPhotoArchiveCardId(null);
   }, []);
 
   const handleClearSearch = useCallback(() => {
@@ -126,11 +162,21 @@ export const VaultView: React.FC<VaultViewProps> = ({
     setDebouncedSearchQuery('');
   }, []);
 
+  const photoArchiveCard = useMemo(
+    () => (photoArchiveCardId ? cards.find((c) => c.id === photoArchiveCardId) || null : null),
+    [cards, photoArchiveCardId]
+  );
+
+  const filterCategories = useMemo(
+    () => ['전체', ...vaultCategories],
+    [vaultCategories]
+  );
+
   // Single-pass memoized category counts
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { 전체: cards.length };
-    for (const cat of CATEGORIES) {
-      if (cat !== '전체') counts[cat] = 0;
+    for (const cat of vaultCategories) {
+      counts[cat] = 0;
     }
     for (let i = 0; i < cards.length; i++) {
       const cat = cards[i].category;
@@ -139,7 +185,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
       }
     }
     return counts;
-  }, [cards]);
+  }, [cards, vaultCategories]);
 
   // Memoized search + category filter using debounced search query
   const filteredCards = useMemo(() => {
@@ -172,6 +218,103 @@ export const VaultView: React.FC<VaultViewProps> = ({
     });
   }, [cards, selectedCategory, debouncedSearchQuery]);
 
+  // Category Management Panel Callbacks
+  const openCategoryPanel = useCallback((focusAdd = false) => {
+    setFocusAddInPanel(focusAdd);
+    setIsCategoryPanelOpen(true);
+  }, []);
+
+  const closeCategoryPanel = useCallback(() => {
+    setIsCategoryPanelOpen(false);
+    setFocusAddInPanel(false);
+  }, []);
+
+  const handlePanelAddCategory = useCallback(
+    (rawName: string) => {
+      const res = addVaultCategory(rawName, cardsRef.current);
+      if (res.ok) {
+        setVaultCategories(res.categories);
+      }
+      return res;
+    },
+    []
+  );
+
+  const handlePanelRenameCategory = useCallback(
+    (oldName: string, newName: string) => {
+      const snapshot = cardsRef.current;
+      const trimmed = newName.trim();
+      // Pre-validate before optimistic ref update
+      const preCheck = renameVaultCategory(oldName, trimmed, snapshot);
+      if (!preCheck.ok || !preCheck.renamed) {
+        return preCheck;
+      }
+
+      const renamed = preCheck.renamed;
+      cardsRef.current = snapshot.map((c) =>
+        c.category === oldName ? { ...c, category: renamed } : c
+      );
+      setVaultCategories(preCheck.categories);
+
+      if (selectedCategory === oldName) {
+        setSelectedCategory(renamed);
+      }
+      onRenameCategory?.(oldName, renamed);
+      return preCheck;
+    },
+    [selectedCategory, onRenameCategory]
+  );
+
+  const handlePanelMergeCategories = useCallback(
+    (sourceCategory: string, targetCategory: string) => {
+      const snapshot = cardsRef.current;
+      const res = mergeVaultCategories(sourceCategory, targetCategory, snapshot);
+      if (!res.ok || !res.target) {
+        return res;
+      }
+
+      const resolvedTarget = res.target;
+      cardsRef.current = snapshot.map((c) =>
+        c.category === sourceCategory ? { ...c, category: resolvedTarget } : c
+      );
+      setVaultCategories(res.categories);
+
+      if (selectedCategory === sourceCategory) {
+        setSelectedCategory(resolvedTarget);
+      }
+      onMergeCategories?.(sourceCategory, resolvedTarget);
+      return res;
+    },
+    [selectedCategory, onMergeCategories]
+  );
+
+  const handlePanelDeleteCategory = useCallback(
+    (targetCategory: string) => {
+      const snapshot = cardsRef.current;
+      const res = deleteVaultCategory(targetCategory, snapshot);
+      if (!res.ok) {
+        return res;
+      }
+
+      cardsRef.current = snapshot.map((c) =>
+        c.category === targetCategory ? { ...c, category: res.fallback } : c
+      );
+      setVaultCategories(res.categories);
+
+      if (selectedCategory === targetCategory) {
+        setSelectedCategory(res.movedCount > 0 ? res.fallback : '전체');
+      }
+      onDeleteCategory?.(targetCategory, res.fallback);
+      return res;
+    },
+    [selectedCategory, onDeleteCategory]
+  );
+
+  const handlePanelResetCategories = useCallback(() => {
+    resetVaultCategories();
+    setVaultCategories(loadVaultCategories(cardsRef.current));
+  }, []);
+
   if (isLocked) {
     return (
       <div className="w-full max-w-lg mx-auto py-16 px-6 flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-200">
@@ -195,111 +338,155 @@ export const VaultView: React.FC<VaultViewProps> = ({
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-5 animate-in fade-in duration-300">
-      {/* 1. Quiet Luxury Search Bar */}
-      <div className="relative w-full max-w-md">
-        <Search className="w-4 h-4 stroke-[1.5] text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="이름, 회사, 직함, 메모 검색"
-          aria-label="명함 보관함 검색"
-          className="w-full pl-9 pr-8 py-2 rounded-xl bg-[#121214] border border-white/10 text-xs text-neutral-200 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors"
-        />
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={handleClearSearch}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
-            aria-label="검색어 지우기"
-            title="검색어 지우기"
-          >
-            <X className="w-3.5 h-3.5 stroke-[1.5]" />
-          </button>
-        )}
-      </div>
-
-      {/* 2. Minimalist Wallet Toolbar */}
-      <div className="flex items-center justify-between gap-3 pb-2.5 border-b border-white/10">
-        {/* Left: Category Filter Controls */}
-        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 text-xs no-scrollbar min-w-0">
-          {CATEGORIES.map((cat) => {
-            const isSelected = selectedCategory === cat;
-            const count = categoryCounts[cat] ?? 0;
-
-            return (
+    <div className="w-full min-w-0 max-w-6xl mx-auto grid grid-cols-1 gap-4 animate-in fade-in duration-300">
+      {/* Flexible 2-Row CSS Grid Toolbar: Top Controls + Dedicated Category Scroll Bar */}
+      <div
+        role="region"
+        aria-label="명함 보관함 검색 및 필터 도구 모음"
+        className="grid grid-cols-1 gap-3 w-full min-w-0 pb-3.5 border-b border-white/10"
+      >
+        {/* Top Grid Section: Search Bar + Control Buttons (Grid / List / Add) */}
+        <div className="grid grid-cols-1 min-[340px]:grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 sm:gap-4 w-full min-w-0">
+          {/* Search Input Cell */}
+          <div className="relative w-full min-w-0 sm:max-w-md">
+            <Search className="w-4 h-4 stroke-[1.5] text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="이름, 회사, 직함, 메모 검색"
+              aria-label="명함 보관함 검색"
+              className="w-full h-10 pl-9 pr-8 rounded-xl bg-[#121214] border border-white/10 text-xs text-neutral-200 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors"
+            />
+            {searchQuery && (
               <button
-                key={cat}
                 type="button"
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 text-xs transition-colors cursor-pointer font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
-                  isSelected
-                    ? 'bg-white text-neutral-950 font-semibold shadow-sm'
-                    : 'bg-[#121214] text-zinc-400 hover:text-white hover:bg-white/10 border border-white/10'
-                }`}
+                onClick={handleClearSearch}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                aria-label="검색어 지우기"
+                title="검색어 지우기"
               >
-                <span>{cat}</span>
-                <span
-                  className={`ml-1.5 text-[10px] tabular-nums ${
-                    isSelected ? 'text-neutral-900/80 font-bold' : 'text-zinc-400'
-                  }`}
-                >
-                  {count}
-                </span>
+                <X className="w-3.5 h-3.5 stroke-[1.5]" />
               </button>
-            );
-          })}
-        </div>
-
-        {/* Right: Icon-Only View Switcher + Minimal Camera-Plus Action */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Thin Linear Icon View Switcher (LayoutGrid / List) */}
-          <div
-            role="group"
-            aria-label="보관함 보기 방식"
-            className="flex items-center p-0.5 bg-[#121214] rounded-xl border border-white/10"
-          >
-            <button
-              type="button"
-              onClick={() => setViewMode('cards')}
-              aria-pressed={viewMode === 'cards'}
-              aria-label="카드 뷰"
-              title="카드 뷰"
-              className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
-                viewMode === 'cards'
-                  ? 'bg-white/12 text-white'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <LayoutGrid className="w-4 h-4 stroke-[1.5]" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              aria-pressed={viewMode === 'list'}
-              aria-label="리스트 뷰"
-              title="리스트 뷰"
-              className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
-                viewMode === 'list'
-                  ? 'bg-white/12 text-white'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <List className="w-4 h-4 stroke-[1.5]" />
-            </button>
+            )}
           </div>
 
-          {/* Minimalist Camera-Plus Button */}
-          <button
-            type="button"
-            onClick={onOpenScan}
-            aria-label="실물 명함 사진 등록"
-            title="실물 명함 사진 등록"
-            className="w-10 h-10 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 flex items-center justify-center shadow-sm cursor-pointer active:scale-95 shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+          {/* Right Control Buttons Cell: Grid / List Toggle + Add Card */}
+          <div className="flex items-center justify-end gap-2 shrink-0">
+            <div
+              role="group"
+              aria-label="보관함 보기 방식"
+              className="grid grid-cols-2 p-0.5 h-10 bg-[#121214] rounded-xl border border-white/10 shrink-0"
+            >
+              <button
+                type="button"
+                onClick={() => setViewMode('cards')}
+                aria-pressed={viewMode === 'cards'}
+                aria-label="카드 뷰"
+                title="카드 뷰"
+                className={`w-9 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                  viewMode === 'cards'
+                    ? 'bg-white/12 text-white'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4 stroke-[1.5]" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                aria-pressed={viewMode === 'list'}
+                aria-label="리스트 뷰"
+                title="리스트 뷰"
+                className={`w-9 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                  viewMode === 'list'
+                    ? 'bg-white/12 text-white'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <List className="w-4 h-4 stroke-[1.5]" />
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={onOpenScan}
+              aria-label="실물 명함 사진 등록"
+              title="실물 명함 사진 등록"
+              className="h-10 w-10 sm:w-auto sm:px-3.5 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+            >
+              <CameraPlusIcon className="w-[18px] h-[18px] shrink-0" />
+              <span className="hidden sm:inline whitespace-nowrap">명함 추가</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Bottom Grid Section: Dedicated Full-Width Horizontal Scrollable Category Bar */}
+        <div className="w-full min-w-0 overflow-hidden">
+          <div
+            role="tablist"
+            aria-label="보관함 카테고리 필터"
+            className="w-full min-w-0 overflow-x-auto whitespace-nowrap scrollbar-hide overscroll-x-contain touch-pan-x scroll-smooth flex items-center gap-1.5 py-0.5"
           >
-            <CameraPlusIcon className="w-[18px] h-[18px]" />
-          </button>
+            {filterCategories.map((cat) => {
+              const isSelected = selectedCategory === cat;
+              const count = categoryCounts[cat] ?? 0;
+
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`min-h-[36px] px-3.5 py-1.5 rounded-full whitespace-nowrap shrink-0 text-xs transition-colors cursor-pointer font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                    isSelected
+                      ? 'bg-white text-neutral-950 font-semibold shadow-sm'
+                      : 'bg-[#121214] text-zinc-400 hover:text-white hover:bg-white/10 border border-white/10'
+                  }`}
+                >
+                  <span>{cat}</span>
+                  <span
+                    className={`ml-1.5 text-[10px] font-mono tabular-nums ${
+                      isSelected ? 'text-neutral-900/80 font-bold' : 'text-zinc-400'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+
+            <span className="w-px h-4 bg-white/10 shrink-0 mx-0.5" aria-hidden="true" />
+
+            {/* Quick Add Category Chip */}
+            <button
+              type="button"
+              onClick={() => openCategoryPanel(true)}
+              className="min-h-[36px] px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 text-xs text-zinc-400 hover:text-white border border-dashed border-white/15 hover:border-white/30 hover:bg-white/[0.04] transition-colors cursor-pointer inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+              title="새 카테고리 추가"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[1.75]" />
+              <span>추가</span>
+            </button>
+
+            {/* Category Management Panel Trigger */}
+            <button
+              type="button"
+              onClick={() => openCategoryPanel(false)}
+              aria-expanded={isCategoryPanelOpen}
+              aria-label="카테고리 관리 패널 열기"
+              title="카테고리 이름 변경 및 병합 관리"
+              className={`min-h-[36px] px-3 py-1.5 rounded-full border text-xs font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                isCategoryPanelOpen
+                  ? 'bg-white text-neutral-950 border-white font-semibold'
+                  : 'bg-[#121214] hover:bg-white/10 border-white/10 text-zinc-300 hover:text-white'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5]" />
+              <span>카테고리 관리</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -319,7 +506,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
         </div>
       ) : viewMode === 'cards' ? (
         /* ================= CARDS GALLERY VIEW ================= */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 min-w-0">
           {filteredCards.map((card) => (
             <VaultCardItem
               key={card.id}
@@ -370,6 +557,21 @@ export const VaultView: React.FC<VaultViewProps> = ({
         isOpen={Boolean(photoArchiveCard)}
         card={photoArchiveCard}
         onClose={handleClosePhotoArchive}
+      />
+
+      {/* Slide-Over Category Management Panel (Rename, Merge, Add, Delete, Reset) */}
+      <CategoryManagementPanel
+        isOpen={isCategoryPanelOpen}
+        onClose={closeCategoryPanel}
+        categories={vaultCategories}
+        categoryCounts={categoryCounts}
+        totalCardCount={cards.length}
+        focusAddOnOpen={focusAddInPanel}
+        onAddCategory={handlePanelAddCategory}
+        onRenameCategory={handlePanelRenameCategory}
+        onMergeCategories={handlePanelMergeCategories}
+        onDeleteCategory={handlePanelDeleteCategory}
+        onResetCategories={handlePanelResetCategories}
       />
     </div>
   );

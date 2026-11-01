@@ -53,6 +53,7 @@ export const INITIAL_CARDS: StoredCard[] = [
   {
     id: 'sample-card-elena-rostova',
     isMyCard: false,
+    slug: 'elena',
     category: '글로벌 네트워크',
     theme: 'deep_forest',
     layout_type: 'monogram_executive',
@@ -89,6 +90,7 @@ export const INITIAL_CARDS: StoredCard[] = [
   {
     id: 'card-michael-harrison',
     isMyCard: false,
+    slug: 'harrison',
     category: 'VIP 파트너',
     theme: 'classic_navy',
     layout_type: 'monogram_executive',
@@ -123,6 +125,7 @@ export const INITIAL_CARDS: StoredCard[] = [
   {
     id: 'card-jung-seoyun',
     isMyCard: false,
+    slug: 'seoyun',
     category: '공공·기관',
     theme: 'warm_paper',
     layout_type: 'warm_organic',
@@ -157,6 +160,7 @@ export const INITIAL_CARDS: StoredCard[] = [
   {
     id: 'card-james-vance',
     isMyCard: false,
+    slug: 'vance',
     category: '투자·금융',
     theme: 'sumi_ink',
     layout_type: 'swiss_typo_bold',

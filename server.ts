@@ -50,10 +50,12 @@ app.post('/api/sync', (req, res) => {
   }
 
   syncStore[syncId] = cards;
-  // Also index cards by id and slug
+  // Index ONLY personal owned cards into public cardStore so vault copies never overwrite public slugs
   cards.forEach(card => {
-    if (card?.id) cardStore[card.id] = card;
-    if (card?.slug) cardStore[`slug:${card.slug}`] = card;
+    if (card?.isMyCard) {
+      if (card.id) cardStore[card.id] = card;
+      if (card.slug) cardStore[`slug:${card.slug.toLowerCase()}`] = card;
+    }
   });
 
   return res.json({ success: true, syncId, count: cards.length });
@@ -76,7 +78,9 @@ app.get('/api/resolve', (req, res) => {
     !host.includes('localhost') &&
     !host.includes('127.0.0.1') &&
     !host.includes('.run.app') &&
-    !host.includes('.web.app')
+    !host.includes('.web.app') &&
+    !host.includes('.workers.dev') &&
+    !host.includes('.pages.dev')
   ) {
     const card = Object.values(cardStore).find(c => c?.customDomain && c.customDomain.toLowerCase() === host);
     if (card) return res.json({ success: true, card, matchType: 'custom_domain' });
@@ -86,17 +90,21 @@ app.get('/api/resolve', (req, res) => {
 });
 
 app.get('/api/cards', (req, res) => {
-  const slug = req.query.slug as string;
-  const domain = req.query.domain as string;
+  const slug = ((req.query.slug as string) || '').trim().toLowerCase();
+  const domain = ((req.query.domain as string) || '').trim().toLowerCase();
 
   if (slug) {
-    const card = cardStore[`slug:${slug}`] || Object.values(cardStore).find(c => c?.slug === slug);
+    const card =
+      cardStore[`slug:${slug}`] ||
+      Object.values(cardStore).find(
+        c => c?.slug?.toLowerCase() === slug || c?.id?.toLowerCase() === slug
+      );
     if (card) return res.json({ card });
     return res.status(404).json({ error: 'Card not found for slug' });
   }
 
   if (domain) {
-    const card = Object.values(cardStore).find(c => c?.customDomain === domain);
+    const card = Object.values(cardStore).find(c => c?.customDomain?.toLowerCase() === domain);
     if (card) return res.json({ card });
     return res.status(404).json({ error: 'Card not found for custom domain' });
   }

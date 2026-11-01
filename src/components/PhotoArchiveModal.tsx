@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { StoredCard, CardCategory } from '../types/card';
+import React, { useState, useRef, useEffect } from 'react';
+import { StoredCard } from '../types/card';
 import {
   Camera,
   Upload,
@@ -7,9 +7,25 @@ import {
   RefreshCw,
   Download,
   Loader2,
+  Link2,
+  Check,
+  Plus,
 } from 'lucide-react';
 import { BusinessCardFront } from './BusinessCardFront';
 import { cropAndCompressCardImage } from '../utils/imageProcess';
+import {
+  CardSerializer,
+  parseSlugFromInput,
+  sanitizeCardForVault,
+  isPlatformHost,
+  normalizeDomain,
+} from '../utils/cardSerializer';
+import { SAMPLE_CARDS, loadUserCards } from '../utils/initialCards';
+import {
+  CATEGORIES_UPDATED_EVENT,
+  loadVaultCategories,
+  addVaultCategory,
+} from '../utils/categories';
 
 export interface PhotoArchiveModalProps {
   isOpen: boolean;
@@ -33,22 +49,63 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
   // Viewer State
   const [viewTab, setViewTab] = useState<'photo' | 'digital' | 'compare'>('photo');
 
+  // Registration Mode ('photo' scan vs 'link' shared URL)
+  const [registerMode, setRegisterMode] = useState<'photo' | 'link'>('photo');
+
   // Archive Capture State
   const [frontPhoto, setFrontPhoto] = useState<string | null>(null);
   const [backPhoto, setBackPhoto] = useState<string | null>(null);
   const [activeSlot, setActiveSlot] = useState<'front' | 'back'>('front');
 
-  // Essential Quick Input State
+  // Essential Quick Input State (Photo Mode)
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [companyAndNote, setCompanyAndNote] = useState('');
   const [category, setCategory] = useState<string>('VIP 파트너');
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Shared Link Registration State (Link Mode)
+  const [linkInput, setLinkInput] = useState('');
+  const [linkNote, setLinkNote] = useState('');
+  const [resolvedLinkCard, setResolvedLinkCard] = useState<StoredCard | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [isResolvingLink, setIsResolvingLink] = useState(false);
+
+  const [categories, setCategories] = useState<string[]>(() => loadVaultCategories());
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState('');
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const activeSlotRef = useRef<'front' | 'back'>('front');
   const processingRef = useRef(false);
+
+  useEffect(() => {
+    const sync = () => {
+      const next = loadVaultCategories();
+      setCategories(next);
+      setCategory((prev) => (next.includes(prev) ? prev : next[0] || '기타'));
+    };
+    if (isOpen) {
+      sync();
+    }
+    window.addEventListener(CATEGORIES_UPDATED_EVENT, sync);
+    return () => window.removeEventListener(CATEGORIES_UPDATED_EVENT, sync);
+  }, [isOpen]);
+
+  const handleQuickAddCategory = () => {
+    const res = addVaultCategory(newCategoryInput);
+    if (!res.ok || !res.added) {
+      setCategoryError(res.error || '카테고리를 추가할 수 없습니다.');
+      return;
+    }
+    setCategories(res.categories);
+    setCategory(res.added);
+    setNewCategoryInput('');
+    setCategoryError(null);
+    setIsAddingCategory(false);
+  };
 
   if (!isOpen) return null;
 
@@ -237,9 +294,120 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
   }
 
   // CAPTURE / ARCHIVE INPUT MODE
+  const resetModalInputs = () => {
+    setFrontPhoto(null);
+    setBackPhoto(null);
+    setName('');
+    setPhone('');
+    setCompanyAndNote('');
+    setCategory('VIP 파트너');
+    setLinkInput('');
+    setLinkNote('');
+    setResolvedLinkCard(null);
+    setLinkError(null);
+    setRegisterMode('photo');
+  };
+
   const handleSafeClose = () => {
-    if (isProcessing || processingRef.current) return;
+    if (isProcessing || processingRef.current || isResolvingLink) return;
+    resetModalInputs();
     onClose();
+  };
+
+  const handleResolveSharedLink = async () => {
+    const trimmed = linkInput.trim();
+    if (!trimmed) {
+      setLinkError('공유 링크 또는 슬러그를 입력해 주세요.');
+      return;
+    }
+
+    setIsResolvingLink(true);
+    setLinkError(null);
+
+    try {
+      let foundCard: StoredCard | null = null;
+
+      // 1. Support direct portable JSON envelope paste
+      if (trimmed.startsWith('{')) {
+        try {
+          foundCard = CardSerializer.fromJsonEnvelope(trimmed);
+        } catch {
+          foundCard = null;
+        }
+      }
+
+      // 2. Check custom domain if a non-platform URL was pasted
+      let customDomainQuery: string | null = null;
+      if (!foundCard && /^https?:\/\//i.test(trimmed)) {
+        try {
+          const parsedUrl = new URL(trimmed);
+          if (!isPlatformHost(parsedUrl.hostname)) {
+            customDomainQuery = normalizeDomain(parsedUrl.hostname);
+          }
+        } catch {
+          // Ignore malformed URL
+        }
+      }
+
+      const parsedSlug = !foundCard ? parseSlugFromInput(trimmed) : null;
+
+      // 3. Query backend /api/resolve or /api/cards first for live shared cards
+      if (!foundCard && customDomainQuery) {
+        try {
+          const res = await fetch(`/api/resolve?domain=${encodeURIComponent(customDomainQuery)}`);
+          if (res.ok) {
+            const payload = await res.json();
+            if (payload?.card) foundCard = payload.card as StoredCard;
+          }
+        } catch {
+          // Fallback to local lookup
+        }
+      }
+
+      if (!foundCard && parsedSlug) {
+        try {
+          const res = await fetch(`/api/cards?slug=${encodeURIComponent(parsedSlug)}`);
+          if (res.ok) {
+            const payload = await res.json();
+            if (payload?.card) foundCard = payload.card as StoredCard;
+          }
+        } catch {
+          // Fallback to local lookup
+        }
+      }
+
+      // 4. Fallback to sample cards and locally stored public cards
+      if (!foundCard) {
+        const localPool = [...SAMPLE_CARDS, ...loadUserCards()];
+        if (customDomainQuery) {
+          foundCard =
+            localPool.find(
+              (c) => c.customDomain && normalizeDomain(c.customDomain) === customDomainQuery
+            ) || null;
+        }
+        if (!foundCard && parsedSlug) {
+          foundCard =
+            localPool.find(
+              (c) =>
+                (c.slug && c.slug.toLowerCase() === parsedSlug) ||
+                c.id.toLowerCase() === parsedSlug
+            ) || null;
+        }
+      }
+
+      if (foundCard) {
+        const sanitized = sanitizeCardForVault(foundCard);
+        setResolvedLinkCard(sanitized);
+        if (sanitized.category) {
+          setCategory(sanitized.category);
+        }
+      } else {
+        setResolvedLinkCard(null);
+        setLinkError('해당 공유 링크의 명함을 찾을 수 없습니다. 주소를 다시 확인해 주세요.');
+      }
+    } finally {
+      setIsResolvingLink(false);
+    }
   };
 
   const processImageToCardRatio = async (file: File, slot: 'front' | 'back') => {
@@ -286,8 +454,21 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
   };
 
   const handleSave = () => {
-    if (isProcessing || processingRef.current) return;
-    if (!name.trim() || !phone.trim() || !onSaveCard) return;
+    if (isProcessing || processingRef.current || isResolvingLink || !onSaveCard) return;
+
+    if (registerMode === 'link') {
+      if (!resolvedLinkCard) return;
+      const vaultCard = sanitizeCardForVault(resolvedLinkCard, {
+        category,
+        notes: linkNote.trim() || resolvedLinkCard.notes || '공유 링크로 등록됨',
+      });
+      onSaveCard(vaultCard);
+      resetModalInputs();
+      onClose();
+      return;
+    }
+
+    if (!name.trim() || !phone.trim()) return;
 
     const cleanName = name.trim();
     const cleanOrg = companyAndNote.trim();
@@ -295,7 +476,7 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
     const id = `photo-card-${Date.now()}`;
     const now = new Date().toISOString().split('T')[0];
 
-    const newCard: StoredCard = {
+    const newCard: StoredCard = sanitizeCardForVault({
       id,
       isMyCard: false,
       isPhotoCard: Boolean(frontPhoto),
@@ -354,26 +535,102 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
         googleMapsUrl: '',
         naverMapsUrl: '',
       },
-    };
+    });
 
     onSaveCard(newCard);
-    setFrontPhoto(null);
-    setBackPhoto(null);
-    setName('');
-    setPhone('');
-    setCompanyAndNote('');
-    setCategory('VIP 파트너');
+    resetModalInputs();
     onClose();
   };
 
-  const categories: CardCategory[] = [
-    'VIP 파트너',
-    '글로벌 네트워크',
-    '공공·기관',
-    '투자·금융',
-    'IT·기술',
-    '기타',
-  ];
+  const renderCategorySelector = (disabled = false) => (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] text-zinc-400">카테고리</span>
+        {!isAddingCategory && (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              setCategoryError(null);
+              setIsAddingCategory(true);
+            }}
+            className="text-[11px] text-zinc-400 hover:text-white inline-flex items-center gap-1 cursor-pointer disabled:opacity-40"
+          >
+            <Plus className="w-3 h-3 stroke-[1.75]" />
+            <span>새 카테고리</span>
+          </button>
+        )}
+      </div>
+
+      {isAddingCategory && (
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              maxLength={20}
+              autoFocus
+              value={newCategoryInput}
+              onChange={(e) => {
+                setNewCategoryInput(e.target.value);
+                if (categoryError) setCategoryError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleQuickAddCategory();
+                } else if (e.key === 'Escape') {
+                  setIsAddingCategory(false);
+                  setCategoryError(null);
+                }
+              }}
+              placeholder="새 카테고리 이름"
+              className="flex-1 min-w-0 h-8 px-3 rounded-lg bg-white/[0.04] border border-white/15 focus:border-white/30 focus:outline-none text-xs text-white placeholder:text-zinc-500"
+            />
+            <button
+              type="button"
+              onClick={handleQuickAddCategory}
+              disabled={!newCategoryInput.trim()}
+              className="h-8 px-3 rounded-lg bg-white text-neutral-950 font-semibold text-[11px] disabled:opacity-40 cursor-pointer shrink-0"
+            >
+              추가
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsAddingCategory(false);
+                setCategoryError(null);
+                setNewCategoryInput('');
+              }}
+              className="h-8 px-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 text-[11px] cursor-pointer shrink-0"
+            >
+              취소
+            </button>
+          </div>
+          {categoryError && (
+            <p className="text-[11px] text-amber-300/90">{categoryError}</p>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-hide py-0.5">
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            type="button"
+            disabled={disabled}
+            onClick={() => setCategory(cat)}
+            className={`px-3 py-1.5 rounded-full text-[11px] disabled:opacity-40 disabled:pointer-events-none cursor-pointer whitespace-nowrap shrink-0 transition-colors ${
+              category === cat
+                ? 'bg-white text-neutral-950 font-semibold'
+                : 'bg-white/[0.03] text-zinc-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.08]'
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div
@@ -427,29 +684,61 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
         />
 
         {/* Minimalist Modal Header */}
-        <div className="px-6 sm:px-7 py-5 border-b border-white/[0.07] flex items-center justify-between shrink-0">
-          <h3 className="text-base font-semibold text-white tracking-tight">
-            실물 명함 등록
-          </h3>
-          <button
-            type="button"
-            onClick={handleSafeClose}
-            disabled={isProcessing}
-            className="min-w-[36px] min-h-[36px] -mr-1.5 flex items-center justify-center rounded-full text-zinc-400 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:pointer-events-none cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
-            title="닫기"
-            aria-label="닫기"
-          >
-            <X className="w-4 h-4 stroke-[1.5]" />
-          </button>
+        <div className="px-6 sm:px-7 pt-5 pb-4 border-b border-white/[0.07] space-y-4 shrink-0">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold text-white tracking-tight">
+              명함 보관함 등록
+            </h3>
+            <button
+              type="button"
+              onClick={handleSafeClose}
+              disabled={isProcessing || isResolvingLink}
+              className="min-w-[36px] min-h-[36px] -mr-1.5 flex items-center justify-center rounded-full text-zinc-400 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:pointer-events-none cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+              title="닫기"
+              aria-label="닫기"
+            >
+              <X className="w-4 h-4 stroke-[1.5]" />
+            </button>
+          </div>
+
+          {/* Registration Source Mode Switcher */}
+          <div className="inline-flex items-center gap-1 p-1 bg-white/[0.04] rounded-xl text-xs">
+            <button
+              type="button"
+              onClick={() => setRegisterMode('photo')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg cursor-pointer whitespace-nowrap transition-colors ${
+                registerMode === 'photo'
+                  ? 'bg-white text-neutral-950 font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-white font-medium'
+              }`}
+            >
+              <Camera className="w-3.5 h-3.5 stroke-[1.75]" />
+              <span>실물 사진 스캔</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setRegisterMode('link')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg cursor-pointer whitespace-nowrap transition-colors ${
+                registerMode === 'link'
+                  ? 'bg-white text-neutral-950 font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-white font-medium'
+              }`}
+            >
+              <Link2 className="w-3.5 h-3.5 stroke-[1.75]" />
+              <span>공유 링크 등록</span>
+            </button>
+          </div>
         </div>
 
-        {/* Whitespace-Driven Modal Body (Zero Nested Card Boxes) */}
+        {/* Whitespace-Driven Modal Body */}
         <div className="px-6 sm:px-7 py-6 overflow-y-auto flex-1 space-y-7 text-xs">
-          {/* 1. Physical Card Photo Slots */}
-          <section className="space-y-3">
-            <h4 className="text-xs font-medium text-zinc-300 tracking-wide">
-              실물 사진
-            </h4>
+          {registerMode === 'photo' ? (
+            <>
+              {/* 1. Physical Card Photo Slots */}
+              <section className="space-y-3">
+                <h4 className="text-xs font-medium text-zinc-300 tracking-wide">
+                  실물 사진
+                </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {/* Front Slot */}
@@ -638,34 +927,98 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
             </div>
 
             {/* Category Selector */}
-            <div className="pt-2 space-y-2">
-              <span className="text-[11px] text-zinc-400 block">카테고리</span>
-              <div className="flex flex-wrap gap-1.5">
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    disabled={isProcessing}
-                    onClick={() => setCategory(cat)}
-                    className={`px-3 py-1.5 rounded-full text-[11px] disabled:opacity-40 disabled:pointer-events-none cursor-pointer whitespace-nowrap shrink-0 ${
-                      category === cat
-                        ? 'bg-white text-neutral-950 font-semibold'
-                        : 'bg-white/[0.03] text-zinc-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.08]'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
+            <div className="pt-2">
+              {renderCategorySelector(isProcessing)}
             </div>
           </section>
+            </>
+          ) : (
+            /* SHARED LINK REGISTRATION VIEW */
+            <div className="space-y-6 animate-in fade-in duration-150">
+              <section className="space-y-2.5">
+                <label className="text-xs font-medium text-zinc-300 block">
+                  전달받은 디지털 명함 주소 또는 슬러그
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={linkInput}
+                    disabled={isResolvingLink}
+                    onChange={(e) => {
+                      setLinkInput(e.target.value);
+                      if (linkError) setLinkError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        void handleResolveSharedLink();
+                      }
+                    }}
+                    placeholder="https://card.goguma.app/card/elena 또는 슬러그 입력"
+                    className={`${INPUT_CLASS} font-mono`}
+                  />
+                  <button
+                    type="button"
+                    disabled={isResolvingLink || !linkInput.trim()}
+                    onClick={() => void handleResolveSharedLink()}
+                    className="px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-200 disabled:opacity-40 disabled:pointer-events-none text-neutral-950 font-semibold text-xs whitespace-nowrap shrink-0 cursor-pointer"
+                  >
+                    {isResolvingLink ? '조회 중...' : '불러오기'}
+                  </button>
+                </div>
+                {linkError && (
+                  <p className="text-[11px] text-amber-300/90 pt-0.5">{linkError}</p>
+                )}
+              </section>
+
+              {resolvedLinkCard && (
+                <section className="pt-5 border-t border-white/[0.07] space-y-5 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-200">
+                      <Check className="w-3.5 h-3.5 text-white" />
+                      <span>명함 정보를 확인했습니다</span>
+                    </span>
+                    <span className="text-[11px] text-zinc-400 truncate max-w-[200px]">
+                      {resolvedLinkCard.data.name}
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl overflow-hidden ring-1 ring-white/15 shadow-xl max-w-md mx-auto">
+                    <BusinessCardFront
+                      data={resolvedLinkCard.data}
+                      theme={resolvedLinkCard.theme}
+                      layout_type={resolvedLinkCard.layout_type}
+                      card_features={resolvedLinkCard.card_features}
+                      isPrintPreview={false}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="flex items-center justify-between text-[11px]">
+                      <span className="text-zinc-300 font-medium">보관 메모</span>
+                      <span className="text-[10px] text-zinc-400">선택</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={linkNote}
+                      onChange={(e) => setLinkNote(e.target.value)}
+                      placeholder="미팅 일시 또는 메모"
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+
+                  {renderCategorySelector(false)}
+                </section>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Minimalist Pure-Text Modal Footer */}
         <div className="px-6 sm:px-7 py-4 border-t border-white/[0.07] flex items-center justify-between shrink-0">
           <button
             type="button"
-            disabled={isProcessing}
+            disabled={isProcessing || isResolvingLink}
             onClick={handleSafeClose}
             className="min-h-[40px] px-4 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/[0.06] disabled:opacity-40 disabled:pointer-events-none cursor-pointer text-xs font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
           >
@@ -675,7 +1028,11 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
           <button
             type="button"
             onClick={handleSave}
-            disabled={!name.trim() || !phone.trim() || isProcessing}
+            disabled={
+              registerMode === 'photo'
+                ? !name.trim() || !phone.trim() || isProcessing
+                : !resolvedLinkCard || isResolvingLink
+            }
             className="min-h-[40px] px-6 py-2.5 rounded-xl bg-white hover:bg-zinc-200 disabled:opacity-35 disabled:pointer-events-none text-neutral-950 font-semibold text-xs tracking-wide cursor-pointer whitespace-nowrap active:scale-[0.98] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
           >
             보관함에 저장

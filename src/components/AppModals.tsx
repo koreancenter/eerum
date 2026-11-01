@@ -247,7 +247,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
             onClose={modals.closeEditor}
             card={modals.editingCard}
             onSave={onSaveCard}
-            isMyCardMode={modals.editingCard.isMyCard || modals.isCreatingCard}
+            isMyCardMode={Boolean(modals.editingCard.isMyCard)}
             isCreating={modals.isCreatingCard}
           />
         )}

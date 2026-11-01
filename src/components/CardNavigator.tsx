@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { StoredCard, CardOrientation } from '../types/card';
 import { BusinessCardFront } from './BusinessCardFront';
 import { BusinessCardBack } from './BusinessCardBack';
@@ -46,11 +46,14 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   
-  // Total slides = real cards + 1 ghost card for adding new card
-  const totalSlides = cards.length + 1;
-  const ghostIndex = cards.length;
+  // Defense-in-depth: strictly restrict My Cards Navigator to cards with isMyCard === true
+  const personalCards = useMemo(() => cards.filter((c) => c.isMyCard), [cards]);
 
-  const initialIndex = Math.max(0, cards.findIndex(c => c.id === activeCardId));
+  // Total slides = personal cards + 1 ghost card for adding new card
+  const totalSlides = personalCards.length + 1;
+  const ghostIndex = personalCards.length;
+
+  const initialIndex = Math.max(0, personalCards.findIndex((c) => c.id === activeCardId));
   const [currentIndex, setCurrentIndex] = useState<number>(initialIndex >= 0 ? initialIndex : 0);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [orientation, setOrientation] = useState<CardOrientation>('landscape');
@@ -68,14 +71,17 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
     }
   }, []);
 
-  // Sync currentIndex when activeCardId changes externally
+  // Sync currentIndex when activeCardId or personalCards change externally
   useEffect(() => {
-    const idx = cards.findIndex(c => c.id === activeCardId);
-    if (idx >= 0 && idx !== currentIndex) {
+    const idx = personalCards.findIndex((c) => c.id === activeCardId);
+    if (idx >= 0) {
       setCurrentIndex(idx);
       setIsFlipped(false);
+    } else if (personalCards.length > 0) {
+      setCurrentIndex(0);
+      setIsFlipped(false);
     }
-  }, [activeCardId, cards, currentIndex]);
+  }, [activeCardId, personalCards]);
 
   const goToSlide = useCallback((newIndex: number) => {
     const bounded = Math.max(0, Math.min(newIndex, totalSlides - 1));
@@ -83,10 +89,10 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
     setIsFlipped(false);
     setDragOffset(0);
 
-    if (bounded < cards.length) {
-      onSelectCard(cards[bounded].id);
+    if (bounded < personalCards.length) {
+      onSelectCard(personalCards[bounded].id);
     }
-  }, [totalSlides, cards, onSelectCard]);
+  }, [totalSlides, personalCards, onSelectCard]);
 
   // Touch and Drag handling for carousel mode
   const startXRef = useRef<number | null>(null);
@@ -142,17 +148,17 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
         goToSlide(currentIndex + 1);
-      } else if (e.code === 'Space' && currentIndex < cards.length) {
+      } else if (e.code === 'Space' && currentIndex < personalCards.length) {
         e.preventDefault();
         setIsFlipped(prev => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, cards.length, goToSlide]);
+  }, [currentIndex, personalCards.length, goToSlide]);
 
   // If no personal cards exist, immediately present the centered ghost card
-  if (cards.length === 0) {
+  if (personalCards.length === 0) {
     return (
       <div className="w-full flex flex-col items-center justify-center py-8 px-4 animate-in fade-in duration-300">
         <div className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px]">
@@ -179,7 +185,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
     );
   }
 
-  const activeCard = currentIndex < cards.length ? cards[currentIndex] : null;
+  const activeCard = currentIndex < personalCards.length ? personalCards[currentIndex] : null;
 
   // Render Mode 1: Compact/Grid Switcher Mode
   if (mode === 'switcher') {
@@ -198,7 +204,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
         )}
 
         <div className="w-full max-w-4xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          {cards.map((card, idx) => {
+          {personalCards.map((card, idx) => {
             const isSelected = card.id === activeCardId;
             return (
               <div
@@ -236,7 +242,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
                 </div>
 
                 <div className="text-[10px] font-mono text-zinc-400 truncate">
-                  {card.customDomain || `/${card.slug || card.id}`}
+                  {card.customDomain || `/card/${card.slug || card.id}`}
                 </div>
               </div>
             );
@@ -325,7 +331,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
           }}
         >
           {/* Card Slides */}
-          {cards.map((card, idx) => {
+          {personalCards.map((card, idx) => {
             const isCenter = idx === currentIndex;
             const isFlippedCard = isCenter && isFlipped;
             const isCardPortrait = card.layout_type === 'vertical_atelier' || (isCenter && orientation === 'portrait');
@@ -408,7 +414,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
                         layout_type={card.layout_type}
                         card_features={card.card_features}
                         orientation={isCardPortrait ? 'portrait' : 'landscape'}
-                        isPhotoCard={card.isPhotoCard}
+                        isPhotoCard={card.isPhotoCard || card.creation_mode === 'photo'}
                         photoUrl={card.scannedImage || card.front_image_url}
                         html_front={card.html_front}
                       />
@@ -486,7 +492,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
             data={activeCard.data}
             onOpenEdit={() => onOpenEdit && onOpenEdit(activeCard)}
             onOpenShare={() => onOpenShare(activeCard)}
-            isPhotoCard={activeCard.isPhotoCard}
+            isPhotoCard={activeCard.isPhotoCard || activeCard.creation_mode === 'photo'}
             orientation={activeCard.layout_type === 'vertical_atelier' ? 'portrait' : orientation}
             onToggleOrientation={activeCard.layout_type !== 'vertical_atelier' ? () => setOrientation(prev => prev === 'portrait' ? 'landscape' : 'portrait') : undefined}
           />

@@ -9,7 +9,6 @@ import {
 } from '../types/card';
 import { X, RotateCcw } from 'lucide-react';
 import { APP_BASE_DOMAIN, normalizeDomain } from '../utils/domain';
-import { CARD_DATA } from '../utils/vcard';
 import { TemplateModeEditor } from './editor/TemplateModeEditor';
 import {
   CustomHtmlEditor,
@@ -104,11 +103,19 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
     ...card.data,
     nameEn: card.data.nameEn ?? ''
   });
-  const [category, setCategory] = useState<string>(card.category || '글로벌 네트워크');
+  const [category, setCategory] = useState<string>(
+    card.category || (isMyCardMode ? '글로벌 네트워크' : 'VIP 파트너')
+  );
   const [notes, setNotes] = useState<string>(card.notes || '');
-  const [slug, setSlug] = useState<string>(card.slug || 'master');
-  const [customDomain, setCustomDomain] = useState<string>(card.customDomain || '');
-  const [isDefault, setIsDefault] = useState<boolean>(Boolean(card.isDefault));
+  const [slug, setSlug] = useState<string>(
+    isMyCardMode ? (card.slug || `card-${String(Date.now()).slice(-4)}`) : ''
+  );
+  const [customDomain, setCustomDomain] = useState<string>(
+    isMyCardMode ? (card.customDomain || '') : ''
+  );
+  const [isDefault, setIsDefault] = useState<boolean>(
+    isMyCardMode ? Boolean(card.isDefault) : false
+  );
 
   // Custom HTML Mode states
   const [htmlFront, setHtmlFront] = useState<string>(
@@ -200,6 +207,16 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
           ? rawSubOrg
           : '';
 
+      const defaultMySlug = card.slug || `card-${String(Date.now()).slice(-4)}`;
+      const rawCardWebsite = (card.data.website ?? '').trim();
+      const initialWebsite = isMyCardMode
+        ? (rawCardWebsite || `https://${APP_BASE_DOMAIN}/card/${defaultMySlug}`)
+        : rawCardWebsite;
+      const initialWebsiteDisplay = isMyCardMode
+        ? ((card.data.websiteDisplay ?? '').trim() || `${APP_BASE_DOMAIN}/card/${defaultMySlug}`)
+        : ((card.data.websiteDisplay ?? '').trim() ||
+            (rawCardWebsite ? rawCardWebsite.replace(/^https?:\/\//i, '').replace(/\/$/, '') : ''));
+
       const initialData: CardData = {
         ...card.data,
         name: primaryName,
@@ -217,8 +234,8 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         addressKr: card.data.addressKr ?? '',
         address_en: cleanAddressEn,
         addressLines: cleanAddressEn ? [cleanAddressEn] : [],
-        website: card.data.website || `https://${APP_BASE_DOMAIN}/${card.slug || 'master'}`,
-        websiteDisplay: card.data.websiteDisplay || `${APP_BASE_DOMAIN}/${card.slug || 'master'}`,
+        website: initialWebsite,
+        websiteDisplay: initialWebsiteDisplay,
         googleMapsUrl: card.data.googleMapsUrl ?? '',
         naverMapsUrl: card.data.naverMapsUrl ?? '',
         details: {
@@ -244,9 +261,9 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
       });
       setCategory(card.category || (isMyCardMode ? '글로벌 네트워크' : 'VIP 파트너'));
       setNotes(card.notes || '');
-      setSlug(card.slug || 'master');
-      setCustomDomain(card.customDomain || '');
-      setIsDefault(Boolean(card.isDefault));
+      setSlug(isMyCardMode ? defaultMySlug : '');
+      setCustomDomain(isMyCardMode ? (card.customDomain || '') : '');
+      setIsDefault(isMyCardMode ? Boolean(card.isDefault) : false);
       setHtmlFront(card.html_front || DEFAULT_LUXURY_HTML_FRONT);
       setHtmlBack(card.html_back || DEFAULT_LUXURY_HTML_BACK);
       setFrontImageUrl(card.front_image_url || card.scannedImage);
@@ -294,12 +311,19 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
     });
   };
 
-  const cleanCustomDomain = customDomain ? normalizeDomain(customDomain) : '';
-  const cleanSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'card';
-  const effectiveUrl = cleanCustomDomain
-    ? `https://${cleanCustomDomain}`
-    : `https://${APP_BASE_DOMAIN}/${cleanSlug}`;
-  const effectiveDisplayUrl = cleanCustomDomain || `${APP_BASE_DOMAIN}/${cleanSlug}`;
+  const cleanCustomDomain = isMyCardMode && customDomain ? normalizeDomain(customDomain) : '';
+  const cleanSlug = isMyCardMode
+    ? (slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'card')
+    : '';
+  const rawExternalWebsite = (formData.website ?? '').trim();
+  const effectiveUrl = isMyCardMode
+    ? (cleanCustomDomain ? `https://${cleanCustomDomain}` : `https://${APP_BASE_DOMAIN}/card/${cleanSlug}`)
+    : (rawExternalWebsite
+        ? (/^https?:\/\//i.test(rawExternalWebsite) ? rawExternalWebsite : `https://${rawExternalWebsite}`)
+        : '');
+  const effectiveDisplayUrl = isMyCardMode
+    ? (cleanCustomDomain || `${APP_BASE_DOMAIN}/card/${cleanSlug}`)
+    : (rawExternalWebsite ? rawExternalWebsite.replace(/^https?:\/\//i, '').replace(/\/$/, '') : '');
 
   const handleResetSample = () => {
     if (isCreating) {
@@ -316,8 +340,8 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         phoneRaw: '',
         whatsappUrl: '',
         email: '',
-        website: effectiveUrl,
-        websiteDisplay: effectiveDisplayUrl,
+        website: isMyCardMode ? effectiveUrl : '',
+        websiteDisplay: isMyCardMode ? effectiveDisplayUrl : '',
         addressLines: [],
         addressKr: '',
         address_en: '',
@@ -333,17 +357,34 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         googleMapsUrl: '',
         naverMapsUrl: ''
       });
+      setTheme('pure_white');
+      setLayoutType('editorial_minimal');
+      setCreationMode('template');
     } else {
+      const origWeb = (card.data.website ?? '').trim();
       setFormData({
-        ...CARD_DATA,
-        nameEn: CARD_DATA.nameKr,
-        nameKr: ''
+        ...card.data,
+        name: card.data.name || card.data.nameKr || '',
+        nameEn: card.data.nameEn ?? '',
+        nameKr: '',
+        website: isMyCardMode
+          ? (origWeb || `https://${APP_BASE_DOMAIN}/card/${card.slug || 'card'}`)
+          : origWeb,
+        websiteDisplay: isMyCardMode
+          ? ((card.data.websiteDisplay ?? '').trim() || `${APP_BASE_DOMAIN}/card/${card.slug || 'card'}`)
+          : ((card.data.websiteDisplay ?? '').trim() || (origWeb ? origWeb.replace(/^https?:\/\//i, '').replace(/\/$/, '') : ''))
       });
-      setSlug('master');
+      setSlug(isMyCardMode ? (card.slug || 'card') : '');
+      setCustomDomain(isMyCardMode ? (card.customDomain || '') : '');
+      setCategory(card.category || (isMyCardMode ? '글로벌 네트워크' : 'VIP 파트너'));
+      setNotes(card.notes || '');
+      setIsDefault(isMyCardMode ? Boolean(card.isDefault) : false);
+      setTheme(card.theme || 'pure_white');
+      setLayoutType(card.layout_type || 'editorial_minimal');
+      setCreationMode(
+        card.creation_mode || (card.isPhotoCard ? 'photo' : card.html_front ? 'custom_html' : 'template')
+      );
     }
-    setTheme('pure_white');
-    setLayoutType('editorial_minimal');
-    setCreationMode('template');
   };
 
   const handleSave = () => {
@@ -421,12 +462,12 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
       card_features: features,
       category,
       notes,
-      slug: cleanSlug,
-      customDomain: cleanCustomDomain || undefined,
+      slug: isMyCardMode ? cleanSlug : undefined,
+      customDomain: isMyCardMode ? (cleanCustomDomain || undefined) : undefined,
       isDefault: isMyCardMode ? isDefault : false,
-      isMyCard: isMyCardMode || card.isMyCard,
+      isMyCard: Boolean(isMyCardMode),
       creation_mode: creationMode,
-      owner_key: card.owner_key || `key_${Date.now()}`,
+      owner_key: isMyCardMode ? (card.owner_key || `key_${Date.now()}`) : undefined,
       created_at: card.created_at || new Date().toISOString(),
       details: {
         en_name: cleanNameEn,
@@ -472,10 +513,12 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
           <div className="flex items-center justify-between gap-4 pb-5">
             <h3 className="text-base sm:text-[17px] font-medium text-[#F2F2F5] tracking-tight">
               {isCreating
-                ? '새 명함 만들기'
+                ? isMyCardMode
+                  ? '새 내 명함 만들기'
+                  : '보관함 명함 등록'
                 : isMyCardMode
                   ? '내 명함 편집'
-                  : '명함 편집'}
+                  : '보관 명함 편집'}
             </h3>
 
             <div className="flex items-center gap-1.5 shrink-0">
@@ -565,6 +608,9 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                 onChangeSlug={setSlug}
                 notes={notes}
                 onChangeNotes={setNotes}
+                category={category}
+                onChangeCategory={setCategory}
+                isMyCardMode={isMyCardMode}
               />
             )}
 

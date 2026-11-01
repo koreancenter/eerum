@@ -76,7 +76,8 @@ export async function setAppPin(pin: string): Promise<void> {
   const legacyHash = await hashPin(pin);
   localStorage.setItem(PIN_STORAGE_KEY, legacyHash);
 
-  // 3. Mark session unlocked and record verification timestamp
+  // 3. Mark session unlocked, cache active session PIN for encryption, and record verification timestamp
+  setActiveSessionKey(null, pin);
   recordPinVerified();
   setSessionLocked(false);
 

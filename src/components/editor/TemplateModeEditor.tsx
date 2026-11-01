@@ -1,9 +1,14 @@
-import React, { useRef } from 'react';
-import { CardTheme, CardLayoutType, CardFeatures, CardData, CardCategory } from '../../types/card';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { CardTheme, CardLayoutType, CardFeatures, CardData } from '../../types/card';
 import { LAYOUT_PRESETS } from '../../constants/templates';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Plus } from 'lucide-react';
 import { THEME_OPTIONS } from '../CardEditorModal';
 import { APP_BASE_DOMAIN } from '../../utils/domain';
+import {
+  CATEGORIES_UPDATED_EVENT,
+  loadVaultCategories,
+  addVaultCategory,
+} from '../../utils/categories';
 
 interface TemplateModeEditorProps {
   theme: CardTheme;
@@ -52,6 +57,36 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
   onChangeSubTab
 }) => {
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const [storedCategories, setStoredCategories] = useState<string[]>(() => loadVaultCategories());
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const sync = () => setStoredCategories(loadVaultCategories());
+    window.addEventListener(CATEGORIES_UPDATED_EVENT, sync);
+    return () => window.removeEventListener(CATEGORIES_UPDATED_EVENT, sync);
+  }, []);
+
+  const categories = useMemo(() => {
+    if (category && !storedCategories.includes(category)) {
+      return [...storedCategories, category];
+    }
+    return storedCategories;
+  }, [storedCategories, category]);
+
+  const handleQuickAddCategory = () => {
+    const res = addVaultCategory(newCategoryName);
+    if (!res.ok || !res.added) {
+      setCategoryError(res.error || '카테고리를 추가할 수 없습니다.');
+      return;
+    }
+    setStoredCategories(res.categories);
+    onChangeCategory(res.added);
+    setNewCategoryName('');
+    setCategoryError(null);
+    setIsAddingCategory(false);
+  };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -176,14 +211,88 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
     );
   };
 
-  const categories: CardCategory[] = [
-    'VIP 파트너',
-    '글로벌 네트워크',
-    '공공·기관',
-    '투자·금융',
-    'IT·기술',
-    '기타'
-  ];
+  const renderCategoryField = () => (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <label className="text-xs text-zinc-400">분류</label>
+        {!isAddingCategory && (
+          <button
+            type="button"
+            onClick={() => {
+              setCategoryError(null);
+              setIsAddingCategory(true);
+            }}
+            className="text-[11px] text-zinc-400 hover:text-zinc-200 inline-flex items-center gap-0.5 cursor-pointer"
+          >
+            <Plus className="w-3 h-3 stroke-[1.75]" />
+            <span>새 분류</span>
+          </button>
+        )}
+      </div>
+
+      {isAddingCategory ? (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              maxLength={20}
+              autoFocus
+              value={newCategoryName}
+              onChange={(e) => {
+                setNewCategoryName(e.target.value);
+                if (categoryError) setCategoryError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleQuickAddCategory();
+                } else if (e.key === 'Escape') {
+                  setIsAddingCategory(false);
+                  setCategoryError(null);
+                }
+              }}
+              placeholder="새 카테고리 이름"
+              className={INPUT_CLASS}
+            />
+            <button
+              type="button"
+              onClick={handleQuickAddCategory}
+              disabled={!newCategoryName.trim()}
+              className="px-3 py-2.5 rounded-lg bg-[#EAEAE6] text-[#121214] font-medium text-xs shrink-0 disabled:opacity-40 cursor-pointer"
+            >
+              추가
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsAddingCategory(false);
+                setCategoryError(null);
+                setNewCategoryName('');
+              }}
+              className="px-2.5 py-2.5 rounded-lg text-zinc-400 hover:text-zinc-200 text-xs shrink-0 cursor-pointer"
+            >
+              취소
+            </button>
+          </div>
+          {categoryError && (
+            <p className="text-[11px] text-amber-300/90">{categoryError}</p>
+          )}
+        </div>
+      ) : (
+        <select
+          value={category}
+          onChange={(e) => onChangeCategory(e.target.value)}
+          className={`${INPUT_CLASS} cursor-pointer`}
+        >
+          {categories.map((cat) => (
+            <option key={cat} value={cat} className="bg-[#161618] text-[#EDEDEF]">
+              {cat}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-8">
@@ -517,63 +626,66 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
           {/* Address Slug & Classification */}
           <section className="border-t border-white/[0.06] pt-8 space-y-4">
             <h4 className="text-xs font-medium text-zinc-400 tracking-wide">
-              고유 주소 및 분류
+              {isMyCardMode ? '고유 주소 및 분류' : '웹사이트 및 보관함 분류'}
             </h4>
 
-            <div className="space-y-1.5">
-              <label className="text-xs text-zinc-400 block">웹 주소</label>
-              <div className="flex items-center rounded-lg bg-[#161618] border border-white/[0.06] focus-within:border-white/25 overflow-hidden">
-                <span className="px-3.5 py-2.5 text-zinc-400 font-mono select-none text-xs shrink-0 border-r border-white/[0.06]">
-                  {APP_BASE_DOMAIN}/
-                </span>
-                <input
-                  type="text"
-                  value={slug}
-                  onChange={(e) => onChangeSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                  placeholder="master"
-                  className="w-full px-3.5 py-2.5 bg-transparent text-[#EDEDEF] placeholder:text-zinc-400 focus:outline-none font-mono text-[13px]"
-                />
-              </div>
-            </div>
+            {isMyCardMode ? (
+              <>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-zinc-400 block">웹 주소</label>
+                  <div className="flex items-center rounded-lg bg-[#161618] border border-white/[0.06] focus-within:border-white/25 overflow-hidden">
+                    <span className="px-3.5 py-2.5 text-zinc-400 font-mono select-none text-xs shrink-0 border-r border-white/[0.06]">
+                      {APP_BASE_DOMAIN}/card/
+                    </span>
+                    <input
+                      type="text"
+                      value={slug}
+                      onChange={(e) => onChangeSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                      placeholder="master"
+                      className="w-full px-3.5 py-2.5 bg-transparent text-[#EDEDEF] placeholder:text-zinc-400 focus:outline-none font-mono text-[13px]"
+                    />
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400 block">커스텀 도메인</label>
-                <input
-                  type="text"
-                  value={customDomain}
-                  onChange={(e) => onChangeCustomDomain(e.target.value)}
-                  placeholder="card.domain.com"
-                  className={`${INPUT_CLASS} font-mono`}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400 block">분류</label>
-                <select
-                  value={category}
-                  onChange={(e) => onChangeCategory(e.target.value)}
-                  className={`${INPUT_CLASS} cursor-pointer`}
-                >
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat} className="bg-[#161618] text-[#EDEDEF]">
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-zinc-400 block">커스텀 도메인</label>
+                    <input
+                      type="text"
+                      value={customDomain}
+                      onChange={(e) => onChangeCustomDomain(e.target.value)}
+                      placeholder="card.domain.com"
+                      className={`${INPUT_CLASS} font-mono`}
+                    />
+                  </div>
+                  {renderCategoryField()}
+                </div>
 
-            {isMyCardMode && (
-              <div className="pt-1">
-                <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
+                <div className="pt-1">
+                  <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isDefault}
+                      onChange={(e) => onChangeIsDefault(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded accent-zinc-200 cursor-pointer"
+                    />
+                    <span className="text-xs text-zinc-400">대표 명함으로 설정</span>
+                  </label>
+                </div>
+              </>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-zinc-400 block">웹사이트</label>
                   <input
-                    type="checkbox"
-                    checked={isDefault}
-                    onChange={(e) => onChangeIsDefault(e.target.checked)}
-                    className="w-3.5 h-3.5 rounded accent-zinc-200 cursor-pointer"
+                    type="url"
+                    value={formData.website}
+                    onChange={(e) => onChangeFormField('website', e.target.value)}
+                    placeholder="https://example.com"
+                    className={`${INPUT_CLASS} font-mono`}
                   />
-                  <span className="text-xs text-zinc-400">대표 명함으로 설정</span>
-                </label>
+                </div>
+                {renderCategoryField()}
               </div>
             )}
           </section>

@@ -165,6 +165,15 @@ export interface StoredCard {
   };
 }
 
-export type CardCategory = '전체' | 'VIP 파트너' | '글로벌 네트워크' | '공공·기관' | '투자·금융' | 'IT·기술' | '기타';
+export type DefaultCardCategory =
+  | '전체'
+  | 'VIP 파트너'
+  | '글로벌 네트워크'
+  | '공공·기관'
+  | '투자·금융'
+  | 'IT·기술'
+  | '기타';
+
+export type CardCategory = DefaultCardCategory | (string & {});
 
 export type AppViewMode = 'my-card' | 'vault-cards' | 'vault-list';
