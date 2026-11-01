@@ -1,0 +1,11 @@
+{
+  "name": "Remix Remix Korean Center Global Network - Digital Business Card",
+  "description": "Interactive local-first digital business card studio with privacy-first on-device encryption and print-ready PDF generator.",
+  "requestFramePermissions": [
+    "publickey-credentials-create",
+    "publickey-credentials-get"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
