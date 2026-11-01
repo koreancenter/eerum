@@ -809,16 +809,24 @@ export default function App() {
   const isVaultTabActive = !isPublicExternalView && activeTab === 'vault';
   const isVaultDetailActive =
     isVaultTabActive && Boolean(selectedVaultCardId) && (Boolean(selectedVaultCard) || (isPinConfigured && isLocked));
+  const isIntroLandingView =
+    !isPublicExternalView &&
+    activeTab === 'my-card' &&
+    ((myCards.length === 0 && !isSamplePreview) || !currentMyCard);
 
   return (
     <>
       {/* SCREEN UI CONTAINER */}
       <div
         id="screen-app-container"
-        className="min-h-[100dvh] w-full max-w-[100vw] bg-[#0A0A0B] text-neutral-100 flex flex-col justify-between selection:bg-neutral-100 selection:text-neutral-950 font-sans pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] overflow-x-clip"
+        className={`${
+          isIntroLandingView
+            ? 'h-screen supports-[height:100dvh]:h-[100dvh] overflow-hidden'
+            : 'min-h-[100dvh] overflow-x-clip'
+        } w-full max-w-[100vw] bg-[#0A0A0B] text-neutral-100 flex flex-col justify-between selection:bg-neutral-100 selection:text-neutral-950 font-sans pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]`}
       >
         {/* Top Minimalist Luxury Header */}
-        <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-[#0A0A0B]/90 backdrop-blur-xl px-4 sm:px-8 py-2.5 sm:py-3.5 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] sm:pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pl-[calc(1rem+env(safe-area-inset-left,0px))] pr-[calc(1rem+env(safe-area-inset-right,0px))] flex items-center justify-between main-app-header">
+        <header className="shrink-0 sticky top-0 z-40 w-full border-b border-white/[0.08] bg-[#0A0A0B]/90 backdrop-blur-xl px-4 sm:px-8 py-2 sm:py-2.5 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] sm:pt-[calc(0.625rem+env(safe-area-inset-top,0px))] pl-[calc(1rem+env(safe-area-inset-left,0px))] pr-[calc(1rem+env(safe-area-inset-right,0px))] flex items-center justify-between main-app-header">
           {isUnauthenticatedExternalVisitor ? (
             /* Public Unauthenticated Visitor Header: Muted Brand Watermark Only */
             <>
@@ -990,10 +998,12 @@ export default function App() {
         {/* Main Showcase Viewport */}
         <main
           className={`flex-1 flex flex-col items-center ${
-            activeTab === 'vault' && !isVaultDetailActive && !isPublicExternalView
-              ? 'justify-start'
-              : 'justify-center'
-          } px-3 sm:px-4 py-2 sm:py-6 max-w-6xl mx-auto w-full min-w-0`}
+            isIntroLandingView
+              ? 'min-h-0 justify-center px-4 sm:px-6 py-2 overflow-hidden'
+              : activeTab === 'vault' && !isVaultDetailActive && !isPublicExternalView
+                ? 'justify-start px-3 sm:px-4 py-2 sm:py-5'
+                : 'justify-center px-3 sm:px-4 py-2 sm:py-5'
+          } max-w-6xl mx-auto w-full min-w-0`}
         >
           {isPublicExternalView && publicCard ? (
             /* ================= PUBLIC SHARED CARD LANDING VIEW (/card/:slug) ================= */
@@ -1208,7 +1218,7 @@ export default function App() {
             </LazyErrorBoundary>
           ) : (
             /* ================= MY CARDS STUDIO & CAROUSEL VIEW (`activeTab === 'my-card'`) ================= */
-            <div className="w-full flex flex-col items-center">
+            <div className="w-full min-h-0 flex flex-col items-center justify-center">
               {myCards.length === 0 && !isSamplePreview ? (
                 <WelcomeCard
                   onCreateFirstCard={handleOpenCreateModal}
@@ -1318,45 +1328,45 @@ export default function App() {
         </main>
 
         {/* Footer */}
-        <footer className="border-t border-white/10 py-2.5 sm:py-6 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] px-4 font-sans text-xs">
-          <div className="max-w-xl mx-auto flex flex-col items-center justify-center text-center">
-            <div className="flex items-center justify-center gap-2 sm:gap-3 mb-1.5 sm:mb-3">
+        <footer className="shrink-0 border-t border-white/[0.08] py-2 sm:py-2.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(0.625rem+env(safe-area-inset-bottom,0px))] px-4 sm:px-8 font-sans text-xs">
+          <div className="max-w-5xl mx-auto w-full flex items-center justify-between gap-3">
+            <p className="text-[10px] sm:text-[11px] text-white/50 tracking-widest font-light font-sans whitespace-nowrap select-none">
+              © {new Date().getFullYear()} GOGUMA CARD STUDIO
+            </p>
+
+            <div className="flex items-center justify-end gap-1.5 sm:gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => modals.openLegal('privacy')}
-                className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-white/[0.03] hover:bg-white/10 border border-white/10 hover:border-white/30 flex items-center justify-center text-zinc-300 hover:text-white transition-all duration-200 cursor-pointer shadow-sm active:scale-95 group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/[0.02] hover:bg-white/[0.08] border border-white/10 hover:border-white/25 flex items-center justify-center text-white/60 hover:text-white cursor-pointer active:scale-95 group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 title="개인정보처리방침"
                 aria-label="개인정보처리방침"
               >
-                <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white group-hover:scale-110 transition-transform duration-200" />
+                <ShieldCheck className="w-3.5 h-3.5 stroke-[1.5]" />
               </button>
 
               <button
                 type="button"
                 onClick={() => modals.openLegal('terms')}
-                className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-white/[0.03] hover:bg-white/10 border border-white/10 hover:border-white/30 flex items-center justify-center text-zinc-300 hover:text-white transition-all duration-200 cursor-pointer shadow-sm active:scale-95 group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/[0.02] hover:bg-white/[0.08] border border-white/10 hover:border-white/25 flex items-center justify-center text-white/60 hover:text-white cursor-pointer active:scale-95 group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 title="서비스 이용약관"
                 aria-label="서비스 이용약관"
               >
-                <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white group-hover:scale-110 transition-transform duration-200" />
+                <FileText className="w-3.5 h-3.5 stroke-[1.5]" />
               </button>
 
               {!isUnauthenticatedExternalVisitor && (
                 <button
                   type="button"
                   onClick={modals.openReset}
-                  className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-white/[0.03] hover:bg-white/10 border border-white/10 hover:border-white/30 flex items-center justify-center text-zinc-400 hover:text-white transition-all duration-200 cursor-pointer shadow-sm active:scale-95 group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/[0.02] hover:bg-white/[0.08] border border-white/10 hover:border-white/25 flex items-center justify-center text-white/50 hover:text-white cursor-pointer active:scale-95 group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                   title="로컬 데이터 초기화"
                   aria-label="로컬 데이터 초기화"
                 >
-                  <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-400 group-hover:text-white group-hover:rotate-[-45deg] transition-all duration-200" />
+                  <RotateCcw className="w-3.5 h-3.5 stroke-[1.5]" />
                 </button>
               )}
             </div>
-
-            <p className="text-[10px] sm:text-[11px] text-zinc-400 text-center tracking-wide font-sans">
-              © {new Date().getFullYear()} GOGUMA CARD STUDIO
-            </p>
           </div>
         </footer>
 

@@ -6,21 +6,18 @@ export interface WelcomeCardProps {
   onExploreSample: () => void;
 }
 
-const STUDIO_PILLARS = [
+const STUDIO_FEATURES = [
   {
-    index: '01',
-    title: '3D 오브제 스튜디오',
-    detail: '맞춤형 레이아웃 · 입체 회전 · 커스텀 코드',
+    title: '3D Studio',
+    sub: '3D Canvas / Custom Card',
   },
   {
-    index: '02',
-    title: '즉시 공유 및 인쇄',
-    detail: '오프라인 QR · vCard 연락처 · 300 DPI PDF',
+    title: 'Instant Share',
+    sub: 'Offline QR / 300 DPI PDF',
   },
   {
-    index: '03',
-    title: '제로 서버 로컬 금고',
-    detail: '기기 내 AES-256 암호화 · PIN 및 생체 인증',
+    title: 'Zero-Server Vault',
+    sub: 'AES-256 / On-Device',
   },
 ] as const;
 
@@ -31,76 +28,73 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
   return (
     <section
       aria-label="eerum 디지털 명함 스튜디오 소개"
-      className="relative w-full max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-16 select-none flex flex-col items-center justify-center text-center"
+      className="relative w-full max-w-2xl mx-auto px-2 sm:px-4 py-2 select-none flex flex-col items-center justify-center text-center"
     >
-      {/* Subtle Studio Spotlight Glow */}
+      {/* Subtle Ambient Architectural Illumination */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] sm:w-[520px] h-[260px] sm:h-[340px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.06),rgba(161,161,170,0.02),transparent_70%)] blur-3xl"
+        className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] sm:w-[480px] h-[180px] sm:h-[240px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.055),rgba(255,255,255,0.015)_45%,transparent_72%)] blur-2xl"
       />
 
-      {/* 1. Abstract Blank Card Emblem & Brand Header */}
-      <div className="relative z-10 flex flex-col items-center space-y-5 sm:space-y-6">
-        {/* Minimalist Blank Metallic Card Silhouette */}
+      {/* 1. Minimalist Card Emblem & Luxury Typography */}
+      <div className="relative z-10 flex flex-col items-center">
         <div
           aria-hidden="true"
-          className="w-12 h-8 rounded-lg bg-gradient-to-br from-[#202025] via-[#141417] to-[#0C0C0E] border border-white/15 shadow-[0_12px_32px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.22)] flex items-end justify-start p-2"
+          className="w-11 h-6 sm:w-12 sm:h-7 mb-3.5 sm:mb-4 rounded-md bg-gradient-to-br from-white/[0.10] via-white/[0.03] to-transparent border border-white/15 shadow-[0_10px_30px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.22)] flex items-end justify-start p-1.5"
         >
-          <span className="w-3.5 h-px bg-zinc-300/70" />
+          <span className="w-3 h-px bg-white/55" />
         </div>
 
-        <div className="space-y-3">
-          <p className="text-[10px] sm:text-[11px] font-mono tracking-[0.28em] text-zinc-500 uppercase">
-            Private Digital Identity Studio
-          </p>
+        <p className="h-[25px] text-[10px] sm:text-[11px] font-light tracking-[0.28em] text-white/50 uppercase">
+          Private Digital Identity Studio
+        </p>
 
-          <h1 className="text-4xl sm:text-6xl font-semibold tracking-tight text-zinc-50 text-balance">
-            eerum{' '}
-            <span className="font-light text-zinc-400 text-2xl sm:text-4xl tracking-normal">
-              이룸
-            </span>
-          </h1>
+        <h1 className="mt-2 sm:mt-2.5 h-[66px] text-[40px] font-medium tracking-wide text-white leading-tight text-balance">
+          eerum
+          <span className="ml-2.5 font-extralight text-white/50 text-xl sm:text-3xl tracking-widest">
+            이룸
+          </span>
+        </h1>
 
-          <p className="text-sm sm:text-base text-zinc-400 font-normal leading-relaxed max-w-md mx-auto text-balance pt-1">
-            서버에 남지 않는 온디바이스 암호화로
-            <br className="hidden sm:inline" /> 당신만의 디지털 명함과 프라이빗 보관함을 완성하세요.
-          </p>
-        </div>
+        <p className="mt-2.5 sm:mt-3 h-[45px] text-xs sm:text-sm text-white/60 font-light tracking-wide leading-relaxed max-w-md mx-auto text-balance">
+          서버에 남지 않는 온디바이스 암호화로
+          <br className="hidden sm:inline" /> 당신만의 디지털 명함과 프라이빗 보관함을 완성하세요.
+        </p>
       </div>
 
-      {/* 2. Focused Conversion CTAs */}
-      <div className="relative z-10 w-full max-w-md mt-8 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-3">
+      {/* 2. Compact Luxury Conversion CTAs */}
+      <div className="relative z-10 w-full max-w-md h-[64px] mt-5 sm:mt-6 flex flex-row items-center justify-center gap-2.5 sm:gap-3">
         <button
           type="button"
           onClick={onCreateFirstCard}
-          className="w-full sm:flex-1 min-h-[48px] px-6 py-3 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-sm shadow-[0_12px_36px_rgba(255,255,255,0.1)] flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+          className="h-10 sm:h-11 px-5 sm:px-6 rounded-xl bg-white hover:bg-neutral-200 text-neutral-950 font-semibold text-xs sm:text-[13px] tracking-wide shadow-[0_8px_28px_rgba(255,255,255,0.10)] hover:shadow-[0_12px_34px_rgba(255,255,255,0.18)] inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
         >
-          <Plus className="w-4 h-4 stroke-[2.25] shrink-0" />
+          <Plus className="w-3.5 h-3.5 stroke-[2.25] shrink-0" />
           <span>첫 명함 만들기</span>
         </button>
 
         <button
           type="button"
           onClick={onExploreSample}
-          className="w-full sm:w-auto min-h-[48px] px-6 py-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 text-zinc-200 hover:text-white font-medium text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
+          className="h-10 sm:h-11 px-4 sm:px-5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-white/25 text-white/75 hover:text-white font-normal text-xs sm:text-[13px] tracking-wide backdrop-blur-md inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
         >
-          <Eye className="w-4 h-4 text-zinc-400 shrink-0" />
+          <Eye className="w-3.5 h-3.5 stroke-[1.6] text-white/60 shrink-0" />
           <span>샘플 명함 둘러보기</span>
         </button>
       </div>
 
-      {/* 3. Quiet Architectural 3-Pillar Editorial Strip */}
-      <div className="relative z-10 w-full mt-10 sm:mt-14 pt-7 sm:pt-8 border-t border-white/[0.08] grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-0 sm:divide-x sm:divide-white/[0.08]">
-        {STUDIO_PILLARS.map((pillar) => (
-          <div key={pillar.index} className="px-4 flex flex-col items-center gap-1.5">
-            <span className="text-xs font-medium text-zinc-200 tracking-wide">
-              <span className="font-mono text-zinc-500 mr-1.5 tabular-nums">
-                {pillar.index}.
-              </span>
-              {pillar.title}
+      {/* 3. Sleek Horizontal 3-Column Glassmorphic Feature Bar */}
+      <div className="relative z-10 w-full max-w-2xl h-[83px] mt-6 sm:mt-8 grid grid-cols-3 gap-2 sm:gap-3">
+        {STUDIO_FEATURES.map((feature) => (
+          <div
+            key={feature.title}
+            className="rounded-xl bg-white/[0.025] hover:bg-white/[0.045] backdrop-blur-md border border-white/10 hover:border-white/20 px-2.5 py-2.5 sm:px-4 sm:py-3 flex flex-col items-center justify-center text-center gap-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-colors duration-200"
+          >
+            <span className="text-[11px] sm:text-xs font-normal tracking-wider text-white/90 leading-snug">
+              {feature.title}
             </span>
-            <span className="text-[11px] text-zinc-500 leading-relaxed">
-              {pillar.detail}
+            <span className="text-[9.5px] sm:text-[11px] font-light tracking-wide text-white/60 leading-snug">
+              {feature.sub}
             </span>
           </div>
         ))}
