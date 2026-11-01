@@ -988,7 +988,13 @@ export default function App() {
         </header>
 
         {/* Main Showcase Viewport */}
-        <main className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 py-2 sm:py-6 max-w-6xl mx-auto w-full">
+        <main
+          className={`flex-1 flex flex-col items-center ${
+            activeTab === 'vault' && !isVaultDetailActive && !isPublicExternalView
+              ? 'justify-start'
+              : 'justify-center'
+          } px-3 sm:px-4 py-2 sm:py-6 max-w-6xl mx-auto w-full`}
+        >
           {isPublicExternalView && publicCard ? (
             /* ================= PUBLIC SHARED CARD LANDING VIEW (/card/:slug) ================= */
             <div className="w-full flex flex-col items-center animate-in fade-in duration-300">

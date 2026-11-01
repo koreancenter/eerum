@@ -1,6 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Plus } from 'lucide-react';
 import { CardData } from '../../types/card';
 import { sanitizeHtml, detectUnsafeHtmlPatterns } from '../../utils/sanitizeHtml';
+import {
+  CATEGORIES_UPDATED_EVENT,
+  loadVaultCategories,
+  addVaultCategory,
+} from '../../utils/categories';
 
 interface CustomHtmlEditorProps {
   htmlFront: string;
@@ -11,6 +17,8 @@ interface CustomHtmlEditorProps {
   onChangeCardData: (field: keyof CardData, val: string) => void;
   activeFace: 'front' | 'back';
   onChangeActiveFace: (face: 'front' | 'back') => void;
+  category?: string;
+  onChangeCategory?: (cat: string) => void;
 }
 
 export const CLOUD_AI_QUIET_LUXURY_PROMPT = `너는 최고급 하이엔드 브랜딩 전문 시니어 UI/UX 디자이너이자 프론트엔드 엔지니어입니다.
@@ -81,11 +89,44 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
   cardData,
   onChangeCardData,
   activeFace,
-  onChangeActiveFace
+  onChangeActiveFace,
+  category,
+  onChangeCategory
 }) => {
   const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
   const [isGeneratingAi, setIsGeneratingAi] = useState<boolean>(false);
   const [aiStatus, setAiStatus] = useState<string | null>(null);
+  const [storedCategories, setStoredCategories] = useState<string[]>(() => loadVaultCategories());
+  const [isAddingCategory, setIsAddingCategory] = useState<boolean>(false);
+  const [newCategoryName, setNewCategoryName] = useState<string>('');
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const sync = () => setStoredCategories(loadVaultCategories());
+    window.addEventListener(CATEGORIES_UPDATED_EVENT, sync);
+    return () => window.removeEventListener(CATEGORIES_UPDATED_EVENT, sync);
+  }, []);
+
+  const categories = useMemo(() => {
+    if (category && !storedCategories.includes(category)) {
+      return [...storedCategories, category];
+    }
+    return storedCategories;
+  }, [storedCategories, category]);
+
+  const handleQuickAddCategory = () => {
+    if (!onChangeCategory) return;
+    const res = addVaultCategory(newCategoryName);
+    if (!res.ok || !res.added) {
+      setCategoryError(res.error || '카테고리를 추가할 수 없습니다.');
+      return;
+    }
+    setStoredCategories(res.categories);
+    onChangeCategory(res.added);
+    setNewCategoryName('');
+    setCategoryError(null);
+    setIsAddingCategory(false);
+  };
 
   const handleCopyPrompt = () => {
     let promptText = CLOUD_AI_QUIET_LUXURY_PROMPT;
@@ -249,6 +290,89 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
             />
           </div>
         </div>
+
+        {onChangeCategory && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-zinc-400">분류</label>
+              {!isAddingCategory && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryError(null);
+                    setIsAddingCategory(true);
+                  }}
+                  className="text-[11px] text-zinc-400 hover:text-zinc-200 inline-flex items-center gap-0.5 cursor-pointer"
+                >
+                  <Plus className="w-3 h-3 stroke-[1.75]" />
+                  <span>새 분류</span>
+                </button>
+              )}
+            </div>
+
+            {isAddingCategory ? (
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    maxLength={20}
+                    autoFocus
+                    value={newCategoryName}
+                    onChange={(e) => {
+                      setNewCategoryName(e.target.value);
+                      if (categoryError) setCategoryError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleQuickAddCategory();
+                      } else if (e.key === 'Escape') {
+                        setIsAddingCategory(false);
+                        setCategoryError(null);
+                      }
+                    }}
+                    placeholder="새 카테고리 이름"
+                    className={INPUT_CLASS}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleQuickAddCategory}
+                    disabled={!newCategoryName.trim()}
+                    className="px-3 py-2.5 rounded-lg bg-[#EAEAE6] text-[#121214] font-medium text-xs shrink-0 disabled:opacity-40 cursor-pointer"
+                  >
+                    추가
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddingCategory(false);
+                      setCategoryError(null);
+                      setNewCategoryName('');
+                    }}
+                    className="px-2 py-2.5 rounded-lg text-zinc-400 hover:text-zinc-200 text-xs shrink-0 cursor-pointer"
+                  >
+                    취소
+                  </button>
+                </div>
+                {categoryError && (
+                  <p className="text-[11px] text-amber-300/90">{categoryError}</p>
+                )}
+              </div>
+            ) : (
+              <select
+                value={category || categories[0] || 'VIP 파트너'}
+                onChange={(e) => onChangeCategory(e.target.value)}
+                className={`${INPUT_CLASS} cursor-pointer`}
+              >
+                {categories.map((cat) => (
+                  <option key={cat} value={cat} className="bg-[#161618] text-[#EDEDEF]">
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );

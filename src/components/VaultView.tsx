@@ -8,10 +8,15 @@ import {
   KeyRound,
   X,
   Plus,
+  Check,
   SlidersHorizontal,
 } from 'lucide-react';
 import { PhotoArchiveModal } from './PhotoArchiveModal';
-import { VaultCardItem, VaultCardListRow } from './VaultCardItem';
+import {
+  VaultCardItem,
+  VaultCardListRow,
+  VaultCardMobileListItem,
+} from './VaultCardItem';
 import { CategoryManagementPanel } from './CategoryManagementPanel';
 import {
   CATEGORIES_UPDATED_EVENT,
@@ -75,7 +80,8 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const cardsRef = useRef<StoredCard[]>(cards);
   cardsRef.current = cards;
 
-  const [vaultCategories, setVaultCategories] = useState<string[]>(() =>
+  // Dynamic categories persisted in localStorage
+  const [categories, setCategories] = useState<string[]>(() =>
     loadVaultCategories(cards)
   );
   const [selectedCategory, setSelectedCategory] = useState<string>('전체');
@@ -84,6 +90,13 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   const [photoArchiveCardId, setPhotoArchiveCardId] = useState<string | null>(null);
 
+  // Inline `+` Add Category Input State inside the horizontal category scroll bar
+  const [isInlineAdding, setIsInlineAdding] = useState<boolean>(false);
+  const [inlineCategoryName, setInlineCategoryName] = useState<string>('');
+  const [inlineAddError, setInlineAddError] = useState<string | null>(null);
+  const categoryScrollRef = useRef<HTMLDivElement>(null);
+  const inlineInputRef = useRef<HTMLInputElement>(null);
+
   // Category Management Panel State
   const [isCategoryPanelOpen, setIsCategoryPanelOpen] = useState<boolean>(false);
   const [focusAddInPanel, setFocusAddInPanel] = useState<boolean>(false);
@@ -91,7 +104,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
   // Sync dynamic categories from storage and card changes
   useEffect(() => {
     const syncCategories = () => {
-      setVaultCategories(loadVaultCategories(cardsRef.current));
+      setCategories(loadVaultCategories(cardsRef.current));
     };
     syncCategories();
     window.addEventListener(CATEGORIES_UPDATED_EVENT, syncCategories);
@@ -100,10 +113,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
 
   // Ensure selectedCategory falls back to '전체' if removed externally
   useEffect(() => {
-    if (selectedCategory !== '전체' && !vaultCategories.includes(selectedCategory)) {
+    if (selectedCategory !== '전체' && !categories.includes(selectedCategory)) {
       setSelectedCategory('전체');
     }
-  }, [selectedCategory, vaultCategories]);
+  }, [selectedCategory, categories]);
 
   // Debounce searchQuery updates to prevent full list re-filtering & item re-renders on every keystroke
   useEffect(() => {
@@ -168,14 +181,14 @@ export const VaultView: React.FC<VaultViewProps> = ({
   );
 
   const filterCategories = useMemo(
-    () => ['전체', ...vaultCategories],
-    [vaultCategories]
+    () => ['전체', ...categories],
+    [categories]
   );
 
   // Single-pass memoized category counts
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { 전체: cards.length };
-    for (const cat of vaultCategories) {
+    for (const cat of categories) {
       counts[cat] = 0;
     }
     for (let i = 0; i < cards.length; i++) {
@@ -185,7 +198,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
       }
     }
     return counts;
-  }, [cards, vaultCategories]);
+  }, [cards, categories]);
 
   // Memoized search + category filter using debounced search query
   const filteredCards = useMemo(() => {
@@ -218,8 +231,49 @@ export const VaultView: React.FC<VaultViewProps> = ({
     });
   }, [cards, selectedCategory, debouncedSearchQuery]);
 
+  // Inline `+` Pill Add Category Handlers
+  const handleStartInlineAdd = useCallback(() => {
+    setInlineAddError(null);
+    setInlineCategoryName('');
+    setIsInlineAdding(true);
+    window.setTimeout(() => {
+      if (categoryScrollRef.current) {
+        categoryScrollRef.current.scrollTo({
+          left: categoryScrollRef.current.scrollWidth,
+          behavior: 'smooth',
+        });
+      }
+      inlineInputRef.current?.focus();
+    }, 40);
+  }, []);
+
+  const handleCancelInlineAdd = useCallback(() => {
+    setIsInlineAdding(false);
+    setInlineCategoryName('');
+    setInlineAddError(null);
+  }, []);
+
+  const handleCommitInlineAdd = useCallback(
+    (e?: React.FormEvent) => {
+      if (e) e.preventDefault();
+      const res = addVaultCategory(inlineCategoryName, cardsRef.current);
+      if (!res.ok || !res.added) {
+        setInlineAddError(res.error || '카테고리를 추가할 수 없습니다.');
+        return;
+      }
+      setCategories(res.categories);
+      setSelectedCategory(res.added);
+      setIsInlineAdding(false);
+      setInlineCategoryName('');
+      setInlineAddError(null);
+    },
+    [inlineCategoryName]
+  );
+
   // Category Management Panel Callbacks
   const openCategoryPanel = useCallback((focusAdd = false) => {
+    setIsInlineAdding(false);
+    setInlineAddError(null);
     setFocusAddInPanel(focusAdd);
     setIsCategoryPanelOpen(true);
   }, []);
@@ -232,8 +286,9 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const handlePanelAddCategory = useCallback(
     (rawName: string) => {
       const res = addVaultCategory(rawName, cardsRef.current);
-      if (res.ok) {
-        setVaultCategories(res.categories);
+      if (res.ok && res.added) {
+        setCategories(res.categories);
+        setSelectedCategory(res.added);
       }
       return res;
     },
@@ -244,7 +299,6 @@ export const VaultView: React.FC<VaultViewProps> = ({
     (oldName: string, newName: string) => {
       const snapshot = cardsRef.current;
       const trimmed = newName.trim();
-      // Pre-validate before optimistic ref update
       const preCheck = renameVaultCategory(oldName, trimmed, snapshot);
       if (!preCheck.ok || !preCheck.renamed) {
         return preCheck;
@@ -254,7 +308,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
       cardsRef.current = snapshot.map((c) =>
         c.category === oldName ? { ...c, category: renamed } : c
       );
-      setVaultCategories(preCheck.categories);
+      setCategories(preCheck.categories);
 
       if (selectedCategory === oldName) {
         setSelectedCategory(renamed);
@@ -277,7 +331,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
       cardsRef.current = snapshot.map((c) =>
         c.category === sourceCategory ? { ...c, category: resolvedTarget } : c
       );
-      setVaultCategories(res.categories);
+      setCategories(res.categories);
 
       if (selectedCategory === sourceCategory) {
         setSelectedCategory(resolvedTarget);
@@ -299,7 +353,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
       cardsRef.current = snapshot.map((c) =>
         c.category === targetCategory ? { ...c, category: res.fallback } : c
       );
-      setVaultCategories(res.categories);
+      setCategories(res.categories);
 
       if (selectedCategory === targetCategory) {
         setSelectedCategory(res.movedCount > 0 ? res.fallback : '전체');
@@ -312,7 +366,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
 
   const handlePanelResetCategories = useCallback(() => {
     resetVaultCategories();
-    setVaultCategories(loadVaultCategories(cardsRef.current));
+    setCategories(loadVaultCategories(cardsRef.current));
   }, []);
 
   if (isLocked) {
@@ -338,15 +392,15 @@ export const VaultView: React.FC<VaultViewProps> = ({
   }
 
   return (
-    <div className="w-full min-w-0 max-w-6xl mx-auto grid grid-cols-1 gap-4 animate-in fade-in duration-300">
+    <div className="w-full min-w-0 max-w-6xl mx-auto grid grid-cols-1 gap-2.5 sm:gap-3.5 animate-in fade-in duration-300">
       {/* Flexible 2-Row CSS Grid Toolbar: Top Controls + Dedicated Category Scroll Bar */}
       <div
         role="region"
         aria-label="명함 보관함 검색 및 필터 도구 모음"
-        className="grid grid-cols-1 gap-3 w-full min-w-0 pb-3.5 border-b border-white/10"
+        className="grid grid-cols-1 gap-2 sm:gap-2.5 w-full min-w-0 pb-2.5 sm:pb-3 border-b border-white/10"
       >
         {/* Top Grid Section: Search Bar + Control Buttons (Grid / List / Add) */}
-        <div className="grid grid-cols-1 min-[340px]:grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 sm:gap-4 w-full min-w-0">
+        <div className="grid grid-cols-1 min-[340px]:grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:gap-4 w-full min-w-0">
           {/* Search Input Cell */}
           <div className="relative w-full min-w-0 sm:max-w-md">
             <Search className="w-4 h-4 stroke-[1.5] text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -356,7 +410,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="이름, 회사, 직함, 메모 검색"
               aria-label="명함 보관함 검색"
-              className="w-full h-10 pl-9 pr-8 rounded-xl bg-[#121214] border border-white/10 text-xs text-neutral-200 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors"
+              className="w-full h-9 sm:h-10 pl-9 pr-8 rounded-xl bg-[#121214] border border-white/10 text-xs text-neutral-200 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors"
             />
             {searchQuery && (
               <button
@@ -376,7 +430,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
             <div
               role="group"
               aria-label="보관함 보기 방식"
-              className="grid grid-cols-2 p-0.5 h-10 bg-[#121214] rounded-xl border border-white/10 shrink-0"
+              className="grid grid-cols-2 p-0.5 h-9 sm:h-10 bg-[#121214] rounded-xl border border-white/10 shrink-0"
             >
               <button
                 type="button"
@@ -384,7 +438,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 aria-pressed={viewMode === 'cards'}
                 aria-label="카드 뷰"
                 title="카드 뷰"
-                className={`w-9 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                className={`w-8 sm:w-9 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
                   viewMode === 'cards'
                     ? 'bg-white/12 text-white'
                     : 'text-zinc-400 hover:text-white'
@@ -398,7 +452,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 aria-pressed={viewMode === 'list'}
                 aria-label="리스트 뷰"
                 title="리스트 뷰"
-                className={`w-9 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                className={`w-8 sm:w-9 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
                   viewMode === 'list'
                     ? 'bg-white/12 text-white'
                     : 'text-zinc-400 hover:text-white'
@@ -413,17 +467,18 @@ export const VaultView: React.FC<VaultViewProps> = ({
               onClick={onOpenScan}
               aria-label="실물 명함 사진 등록"
               title="실물 명함 사진 등록"
-              className="h-10 w-10 sm:w-auto sm:px-3.5 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+              className="h-9 w-9 sm:h-10 sm:w-auto sm:px-3.5 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
             >
-              <CameraPlusIcon className="w-[18px] h-[18px] shrink-0" />
+              <CameraPlusIcon className="w-[17px] h-[17px] sm:w-[18px] sm:h-[18px] shrink-0" />
               <span className="hidden sm:inline whitespace-nowrap">명함 추가</span>
             </button>
           </div>
         </div>
 
         {/* Bottom Grid Section: Dedicated Full-Width Horizontal Scrollable Category Bar */}
-        <div className="w-full min-w-0 overflow-hidden">
+        <div className="w-full min-w-0 overflow-hidden space-y-1.5">
           <div
+            ref={categoryScrollRef}
             role="tablist"
             aria-label="보관함 카테고리 필터"
             className="w-full min-w-0 overflow-x-auto whitespace-nowrap scrollbar-hide overscroll-x-contain touch-pan-x scroll-smooth flex items-center gap-1.5 py-0.5"
@@ -457,26 +512,72 @@ export const VaultView: React.FC<VaultViewProps> = ({
               );
             })}
 
+            {/* Append `+` Add Category Pill Button OR Inline Category Input at the end of the scroll container */}
+            {isInlineAdding ? (
+              <form
+                onSubmit={handleCommitInlineAdd}
+                className="min-h-[36px] pl-3 pr-1.5 py-1 rounded-full bg-[#161618] border border-white/25 inline-flex items-center gap-1 shrink-0"
+              >
+                <input
+                  ref={inlineInputRef}
+                  type="text"
+                  maxLength={20}
+                  value={inlineCategoryName}
+                  onChange={(e) => {
+                    setInlineCategoryName(e.target.value);
+                    if (inlineAddError) setInlineAddError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      handleCancelInlineAdd();
+                    }
+                  }}
+                  placeholder="새 카테고리명"
+                  aria-label="새 카테고리 이름 입력"
+                  className="w-28 sm:w-32 bg-transparent text-xs text-white placeholder:text-zinc-500 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={!inlineCategoryName.trim()}
+                  aria-label="카테고리 저장"
+                  title="저장"
+                  className="w-6 h-6 rounded-full bg-white hover:bg-zinc-200 disabled:opacity-35 text-neutral-950 flex items-center justify-center cursor-pointer shrink-0"
+                >
+                  <Check className="w-3.5 h-3.5 stroke-[2.2]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelInlineAdd}
+                  aria-label="추가 취소"
+                  title="취소"
+                  className="w-6 h-6 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center cursor-pointer shrink-0"
+                >
+                  <X className="w-3.5 h-3.5 stroke-[1.75]" />
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStartInlineAdd}
+                aria-label="새 카테고리 추가"
+                title="새 카테고리 추가"
+                className="min-h-[36px] px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 text-xs text-zinc-300 hover:text-white bg-[#121214] hover:bg-white/10 border border-dashed border-white/20 hover:border-white/35 transition-colors cursor-pointer inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2]" />
+                <span>추가</span>
+              </button>
+            )}
+
             <span className="w-px h-4 bg-white/10 shrink-0 mx-0.5" aria-hidden="true" />
 
-            {/* Quick Add Category Chip */}
-            <button
-              type="button"
-              onClick={() => openCategoryPanel(true)}
-              className="min-h-[36px] px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 text-xs text-zinc-400 hover:text-white border border-dashed border-white/15 hover:border-white/30 hover:bg-white/[0.04] transition-colors cursor-pointer inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
-              title="새 카테고리 추가"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[1.75]" />
-              <span>추가</span>
-            </button>
-
-            {/* Category Management Panel Trigger */}
+            {/* Category Management Panel Trigger (Edit / Merge / Delete Categories) */}
             <button
               type="button"
               onClick={() => openCategoryPanel(false)}
               aria-expanded={isCategoryPanelOpen}
               aria-label="카테고리 관리 패널 열기"
-              title="카테고리 이름 변경 및 병합 관리"
+              title="카테고리 이름 변경·병합·삭제 관리"
               className={`min-h-[36px] px-3 py-1.5 rounded-full border text-xs font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
                 isCategoryPanelOpen
                   ? 'bg-white text-neutral-950 border-white font-semibold'
@@ -484,16 +585,26 @@ export const VaultView: React.FC<VaultViewProps> = ({
               }`}
             >
               <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5]" />
-              <span>카테고리 관리</span>
+              <span>관리</span>
             </button>
           </div>
+
+          {inlineAddError && (
+            <p role="alert" className="text-[11px] text-amber-300/90 pl-1">
+              {inlineAddError}
+            </p>
+          )}
         </div>
       </div>
 
       {/* Content Rendering: Cards Grid or List Table */}
       {filteredCards.length === 0 ? (
         <div className="py-20 text-center space-y-3 p-8 rounded-3xl bg-neutral-900/40 border border-neutral-800/60">
-          <p className="text-sm font-semibold text-neutral-300">검색 조건에 일치하는 명함이 없습니다.</p>
+          <p className="text-sm font-semibold text-neutral-300">
+            {selectedCategory !== '전체' && !debouncedSearchQuery
+              ? `'${selectedCategory}' 카테고리에 등록된 명함이 없습니다.`
+              : '검색 조건에 일치하는 명함이 없습니다.'}
+          </p>
           <p className="text-xs text-zinc-400">실물 명함 사진을 촬영하거나 새 명함을 등록해 보세요.</p>
           <button
             type="button"
@@ -506,7 +617,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
         </div>
       ) : viewMode === 'cards' ? (
         /* ================= CARDS GALLERY VIEW ================= */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 min-w-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3.5 min-w-0">
           {filteredCards.map((card) => (
             <VaultCardItem
               key={card.id}
@@ -520,19 +631,35 @@ export const VaultView: React.FC<VaultViewProps> = ({
           ))}
         </div>
       ) : (
-        /* ================= EDITORIAL LIST VIEW ================= */
-        <div className="rounded-2xl border border-zinc-800/80 bg-[#121214] overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
+        /* ================= EDITORIAL LIST VIEW (Compact Mobile Rows + Desktop Table) ================= */
+        <div className="rounded-xl sm:rounded-2xl border border-zinc-800/80 bg-[#121214] overflow-hidden shadow-xl">
+          {/* Mobile Compact Horizontal List Items (< md) */}
+          <div className="md:hidden divide-y divide-zinc-800/80">
+            {filteredCards.map((card) => (
+              <VaultCardMobileListItem
+                key={card.id}
+                card={card}
+                onSelectCard={handleSelectCard}
+                onEditCard={handleEditCard}
+                onDeleteCard={handleDeleteCard}
+                onExportCard={handleExportCard}
+                onOpenPhotoArchive={handleOpenPhotoArchive}
+              />
+            ))}
+          </div>
+
+          {/* Desktop Editorial Table (md+) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-zinc-800/80 bg-[#0A0A0B] text-zinc-400 font-mono text-[10px] uppercase tracking-wider">
-                  <th className="py-3 px-4">성명</th>
-                  <th className="py-3 px-4">직함</th>
-                  <th className="py-3 px-4">소속 회사/기관</th>
-                  <th className="py-3 px-4">카테고리</th>
-                  <th className="py-3 px-4">실물 보관</th>
-                  <th className="py-3 px-4">연락처</th>
-                  <th className="py-3 px-4 text-right">액션</th>
+                  <th className="py-2.5 px-3.5">성명</th>
+                  <th className="py-2.5 px-3.5">직함</th>
+                  <th className="py-2.5 px-3.5">소속 회사/기관</th>
+                  <th className="py-2.5 px-3.5">카테고리</th>
+                  <th className="py-2.5 px-3.5">실물 보관</th>
+                  <th className="py-2.5 px-3.5">연락처</th>
+                  <th className="py-2.5 px-3.5 text-right">액션</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/80 text-neutral-300">
@@ -543,6 +670,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                     onSelectCard={handleSelectCard}
                     onEditCard={handleEditCard}
                     onDeleteCard={handleDeleteCard}
+                    onExportCard={handleExportCard}
                     onOpenPhotoArchive={handleOpenPhotoArchive}
                   />
                 ))}
@@ -563,7 +691,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
       <CategoryManagementPanel
         isOpen={isCategoryPanelOpen}
         onClose={closeCategoryPanel}
-        categories={vaultCategories}
+        categories={categories}
         categoryCounts={categoryCounts}
         totalCardCount={cards.length}
         focusAddOnOpen={focusAddInPanel}

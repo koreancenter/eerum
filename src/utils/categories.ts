@@ -6,7 +6,6 @@ export const DEFAULT_VAULT_CATEGORIES = [
   '공공·기관',
   '투자·금융',
   'IT·기술',
-  '기타',
 ] as const;
 
 export const FALLBACK_CATEGORY = '기타';

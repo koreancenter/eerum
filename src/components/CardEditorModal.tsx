@@ -18,6 +18,7 @@ import {
 import { PhotoArchivingEditor } from './editor/PhotoArchivingEditor';
 import { EditorPreviewPanel } from './editor/EditorPreviewPanel';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
+import { loadVaultCategories } from '../utils/categories';
 
 interface CardEditorModalProps {
   isOpen: boolean;
@@ -103,9 +104,12 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
     ...card.data,
     nameEn: card.data.nameEn ?? ''
   });
-  const [category, setCategory] = useState<string>(
-    card.category || (isMyCardMode ? '글로벌 네트워크' : 'VIP 파트너')
-  );
+  const [category, setCategory] = useState<string>(() => {
+    const dynamicCats = loadVaultCategories();
+    if (card.category) return card.category;
+    const preferred = isMyCardMode ? '글로벌 네트워크' : 'VIP 파트너';
+    return dynamicCats.includes(preferred) ? preferred : dynamicCats[0] || preferred;
+  });
   const [notes, setNotes] = useState<string>(card.notes || '');
   const [slug, setSlug] = useState<string>(
     isMyCardMode ? (card.slug || `card-${String(Date.now()).slice(-4)}`) : ''
@@ -259,7 +263,15 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         custom_logo: card.card_features?.custom_logo ?? '',
         monogram_text: card.card_features?.monogram_text ?? ''
       });
-      setCategory(card.category || (isMyCardMode ? '글로벌 네트워크' : 'VIP 파트너'));
+      const currentDynamicCats = loadVaultCategories();
+      const preferredDefault = isMyCardMode ? '글로벌 네트워크' : 'VIP 파트너';
+      const resolvedCategory =
+        card.category && (!isCreating || currentDynamicCats.includes(card.category))
+          ? card.category
+          : currentDynamicCats.includes(preferredDefault)
+            ? preferredDefault
+            : currentDynamicCats[0] || preferredDefault;
+      setCategory(resolvedCategory);
       setNotes(card.notes || '');
       setSlug(isMyCardMode ? defaultMySlug : '');
       setCustomDomain(isMyCardMode ? (card.customDomain || '') : '');
@@ -624,6 +636,8 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                 onChangeCardData={handleFormFieldChange}
                 activeFace={htmlEditorActiveFace}
                 onChangeActiveFace={setHtmlEditorActiveFace}
+                category={category}
+                onChangeCategory={setCategory}
               />
             )}
           </div>
