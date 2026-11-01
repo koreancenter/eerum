@@ -9,38 +9,42 @@ interface SandboxedCardRendererProps {
   style?: React.CSSProperties;
 }
 
+function extractParentStyles(): string {
+  if (typeof document === 'undefined') return '';
+  try {
+    return Array.from(document.querySelectorAll('style'))
+      .map((node) => node.textContent || '')
+      .filter(Boolean)
+      .join('\n')
+      .replace(/<\/style/gi, '<\\/style');
+  } catch {
+    return '';
+  }
+}
+
 /**
  * SandboxedCardRenderer
- * 
- * Dual-layer XSS defense for user-provided custom HTML / Tailwind cards:
+ *
+ * Dual-layer XSS & mXSS defense for user-provided custom HTML / Tailwind cards
+ * across both interactive screen rendering and print/PDF rendering (`isPrintPreview`):
  * 1. Layer 1: Unified strict DOMPurify allowlist sanitization (`sanitizeHtml`) blocking
  *    scripts, iframes, objects, event handlers, and unsafe inline CSS/URI payloads.
- * 2. Layer 2: Sandboxed <iframe> with `sandbox=""` + strict Content-Security-Policy meta tag
- *    restricting script execution, same-origin access, forms, objects, and network exfiltration.
+ * 2. Layer 2: Mandatory opaque-origin sandboxed `<iframe>` (`sandbox=""`) + strict
+ *    Content-Security-Policy meta tag in ALL modes (including print preview), ensuring
+ *    sanitized markup is never injected into the host document via `dangerouslySetInnerHTML`.
  */
 export const SandboxedCardRenderer: React.FC<SandboxedCardRendererProps> = ({
   html,
   isPortrait = false,
   isPrintPreview = false,
   className = '',
-  style = {}
+  style = {},
 }) => {
-  const [parentCss, setParentCss] = useState<string>('');
+  const [parentCss, setParentCss] = useState<string>(() => extractParentStyles());
 
-  // Extract Tailwind stylesheet rules from parent DOM to render inside sandbox without external requests
   useEffect(() => {
-    if (typeof document === 'undefined') return;
-    try {
-      const styles = Array.from(document.querySelectorAll('style'))
-        .map((node) => node.textContent || '')
-        .filter(Boolean)
-        .join('\n')
-        .replace(/<\/style/gi, '<\\/style');
-      setParentCss(styles);
-    } catch {
-      // Quiet fail-safe: minimal baseline fallback styles
-    }
-  }, []);
+    setParentCss(extractParentStyles());
+  }, [html, isPrintPreview]);
 
   const sanitized = useMemo(() => {
     return sanitizeHtml(html);
@@ -64,6 +68,14 @@ export const SandboxedCardRenderer: React.FC<SandboxedCardRendererProps> = ({
       background: transparent;
       font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
       -webkit-font-smoothing: antialiased;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    @media print {
+      html, body, * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
     }
     ${parentCss}
   </style>
@@ -74,13 +86,14 @@ export const SandboxedCardRenderer: React.FC<SandboxedCardRendererProps> = ({
 </html>`;
   }, [sanitized, parentCss]);
 
-  // For print preview, also support direct sanitized markup with zero scripts
-  if (isPrintPreview) {
+  // Safe React structural fallback when custom HTML is empty (zero raw HTML injection)
+  if (!sanitized.trim()) {
     return (
       <div
-        className={`w-full h-full overflow-hidden ${className}`}
+        aria-hidden="true"
+        data-orientation={isPortrait ? 'portrait' : 'landscape'}
+        className={`w-full h-full overflow-hidden bg-[#121214] ${className}`}
         style={style}
-        dangerouslySetInnerHTML={{ __html: sanitized }}
       />
     );
   }
@@ -90,12 +103,10 @@ export const SandboxedCardRenderer: React.FC<SandboxedCardRendererProps> = ({
       title="Secure Business Card Renderer"
       sandbox=""
       srcDoc={srcDocContent}
-      className={`w-full h-full border-0 pointer-events-none select-none block ${className}`}
-      style={{
-        ...style,
-        backgroundColor: 'transparent',
-      }}
-      loading="lazy"
+      data-orientation={isPortrait ? 'portrait' : 'landscape'}
+      className={`w-full h-full border-0 pointer-events-none select-none block bg-transparent ${className}`}
+      style={style}
+      loading={isPrintPreview ? 'eager' : 'lazy'}
     />
   );
 };

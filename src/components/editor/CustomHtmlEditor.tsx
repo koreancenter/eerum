@@ -94,8 +94,7 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
   onChangeCategory
 }) => {
   const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
-  const [isGeneratingAi, setIsGeneratingAi] = useState<boolean>(false);
-  const [aiStatus, setAiStatus] = useState<string | null>(null);
+  const [templateStatus, setTemplateStatus] = useState<string | null>(null);
   const [storedCategories, setStoredCategories] = useState<string[]>(() => loadVaultCategories());
   const [isAddingCategory, setIsAddingCategory] = useState<boolean>(false);
   const [newCategoryName, setNewCategoryName] = useState<string>('');
@@ -142,41 +141,11 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
     setTimeout(() => setCopiedPrompt(false), 2000);
   };
 
-  const handleGenerateDirectAi = async () => {
-    setIsGeneratingAi(true);
-    setAiStatus('코드를 구성하는 중...');
-    try {
-      const res = await fetch('/api/generate-card-html', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: CLOUD_AI_QUIET_LUXURY_PROMPT,
-          profileData: {
-            name: cardData.name || '홍길동',
-            company: cardData.organizationKr || cardData.organization || '고구마 스튜디오',
-            title: cardData.titleKr || cardData.title || '수석 디자이너',
-            phone: cardData.phone || '010-1234-5678',
-            email: cardData.email || 'contact@example.com',
-            website: cardData.website || 'card.goguma.app'
-          }
-        })
-      });
-      const data = await res.json();
-      if (data.success && data.html) {
-        onChangeFront(sanitizeHtml(data.html));
-        setAiStatus('새로운 코드가 적용되었습니다.');
-      } else {
-        onChangeFront(sanitizeHtml(DEFAULT_LUXURY_HTML_FRONT));
-        onChangeBack(sanitizeHtml(DEFAULT_LUXURY_HTML_BACK));
-        setAiStatus('기본 템플릿이 적용되었습니다.');
-      }
-    } catch {
-      onChangeFront(sanitizeHtml(DEFAULT_LUXURY_HTML_FRONT));
-      setAiStatus('기본 템플릿이 적용되었습니다.');
-    } finally {
-      setIsGeneratingAi(false);
-      setTimeout(() => setAiStatus(null), 2800);
-    }
+  const handleApplyDefaultTemplate = () => {
+    onChangeFront(sanitizeHtml(DEFAULT_LUXURY_HTML_FRONT));
+    onChangeBack(sanitizeHtml(DEFAULT_LUXURY_HTML_BACK));
+    setTemplateStatus('기본 템플릿 코드가 적용되었습니다.');
+    setTimeout(() => setTemplateStatus(null), 2400);
   };
 
   const currentHtml = activeFace === 'front' ? htmlFront : htmlBack;
@@ -226,11 +195,10 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
             <span className="text-zinc-400 select-none" aria-hidden="true">·</span>
             <button
               type="button"
-              onClick={handleGenerateDirectAi}
-              disabled={isGeneratingAi}
-              className="text-zinc-400 hover:text-[#F2F2F5] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              onClick={handleApplyDefaultTemplate}
+              className="text-zinc-400 hover:text-[#F2F2F5] cursor-pointer whitespace-nowrap"
             >
-              {isGeneratingAi ? '적용 중...' : '기본 코드 적용'}
+              기본 코드 적용
             </button>
           </div>
         </div>
@@ -248,12 +216,12 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
           spellCheck={false}
         />
 
-        {(aiStatus || detectedUnsafe.length > 0) && (
+        {(templateStatus || detectedUnsafe.length > 0) && (
           <div className="flex items-center justify-between text-[11px] text-zinc-400 pt-0.5">
             {detectedUnsafe.length > 0 ? (
               <span>허용되지 않는 스크립트 속성은 자동으로 제외됩니다.</span>
             ) : (
-              <span>{aiStatus}</span>
+              <span>{templateStatus}</span>
             )}
           </div>
         )}

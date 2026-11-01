@@ -47,7 +47,6 @@ export interface Env {
   DB: D1DatabaseLike;
   R2?: unknown;
   ASSETS: { fetch: (request: Request) => Promise<Response> };
-  GEMINI_API_KEY?: string;
   BASE_DOMAIN?: string;
 }
 
@@ -323,31 +322,7 @@ export default {
       }
     }
 
-    // 7. Local Photo Scan Confirmation Endpoint: POST /api/scan-card
-    if (url.pathname === "/api/scan-card" && request.method === "POST") {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          localOnly: true,
-          message: "Zero-AI Local Photo Archiving Active: 카드 사진이 브라우저 로컬 저장소에 안전하게 보관되었습니다."
-        }),
-        { headers: corsHeaders }
-      );
-    }
-
-    // 8. Custom HTML / Tailwind Generator Fallback: POST /api/generate-card-html
-    if (url.pathname === "/api/generate-card-html" && request.method === "POST") {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          fallback: true,
-          message: "Custom HTML template presets are served client-side."
-        }),
-        { headers: corsHeaders }
-      );
-    }
-
-    // 9. Static Asset Fallback (Vite Single Page App with /card/:slug route support)
+    // 7. Static Asset Fallback (Vite Single Page App with /card/:slug route support)
     if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
       const assetRes = await env.ASSETS.fetch(request);
       if (assetRes.status === 404 && request.method === "GET" && !url.pathname.startsWith("/api/")) {
