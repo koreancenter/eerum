@@ -1,15 +1,12 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useRef } from 'react';
 import { CardTheme, CardLayoutType, CardFeatures, CardData } from '../../types/card';
 import { LAYOUT_PRESETS } from '../../constants/templates';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { THEME_OPTIONS } from '../CardEditorModal';
 import { APP_BASE_DOMAIN } from '@/utils/cardSerializer';
 import { LayoutMiniWireframe } from './LayoutMiniWireframe';
-import {
-  CATEGORIES_UPDATED_EVENT,
-  loadVaultCategories,
-  addVaultCategory,
-} from '../../utils/categories';
+import { CategorySelectSection, EDITOR_INPUT_CLASS } from './CategorySelectSection';
+import { ProfileFieldsGroup } from './ProfileFieldsGroup';
 
 interface TemplateModeEditorProps {
   theme: CardTheme;
@@ -33,9 +30,6 @@ interface TemplateModeEditorProps {
   onChangeSubTab: (tab: 'visual_atelier' | 'identity_profile') => void;
 }
 
-const INPUT_CLASS =
-  'w-full px-3.5 py-2.5 rounded-lg bg-[#161618] border border-white/[0.06] hover:border-white/[0.12] focus:outline-none focus:border-white/25 focus:bg-[#19191C] text-[#EDEDEF] placeholder:text-zinc-400 text-[13px]';
-
 export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
   theme,
   layoutType,
@@ -55,39 +49,9 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
   onChangeIsDefault,
   isMyCardMode,
   subTab,
-  onChangeSubTab
+  onChangeSubTab,
 }) => {
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const [storedCategories, setStoredCategories] = useState<string[]>(() => loadVaultCategories());
-  const [isAddingCategory, setIsAddingCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [categoryError, setCategoryError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const sync = () => setStoredCategories(loadVaultCategories());
-    window.addEventListener(CATEGORIES_UPDATED_EVENT, sync);
-    return () => window.removeEventListener(CATEGORIES_UPDATED_EVENT, sync);
-  }, []);
-
-  const categories = useMemo(() => {
-    if (category && !storedCategories.includes(category)) {
-      return [...storedCategories, category];
-    }
-    return storedCategories;
-  }, [storedCategories, category]);
-
-  const handleQuickAddCategory = () => {
-    const res = addVaultCategory(newCategoryName);
-    if (!res.ok || !res.added) {
-      setCategoryError(res.error || '카테고리를 추가할 수 없습니다.');
-      return;
-    }
-    setStoredCategories(res.categories);
-    onChangeCategory(res.added);
-    setNewCategoryName('');
-    setCategoryError(null);
-    setIsAddingCategory(false);
-  };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -95,93 +59,10 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
     const reader = new FileReader();
     reader.onload = (event) => {
       const base64 = event.target?.result as string;
-      onChangeFeatures(prev => ({ ...prev, custom_logo: base64 }));
+      onChangeFeatures((prev) => ({ ...prev, custom_logo: base64 }));
     };
     reader.readAsDataURL(file);
   };
-
-  const renderCategoryField = () => (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <label className="text-xs text-zinc-400">분류</label>
-        {!isAddingCategory && (
-          <button
-            type="button"
-            onClick={() => {
-              setCategoryError(null);
-              setIsAddingCategory(true);
-            }}
-            className="text-[11px] text-zinc-400 hover:text-zinc-200 inline-flex items-center gap-0.5 cursor-pointer"
-          >
-            <Plus className="w-3 h-3 stroke-[1.75]" />
-            <span>새 분류</span>
-          </button>
-        )}
-      </div>
-
-      {isAddingCategory ? (
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5">
-            <input
-              type="text"
-              maxLength={20}
-              autoFocus
-              value={newCategoryName}
-              onChange={(e) => {
-                setNewCategoryName(e.target.value);
-                if (categoryError) setCategoryError(null);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleQuickAddCategory();
-                } else if (e.key === 'Escape') {
-                  setIsAddingCategory(false);
-                  setCategoryError(null);
-                }
-              }}
-              placeholder="새 카테고리 이름"
-              className={INPUT_CLASS}
-            />
-            <button
-              type="button"
-              onClick={handleQuickAddCategory}
-              disabled={!newCategoryName.trim()}
-              className="px-3 py-2.5 rounded-lg bg-[#EAEAE6] text-[#121214] font-medium text-xs shrink-0 disabled:opacity-40 cursor-pointer"
-            >
-              추가
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsAddingCategory(false);
-                setCategoryError(null);
-                setNewCategoryName('');
-              }}
-              className="px-2.5 py-2.5 rounded-lg text-zinc-400 hover:text-zinc-200 text-xs shrink-0 cursor-pointer"
-            >
-              취소
-            </button>
-          </div>
-          {categoryError && (
-            <p className="text-[11px] text-amber-300/90">{categoryError}</p>
-          )}
-        </div>
-      ) : (
-        <select
-          value={category}
-          onChange={(e) => onChangeCategory(e.target.value)}
-          className={`${INPUT_CLASS} cursor-pointer`}
-        >
-          {categories.map((cat) => (
-            <option key={cat} value={cat} className="bg-[#161618] text-[#EDEDEF]">
-              {cat}
-            </option>
-          ))}
-        </select>
-      )}
-    </div>
-  );
 
   return (
     <div className="space-y-8">
@@ -297,162 +178,13 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
       {/* SUB-TAB 2: Identity Profile */}
       {subTab === 'identity_profile' && (
         <div className="space-y-8 animate-in fade-in duration-150">
-          {/* Name & Display Toggles */}
-          <section className="space-y-4">
-            <h4 className="text-xs font-medium text-zinc-400 tracking-wide">
-              성명
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400 block">성명</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => onChangeFormField('name', e.target.value)}
-                  placeholder="박기홍"
-                  className={INPUT_CLASS}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400 block">영문 · 보조 성명</label>
-                <input
-                  type="text"
-                  value={formData.nameEn ?? ''}
-                  onChange={(e) => onChangeFormField('nameEn', e.target.value)}
-                  placeholder="PARK, GIHONG"
-                  className={INPUT_CLASS}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-6 pt-1">
-              <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={features.show_en_name !== false}
-                  onChange={(e) => onChangeFeatures(prev => ({ ...prev, show_en_name: e.target.checked }))}
-                  className="w-3.5 h-3.5 rounded accent-zinc-200 cursor-pointer"
-                />
-                <span className="text-xs text-zinc-400">영문 · 보조 성명 표기</span>
-              </label>
-              <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={features.show_sub_org !== false}
-                  onChange={(e) => onChangeFeatures(prev => ({ ...prev, show_sub_org: e.target.checked }))}
-                  className="w-3.5 h-3.5 rounded accent-zinc-200 cursor-pointer"
-                />
-                <span className="text-xs text-zinc-400">영문 소속 병기</span>
-              </label>
-            </div>
-          </section>
-
-          {/* Affiliation & Title */}
-          <section className="border-t border-white/[0.06] pt-8 space-y-4">
-            <h4 className="text-xs font-medium text-zinc-400 tracking-wide">
-              소속 및 직함
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400 block">소속</label>
-                <input
-                  type="text"
-                  value={formData.organizationKr}
-                  onChange={(e) => onChangeFormField('organizationKr', e.target.value)}
-                  placeholder="고구마 지식 관리실"
-                  className={INPUT_CLASS}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400 block">영문 소속</label>
-                <input
-                  type="text"
-                  value={formData.organization}
-                  onChange={(e) => onChangeFormField('organization', e.target.value)}
-                  placeholder="GOGUMA KNOWLEDGE OFFICE"
-                  className={INPUT_CLASS}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400 block">직함</label>
-                <input
-                  type="text"
-                  value={formData.titleKr}
-                  onChange={(e) => onChangeFormField('titleKr', e.target.value)}
-                  placeholder="대표 마스터"
-                  className={INPUT_CLASS}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400 block">영문 직함</label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => onChangeFormField('title', e.target.value)}
-                  placeholder="Principal Master"
-                  className={INPUT_CLASS}
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Direct Contact */}
-          <section className="border-t border-white/[0.06] pt-8 space-y-4">
-            <h4 className="text-xs font-medium text-zinc-400 tracking-wide">
-              연락처 및 주소
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400 block">연락처</label>
-                <input
-                  type="text"
-                  value={formData.phone}
-                  onChange={(e) => onChangeFormField('phone', e.target.value)}
-                  placeholder="+82 10-1234-5678"
-                  className={`${INPUT_CLASS} font-mono tabular-nums`}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400 block">이메일</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => onChangeFormField('email', e.target.value)}
-                  placeholder="name@domain.com"
-                  className={INPUT_CLASS}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400 block">주소</label>
-                <input
-                  type="text"
-                  value={formData.addressKr}
-                  onChange={(e) => onChangeFormField('addressKr', e.target.value)}
-                  placeholder="서울특별시 강남구 테헤란로 152"
-                  className={INPUT_CLASS}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400 block">영문 주소</label>
-                <input
-                  type="text"
-                  value={formData.address_en ?? formData.details?.address_en ?? ''}
-                  onChange={(e) => onChangeFormField('address_en', e.target.value)}
-                  placeholder="152 Teheran-ro, Gangnam-gu, Seoul"
-                  className={INPUT_CLASS}
-                />
-              </div>
-            </div>
-          </section>
+          <ProfileFieldsGroup
+            formData={formData}
+            onChangeField={onChangeFormField}
+            variant="detailed"
+            features={features}
+            onChangeFeatures={onChangeFeatures}
+          />
 
           {/* Monogram & Mark */}
           <section className="border-t border-white/[0.06] pt-8 space-y-4">
@@ -467,9 +199,14 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                   type="text"
                   maxLength={4}
                   value={features.monogram_text || ''}
-                  onChange={(e) => onChangeFeatures(prev => ({ ...prev, monogram_text: e.target.value.toUpperCase() }))}
+                  onChange={(e) =>
+                    onChangeFeatures((prev) => ({
+                      ...prev,
+                      monogram_text: e.target.value.toUpperCase(),
+                    }))
+                  }
                   placeholder="PG"
-                  className={`${INPUT_CLASS} font-mono uppercase tracking-widest`}
+                  className={`${EDITOR_INPUT_CLASS} font-mono uppercase tracking-widest`}
                 />
               </div>
               <div className="space-y-1.5">
@@ -491,7 +228,9 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                     />
                     <button
                       type="button"
-                      onClick={() => onChangeFeatures(prev => ({ ...prev, custom_logo: undefined }))}
+                      onClick={() =>
+                        onChangeFeatures((prev) => ({ ...prev, custom_logo: undefined }))
+                      }
                       className="p-1 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05] cursor-pointer"
                       title="삭제"
                       aria-label="삭제"
@@ -529,7 +268,11 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                     <input
                       type="text"
                       value={slug}
-                      onChange={(e) => onChangeSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                      onChange={(e) =>
+                        onChangeSlug(
+                          e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+                        )
+                      }
                       placeholder="master"
                       className="w-full px-3.5 py-2.5 bg-transparent text-[#EDEDEF] placeholder:text-zinc-400 focus:outline-none font-mono text-[13px]"
                     />
@@ -544,10 +287,13 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                       value={customDomain}
                       onChange={(e) => onChangeCustomDomain(e.target.value)}
                       placeholder="card.domain.com"
-                      className={`${INPUT_CLASS} font-mono`}
+                      className={`${EDITOR_INPUT_CLASS} font-mono`}
                     />
                   </div>
-                  {renderCategoryField()}
+                  <CategorySelectSection
+                    category={category}
+                    onChangeCategory={onChangeCategory}
+                  />
                 </div>
 
                 <div className="pt-1">
@@ -571,10 +317,13 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                     value={formData.website}
                     onChange={(e) => onChangeFormField('website', e.target.value)}
                     placeholder="https://example.com"
-                    className={`${INPUT_CLASS} font-mono`}
+                    className={`${EDITOR_INPUT_CLASS} font-mono`}
                   />
                 </div>
-                {renderCategoryField()}
+                <CategorySelectSection
+                  category={category}
+                  onChangeCategory={onChangeCategory}
+                />
               </div>
             )}
           </section>

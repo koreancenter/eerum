@@ -1,13 +1,9 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Camera, Trash2, Plus } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Camera, Trash2 } from 'lucide-react';
 import { CardData } from '../../types/card';
-import { APP_BASE_DOMAIN } from '@/utils/cardSerializer';
 import { cropAndCompressCardImage } from '../../utils/imageProcess';
-import {
-  CATEGORIES_UPDATED_EVENT,
-  loadVaultCategories,
-  addVaultCategory,
-} from '../../utils/categories';
+import { CategorySelectSection, EDITOR_INPUT_CLASS } from './CategorySelectSection';
+import { ProfileFieldsGroup } from './ProfileFieldsGroup';
 
 interface PhotoArchivingEditorProps {
   frontImageUrl?: string;
@@ -25,9 +21,6 @@ interface PhotoArchivingEditorProps {
   isMyCardMode?: boolean;
 }
 
-const INPUT_CLASS =
-  'w-full px-3.5 py-2.5 rounded-lg bg-[#161618] border border-white/[0.06] hover:border-white/[0.12] focus:outline-none focus:border-white/25 focus:bg-[#19191C] text-[#EDEDEF] placeholder:text-zinc-400 text-[13px]';
-
 export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
   frontImageUrl,
   backImageUrl,
@@ -41,44 +34,13 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
   onChangeNotes,
   category,
   onChangeCategory,
-  isMyCardMode = false
+  isMyCardMode = false,
 }) => {
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
   const [activeSide, setActiveSide] = useState<'front' | 'back'>('front');
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isCompressing, setIsCompressing] = useState<boolean>(false);
-  const [storedCategories, setStoredCategories] = useState<string[]>(() => loadVaultCategories());
-  const [isAddingCategory, setIsAddingCategory] = useState<boolean>(false);
-  const [newCategoryName, setNewCategoryName] = useState<string>('');
-  const [categoryError, setCategoryError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const sync = () => setStoredCategories(loadVaultCategories());
-    window.addEventListener(CATEGORIES_UPDATED_EVENT, sync);
-    return () => window.removeEventListener(CATEGORIES_UPDATED_EVENT, sync);
-  }, []);
-
-  const categories = useMemo(() => {
-    if (category && !storedCategories.includes(category)) {
-      return [...storedCategories, category];
-    }
-    return storedCategories;
-  }, [storedCategories, category]);
-
-  const handleQuickAddCategory = () => {
-    if (!onChangeCategory) return;
-    const res = addVaultCategory(newCategoryName);
-    if (!res.ok || !res.added) {
-      setCategoryError(res.error || '카테고리를 추가할 수 없습니다.');
-      return;
-    }
-    setStoredCategories(res.categories);
-    onChangeCategory(res.added);
-    setNewCategoryName('');
-    setCategoryError(null);
-    setIsAddingCategory(false);
-  };
 
   const currentImageUrl = activeSide === 'front' ? frontImageUrl : backImageUrl;
 
@@ -136,6 +98,8 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
     setActiveSide('front');
     if (!cardData.name || cardData.name === 'PARK, GIHONG') {
       onChangeCardData('name', 'Dr. Michael Harrison');
+      onChangeCardData('organizationKr', 'Global Heritage Foundation');
+      onChangeCardData('titleKr', 'Executive Director');
       onChangeCardData('phone', '+1 (202) 555-0182');
       onChangeCardData('email', 'm.harrison@globalheritage.org');
       if (isMyCardMode) {
@@ -282,158 +246,25 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
           기본 정보
         </h4>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs text-zinc-400 block">성명</label>
-            <input
-              type="text"
-              required
-              value={cardData.name}
-              onChange={(e) => onChangeCardData('name', e.target.value)}
-              placeholder="박기홍"
-              className={INPUT_CLASS}
-            />
-          </div>
+        <ProfileFieldsGroup
+          formData={cardData}
+          onChangeField={onChangeCardData}
+          variant="compact"
+          isMyCardMode={isMyCardMode}
+          slug={slug}
+          onChangeSlug={onChangeSlug}
+        />
 
-          <div className="space-y-1.5">
-            <label className="text-xs text-zinc-400 block">연락처</label>
-            <input
-              type="text"
-              required
-              value={cardData.phone}
-              onChange={(e) => onChangeCardData('phone', e.target.value)}
-              placeholder="010-1234-5678"
-              className={`${INPUT_CLASS} font-mono tabular-nums`}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs text-zinc-400 block">이메일</label>
-            <input
-              type="email"
-              value={cardData.email}
-              onChange={(e) => onChangeCardData('email', e.target.value)}
-              placeholder="name@domain.com"
-              className={INPUT_CLASS}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            {isMyCardMode ? (
-              <>
-                <label className="text-xs text-zinc-400 block">웹 주소</label>
-                <div className="flex items-center rounded-lg bg-[#161618] border border-white/[0.06] focus-within:border-white/25 overflow-hidden">
-                  <span className="px-3 py-2.5 text-zinc-400 font-mono text-xs shrink-0 border-r border-white/[0.06] select-none">
-                    {APP_BASE_DOMAIN}/card/
-                  </span>
-                  <input
-                    type="text"
-                    value={slug}
-                    onChange={(e) => onChangeSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                    placeholder="slug"
-                    className="w-full px-3 py-2.5 bg-transparent text-[#EDEDEF] placeholder:text-zinc-400 focus:outline-none font-mono text-[13px]"
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <label className="text-xs text-zinc-400 block">웹사이트</label>
-                <input
-                  type="url"
-                  value={cardData.website}
-                  onChange={(e) => onChangeCardData('website', e.target.value)}
-                  placeholder="https://example.com"
-                  className={`${INPUT_CLASS} font-mono`}
-                />
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className={onChangeCategory ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'space-y-1.5'}>
+        <div
+          className={
+            onChangeCategory ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'space-y-1.5'
+          }
+        >
           {onChangeCategory && (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs text-zinc-400">분류</label>
-                {!isAddingCategory && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCategoryError(null);
-                      setIsAddingCategory(true);
-                    }}
-                    className="text-[11px] text-zinc-400 hover:text-zinc-200 inline-flex items-center gap-0.5 cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3 stroke-[1.75]" />
-                    <span>새 분류</span>
-                  </button>
-                )}
-              </div>
-
-              {isAddingCategory ? (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="text"
-                      maxLength={20}
-                      autoFocus
-                      value={newCategoryName}
-                      onChange={(e) => {
-                        setNewCategoryName(e.target.value);
-                        if (categoryError) setCategoryError(null);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleQuickAddCategory();
-                        } else if (e.key === 'Escape') {
-                          setIsAddingCategory(false);
-                          setCategoryError(null);
-                        }
-                      }}
-                      placeholder="새 카테고리 이름"
-                      className={INPUT_CLASS}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleQuickAddCategory}
-                      disabled={!newCategoryName.trim()}
-                      className="px-3 py-2.5 rounded-lg bg-[#EAEAE6] text-[#121214] font-medium text-xs shrink-0 disabled:opacity-40 cursor-pointer"
-                    >
-                      추가
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsAddingCategory(false);
-                        setCategoryError(null);
-                        setNewCategoryName('');
-                      }}
-                      className="px-2 py-2.5 rounded-lg text-zinc-400 hover:text-zinc-200 text-xs shrink-0 cursor-pointer"
-                    >
-                      취소
-                    </button>
-                  </div>
-                  {categoryError && (
-                    <p className="text-[11px] text-amber-300/90">{categoryError}</p>
-                  )}
-                </div>
-              ) : (
-                <select
-                  value={category || categories[0] || '기타'}
-                  onChange={(e) => onChangeCategory(e.target.value)}
-                  className={`${INPUT_CLASS} cursor-pointer`}
-                >
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat} className="bg-[#161618] text-[#EDEDEF]">
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
+            <CategorySelectSection
+              category={category}
+              onChangeCategory={onChangeCategory}
+            />
           )}
 
           <div className="space-y-1.5">
@@ -443,7 +274,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
               value={notes}
               onChange={(e) => onChangeNotes(e.target.value)}
               placeholder="미팅 일시 또는 메모"
-              className={INPUT_CLASS}
+              className={EDITOR_INPUT_CLASS}
             />
           </div>
         </div>

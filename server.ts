@@ -2,8 +2,20 @@ import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import path from 'path';
+import crypto from 'crypto';
 import { INITIAL_CARDS } from './src/constants/sampleCards.ts';
 import type { StoredCard } from './src/types/card.ts';
+import {
+  createApiError,
+  isPlatformDomain,
+  isValidSyncId,
+  normalizeQueryToken,
+  type GetCardsResponse,
+  type GetSyncWalletResponse,
+  type PostSyncWalletResponse,
+  type ResolveCardResponse,
+  type UpsertCardResponse,
+} from './src/types/api.ts';
 
 dotenv.config();
 
@@ -17,112 +29,196 @@ const syncStore: Record<string, StoredCard[]> = {};
 const cardStore: Record<string, StoredCard> = {};
 
 // Pre-seed sample cards into cardStore for instant public URL resolution
-INITIAL_CARDS.forEach(card => {
+INITIAL_CARDS.forEach((card) => {
   if (card?.id) cardStore[card.id] = card;
-  if (card?.slug) cardStore[`slug:${card.slug}`] = card;
+  if (card?.slug) cardStore[`slug:${card.slug.toLowerCase()}`] = card;
 });
+
+function findCardBySlug(slug: string): StoredCard | undefined {
+  return (
+    cardStore[`slug:${slug}`] ||
+    Object.values(cardStore).find(
+      (c) => c?.slug?.toLowerCase() === slug || c?.id?.toLowerCase() === slug
+    )
+  );
+}
+
+function findCardByDomain(domain: string): StoredCard | undefined {
+  return Object.values(cardStore).find(
+    (c) => c?.customDomain && normalizeQueryToken(c.customDomain) === domain
+  );
+}
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     service: 'Korean Center Card Studio',
-    architecture: 'Zero-AI Local-First & Quiet Luxury Minimalist'
+    architecture: 'Zero-AI Local-First & Quiet Luxury Minimalist',
   });
 });
 
 // 1. Cross-Device Anonymous Sync Endpoints (/api/sync)
 app.get('/api/sync', (req, res) => {
-  const syncId = (req.query.id as string) || '';
-  if (!syncId) {
-    return res.status(400).json({ error: 'Sync ID is required' });
+  const rawSyncId = typeof req.query.id === 'string' ? req.query.id : '';
+  if (!isValidSyncId(rawSyncId)) {
+    const errBody: GetSyncWalletResponse<StoredCard> = createApiError(
+      'Sync ID invalid or missing'
+    );
+    return res.status(400).json(errBody);
   }
 
+  const syncId = rawSyncId.trim();
   const cards = syncStore[syncId] || [];
-  return res.json({ success: true, syncId, cards });
+  const body: GetSyncWalletResponse<StoredCard> = { success: true, syncId, cards };
+  return res.json(body);
 });
 
 app.post('/api/sync', (req, res) => {
-  const { syncId, cards } = req.body;
-  if (!syncId || !Array.isArray(cards)) {
-    return res.status(400).json({ error: 'Invalid sync payload' });
+  const { syncId: rawSyncId, cards } = req.body || {};
+  if (!isValidSyncId(rawSyncId) || !Array.isArray(cards)) {
+    const errBody: PostSyncWalletResponse = createApiError(
+      'Valid Sync ID and cards array required'
+    );
+    return res.status(400).json(errBody);
   }
 
+  const syncId = rawSyncId.trim();
   syncStore[syncId] = cards;
   // Index ONLY personal owned cards into public cardStore so vault copies never overwrite public slugs
-  cards.forEach(card => {
+  cards.forEach((card: StoredCard) => {
     if (card?.isMyCard) {
       if (card.id) cardStore[card.id] = card;
       if (card.slug) cardStore[`slug:${card.slug.toLowerCase()}`] = card;
     }
   });
 
-  return res.json({ success: true, syncId, count: cards.length });
+  const body: PostSyncWalletResponse = {
+    success: true,
+    syncId,
+    count: cards.length,
+  };
+  return res.json(body);
 });
 
 // 2. Card Resolution & Fetch Endpoints (/api/resolve & /api/cards)
 app.get('/api/resolve', (req, res) => {
-  const slug = ((req.query.slug as string) || '').toLowerCase();
-  const host = ((req.query.host as string) || req.headers.host || '').toLowerCase().replace(/:\d+$/, '');
+  const slug = normalizeQueryToken(req.query.slug, 100);
+  const explicitDomain =
+    normalizeQueryToken(req.query.domain, 255) ||
+    normalizeQueryToken(req.query.host, 255);
+  const headerHost = normalizeQueryToken(req.headers.host, 255);
+  const baseDomain = (process.env.BASE_DOMAIN || 'card.goguma.app').toLowerCase();
 
   if (slug) {
-    const card = cardStore[`slug:${slug}`] || Object.values(cardStore).find(c => c?.slug?.toLowerCase() === slug || c?.id?.toLowerCase() === slug);
-    if (card) return res.json({ success: true, card, matchType: 'slug' });
+    const card = findCardBySlug(slug);
+    if (card) {
+      const body: ResolveCardResponse<StoredCard> = {
+        success: true,
+        card,
+        matchType: 'slug',
+      };
+      return res.json(body);
+    }
   }
 
-  const baseDomain = (process.env.BASE_DOMAIN || 'card.goguma.app').toLowerCase();
-  if (
-    host &&
-    host !== baseDomain &&
-    !host.includes('localhost') &&
-    !host.includes('127.0.0.1') &&
-    !host.includes('.run.app') &&
-    !host.includes('.web.app') &&
-    !host.includes('.workers.dev') &&
-    !host.includes('.pages.dev')
-  ) {
-    const card = Object.values(cardStore).find(c => c?.customDomain && c.customDomain.toLowerCase() === host);
-    if (card) return res.json({ success: true, card, matchType: 'custom_domain' });
+  const targetDomain =
+    explicitDomain ||
+    (headerHost && !isPlatformDomain(headerHost, baseDomain) ? headerHost : null);
+
+  if (targetDomain) {
+    const card = findCardByDomain(targetDomain);
+    if (card) {
+      const body: ResolveCardResponse<StoredCard> = {
+        success: true,
+        card,
+        matchType: 'custom_domain',
+      };
+      return res.json(body);
+    }
   }
 
-  return res.status(404).json({ success: false, notFound: true, message: 'Card not found' });
+  const notFoundBody: ResolveCardResponse<StoredCard> = createApiError(
+    'Card not found',
+    true
+  );
+  return res.status(404).json(notFoundBody);
 });
 
 app.get('/api/cards', (req, res) => {
-  const slug = ((req.query.slug as string) || '').trim().toLowerCase();
-  const domain = ((req.query.domain as string) || '').trim().toLowerCase();
+  const slug = normalizeQueryToken(req.query.slug, 100);
+  const domain = normalizeQueryToken(req.query.domain, 255);
 
   if (slug) {
-    const card =
-      cardStore[`slug:${slug}`] ||
-      Object.values(cardStore).find(
-        c => c?.slug?.toLowerCase() === slug || c?.id?.toLowerCase() === slug
-      );
-    if (card) return res.json({ card });
-    return res.status(404).json({ error: 'Card not found for slug' });
+    const card = findCardBySlug(slug);
+    if (card) {
+      const body: GetCardsResponse<StoredCard> = { success: true, card };
+      return res.json(body);
+    }
+    const errBody: GetCardsResponse<StoredCard> = createApiError(
+      'Card not found for slug',
+      true
+    );
+    return res.status(404).json(errBody);
   }
 
   if (domain) {
-    const card = Object.values(cardStore).find(c => c?.customDomain?.toLowerCase() === domain);
-    if (card) return res.json({ card });
-    return res.status(404).json({ error: 'Card not found for custom domain' });
+    const card = findCardByDomain(domain);
+    if (card) {
+      const body: GetCardsResponse<StoredCard> = { success: true, card };
+      return res.json(body);
+    }
+    const errBody: GetCardsResponse<StoredCard> = createApiError(
+      'Card not found for custom domain',
+      true
+    );
+    return res.status(404).json(errBody);
   }
 
-  // Return all cached cards
-  const allCards = Object.values(cardStore).filter((v, i, self) => v?.id && self.findIndex(o => o.id === v.id) === i);
-  return res.json({ cards: allCards });
+  const allCards = Object.values(cardStore).filter(
+    (v, i, self) => v?.id && self.findIndex((o) => o.id === v.id) === i
+  );
+  const body: GetCardsResponse<StoredCard> = { success: true, cards: allCards };
+  return res.json(body);
 });
 
 app.post('/api/cards', (req, res) => {
-  const card = req.body;
-  if (!card || !card.id) {
-    return res.status(400).json({ error: 'Card data with id is required' });
+  const payload = req.body;
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    const errBody: UpsertCardResponse = createApiError('Invalid payload');
+    return res.status(400).json(errBody);
   }
 
-  cardStore[card.id] = card;
-  if (card.slug) cardStore[`slug:${card.slug}`] = card;
+  const validId =
+    (typeof payload.id === 'string' && payload.id.trim().slice(0, 64)) ||
+    crypto.randomUUID();
+  const validSlug = normalizeQueryToken(payload.slug, 100);
 
-  return res.json({ success: true, id: card.id, slug: card.slug });
+  if (!validSlug) {
+    const errBody: UpsertCardResponse = createApiError('Slug is required');
+    return res.status(400).json(errBody);
+  }
+
+  const normalizedCustomDomain =
+    normalizeQueryToken(payload.customDomain ?? payload.custom_domain, 255) ||
+    undefined;
+
+  const storedCard: StoredCard = {
+    ...payload,
+    id: validId,
+    slug: validSlug,
+    ...(normalizedCustomDomain ? { customDomain: normalizedCustomDomain } : {}),
+  };
+
+  cardStore[validId] = storedCard;
+  cardStore[`slug:${validSlug}`] = storedCard;
+
+  const body: UpsertCardResponse = {
+    success: true,
+    id: validId,
+    slug: validSlug,
+  };
+  return res.json(body);
 });
 
 async function startServer() {
