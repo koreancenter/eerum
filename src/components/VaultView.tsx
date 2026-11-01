@@ -30,24 +30,6 @@ import {
 
 const SEARCH_DEBOUNCE_MS = 180;
 
-const CameraPlusIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    aria-hidden="true"
-  >
-    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5" />
-    <circle cx="12" cy="13" r="3" />
-    <path d="M19 3v6" />
-    <path d="M16 6h6" />
-  </svg>
-);
-
 interface VaultViewProps {
   cards: StoredCard[];
   onSelectCard: (card: StoredCard) => void;
@@ -392,16 +374,16 @@ export const VaultView: React.FC<VaultViewProps> = ({
   }
 
   return (
-    <div className="w-full min-w-0 max-w-6xl mx-auto grid grid-cols-1 gap-2.5 sm:gap-3.5 animate-in fade-in duration-300">
-      {/* Flexible 2-Row CSS Grid Toolbar: Top Controls + Dedicated Category Scroll Bar */}
+    <div className="w-full min-w-0 max-w-6xl mx-auto flex flex-col gap-3 sm:gap-3.5 animate-in fade-in duration-300">
+      {/* Structured 3-Row Header Control Layout on Mobile (Row 1: Search, Row 2: Right Action Bar, Row 3: Category Scroll Track) */}
       <div
         role="region"
         aria-label="명함 보관함 검색 및 필터 도구 모음"
-        className="grid grid-cols-1 gap-2 sm:gap-2.5 w-full min-w-0 pb-2.5 sm:pb-3 border-b border-white/10"
+        className="w-full min-w-0 flex flex-col gap-3 pb-3 border-b border-white/10"
       >
-        {/* Top Grid Section: Search Bar + Control Buttons (Grid / List / Add) */}
-        <div className="grid grid-cols-1 min-[340px]:grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:gap-4 w-full min-w-0">
-          {/* Search Input Cell */}
+        {/* Row 1 & Row 2 Wrapper: Stacked on Mobile (flex-col gap-3), Side-by-Side on sm+ */}
+        <div className="w-full min-w-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {/* Row 1: Full-Width Search Input */}
           <div className="relative w-full min-w-0 sm:max-w-md">
             <Search className="w-4 h-4 stroke-[1.5] text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
@@ -410,13 +392,13 @@ export const VaultView: React.FC<VaultViewProps> = ({
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="이름, 회사, 직함, 메모 검색"
               aria-label="명함 보관함 검색"
-              className="w-full h-9 sm:h-10 pl-9 pr-8 rounded-xl bg-[#121214] border border-white/10 text-xs text-neutral-200 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors"
+              className="w-full h-10 pl-10 pr-9 rounded-xl bg-[#121214] border border-white/10 text-xs text-neutral-200 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
                 aria-label="검색어 지우기"
                 title="검색어 지우기"
               >
@@ -425,8 +407,8 @@ export const VaultView: React.FC<VaultViewProps> = ({
             )}
           </div>
 
-          {/* Right Control Buttons Cell: Grid / List Toggle + Add Card */}
-          <div className="flex items-center justify-end gap-2 shrink-0">
+          {/* Row 2: Right-Aligned Action Bar ([Grid/List Toggle] + [+ Add Card Button]) */}
+          <div className="w-full sm:w-auto flex items-center justify-end gap-2.5 shrink-0">
             <div
               role="group"
               aria-label="보관함 보기 방식"
@@ -438,7 +420,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 aria-pressed={viewMode === 'cards'}
                 aria-label="카드 뷰"
                 title="카드 뷰"
-                className={`w-8 sm:w-9 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                className={`w-9 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
                   viewMode === 'cards'
                     ? 'bg-white/12 text-white'
                     : 'text-zinc-400 hover:text-white'
@@ -452,7 +434,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 aria-pressed={viewMode === 'list'}
                 aria-label="리스트 뷰"
                 title="리스트 뷰"
-                className={`w-8 sm:w-9 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                className={`w-9 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
                   viewMode === 'list'
                     ? 'bg-white/12 text-white'
                     : 'text-zinc-400 hover:text-white'
@@ -467,21 +449,21 @@ export const VaultView: React.FC<VaultViewProps> = ({
               onClick={onOpenScan}
               aria-label="실물 명함 사진 등록"
               title="실물 명함 사진 등록"
-              className="h-9 w-9 sm:h-10 sm:w-auto sm:px-3.5 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+              className="h-9 sm:h-10 px-3.5 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
             >
-              <CameraPlusIcon className="w-[17px] h-[17px] sm:w-[18px] sm:h-[18px] shrink-0" />
-              <span className="hidden sm:inline whitespace-nowrap">명함 추가</span>
+              <Plus className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
+              <span className="whitespace-nowrap">명함 추가</span>
             </button>
           </div>
         </div>
 
-        {/* Bottom Grid Section: Dedicated Full-Width Horizontal Scrollable Category Bar */}
-        <div className="w-full min-w-0 overflow-hidden space-y-1.5">
+        {/* Row 3: Dedicated Full-Width Horizontal Scrolling Track for Category Filter Chips */}
+        <div className="w-full min-w-0 space-y-1.5">
           <div
             ref={categoryScrollRef}
             role="tablist"
             aria-label="보관함 카테고리 필터"
-            className="w-full min-w-0 overflow-x-auto whitespace-nowrap scrollbar-hide overscroll-x-contain touch-pan-x scroll-smooth flex items-center gap-1.5 py-0.5"
+            className="w-full overflow-x-auto whitespace-nowrap scrollbar-hide touch-pan-x flex items-center gap-2 py-2 px-1"
           >
             {filterCategories.map((cat) => {
               const isSelected = selectedCategory === cat;
@@ -609,9 +591,9 @@ export const VaultView: React.FC<VaultViewProps> = ({
           <button
             type="button"
             onClick={onOpenScan}
-            className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-neutral-950 text-xs font-semibold hover:bg-zinc-200 cursor-pointer"
+            className="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-white text-neutral-950 text-xs font-semibold hover:bg-zinc-200 cursor-pointer"
           >
-            <CameraPlusIcon className="w-4 h-4" />
+            <Plus className="w-4 h-4 stroke-[2]" />
             <span>실물 명함 등록</span>
           </button>
         </div>

@@ -11,7 +11,7 @@ import {
   Camera,
   MessageSquare,
 } from 'lucide-react';
-import { resolveThemeStyles, generateMonogram } from '../constants/templates';
+import { resolveThemeStyles } from '../constants/templates';
 import { downloadVCard } from '../utils/vcard';
 
 export interface VaultCardItemProps {
@@ -46,7 +46,6 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
     titleDisplay,
     contactPrimary,
     contactSecondary,
-    monogram,
     customLogo,
   } = useMemo(() => {
     const d = card.data;
@@ -78,10 +77,6 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
     const cPrimary = (d.phone || '').trim();
     const cSecondary = (d.email || d.websiteDisplay || '').trim();
 
-    const customMonogram = (card.card_features?.monogram_text || '').trim();
-    const resolvedMonogram =
-      customMonogram || generateMonogram(primaryName, resolvedSubName);
-
     return {
       displayName: primaryName || '이름 없음',
       subName: resolvedSubName,
@@ -89,7 +84,6 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
       titleDisplay: resolvedTitle,
       contactPrimary: cPrimary,
       contactSecondary: cSecondary,
-      monogram: resolvedMonogram,
       customLogo: (card.card_features?.custom_logo || '').trim(),
     };
   }, [card.data, card.card_features]);
@@ -168,7 +162,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
     <article
       className={`group relative rounded-xl border ${surfaceBorderClass} ${themeStyles.cardBg} p-3 shadow-sm transition-colors duration-150 flex flex-col justify-between gap-2 min-w-0`}
     >
-      {/* Compact Clickable Card Body (Opens Full 3D Card Showcase) */}
+      {/* Compact Clickable Card Body: flex justify-between items-start prevents any right-side element from overlapping card text */}
       <div
         role="button"
         tabIndex={0}
@@ -176,26 +170,18 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
         onKeyDown={handleBodyKeyDown}
         aria-label={`${displayName} 명함 상세 보기`}
         title="명함 크게 보기"
-        className={`flex items-start justify-between gap-2.5 min-w-0 cursor-pointer select-none rounded-lg focus-visible:outline-none focus-visible:ring-2 ${
+        className={`w-full flex justify-between items-start gap-3 min-w-0 cursor-pointer select-none rounded-lg focus-visible:outline-none focus-visible:ring-2 ${
           themeStyles.isLight ? 'focus-visible:ring-black/30' : 'focus-visible:ring-white/35'
         }`}
       >
         {/* Left Identity & Contact Stack */}
         <div className="min-w-0 flex-1 space-y-0.5 leading-tight">
-          {(orgDisplay || card.isMyCard) && (
-            <div
-              className={`flex items-center gap-1.5 text-[11px] font-medium leading-tight min-w-0 ${themeStyles.textSecondary}`}
+          {orgDisplay && (
+            <p
+              className={`text-[11px] font-medium leading-tight truncate ${themeStyles.textSecondary}`}
             >
-              {orgDisplay && <span className="truncate">{orgDisplay}</span>}
-              {card.isMyCard && (
-                <>
-                  {orgDisplay && <span aria-hidden="true">·</span>}
-                  <span className={`shrink-0 font-semibold ${themeStyles.textPrimary}`}>
-                    내 명함
-                  </span>
-                </>
-              )}
-            </div>
+              {orgDisplay}
+            </p>
           )}
 
           <div className="flex items-baseline gap-1.5 min-w-0">
@@ -230,37 +216,44 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
           )}
         </div>
 
-        {/* Right Compact Brand Mark / Physical Card Thumbnail */}
-        <div className="shrink-0 flex items-start pt-0.5">
-          {photoPreviewUrl ? (
-            <div
-              className={`relative w-[68px] sm:w-[76px] aspect-[9/5] rounded-md overflow-hidden border ${themeStyles.accentHairline} bg-black/10 shrink-0`}
-            >
+        {/* Right Non-Overlapping Slot: Inline Category/Owner Label + Optional Photo Thumbnail or Logo */}
+        {(card.isMyCard || card.category || photoPreviewUrl || customLogo) && (
+          <div className="shrink-0 flex flex-col items-end gap-1.5">
+            {(card.isMyCard || card.category) && (
+              <span
+                className={`max-w-[96px] truncate text-[10.5px] leading-tight ${
+                  card.isMyCard
+                    ? `font-semibold ${themeStyles.textPrimary}`
+                    : `font-medium ${themeStyles.textSecondary}`
+                }`}
+              >
+                {card.isMyCard ? '내 명함' : card.category}
+              </span>
+            )}
+
+            {photoPreviewUrl ? (
+              <div
+                className={`w-16 sm:w-[72px] aspect-[9/5] rounded-md overflow-hidden border ${themeStyles.accentHairline} bg-black/10 shrink-0`}
+              >
+                <img
+                  src={photoPreviewUrl}
+                  alt={`${displayName} 실물 명함`}
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : customLogo ? (
               <img
-                src={photoPreviewUrl}
-                alt={`${displayName} 실물 명함`}
-                referrerPolicy="no-referrer"
+                src={customLogo}
+                alt=""
+                aria-hidden="true"
                 loading="lazy"
-                className="w-full h-full object-cover"
+                className="h-5 w-auto max-w-[48px] object-contain opacity-90 shrink-0"
               />
-            </div>
-          ) : customLogo ? (
-            <img
-              src={customLogo}
-              alt=""
-              aria-hidden="true"
-              loading="lazy"
-              className="h-6 w-auto max-w-[52px] object-contain opacity-90 shrink-0"
-            />
-          ) : (
-            <div
-              aria-hidden="true"
-              className={`w-7 h-7 rounded-lg border ${themeStyles.accentHairline} flex items-center justify-center font-serif text-[10px] font-medium tracking-wider ${themeStyles.textSecondary} shrink-0`}
-            >
-              {monogram}
-            </div>
-          )}
-        </div>
+            ) : null}
+          </div>
+        )}
       </div>
 
       {/* Integrated Inner Card Footer: Direct Actions */}
@@ -398,7 +391,7 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
   const displayContact = (card.data.phone || card.data.email || '').trim();
 
   return (
-    <div className="px-3 py-2.5 flex items-center justify-between gap-2.5 hover:bg-white/[0.03] transition-colors">
+    <div className="px-3 py-2.5 flex justify-between items-start gap-3 hover:bg-white/[0.03] transition-colors">
       <div
         role="button"
         tabIndex={0}

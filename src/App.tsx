@@ -815,7 +815,7 @@ export default function App() {
       {/* SCREEN UI CONTAINER */}
       <div
         id="screen-app-container"
-        className="min-h-[100dvh] bg-[#0A0A0B] text-neutral-100 flex flex-col justify-between selection:bg-neutral-100 selection:text-neutral-950 font-sans pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] overflow-x-hidden"
+        className="min-h-[100dvh] w-full max-w-[100vw] bg-[#0A0A0B] text-neutral-100 flex flex-col justify-between selection:bg-neutral-100 selection:text-neutral-950 font-sans pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] overflow-x-clip"
       >
         {/* Top Minimalist Luxury Header */}
         <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-[#0A0A0B]/90 backdrop-blur-xl px-4 sm:px-8 py-2.5 sm:py-3.5 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] sm:pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pl-[calc(1rem+env(safe-area-inset-left,0px))] pr-[calc(1rem+env(safe-area-inset-right,0px))] flex items-center justify-between main-app-header">
@@ -993,7 +993,7 @@ export default function App() {
             activeTab === 'vault' && !isVaultDetailActive && !isPublicExternalView
               ? 'justify-start'
               : 'justify-center'
-          } px-3 sm:px-4 py-2 sm:py-6 max-w-6xl mx-auto w-full`}
+          } px-3 sm:px-4 py-2 sm:py-6 max-w-6xl mx-auto w-full min-w-0`}
         >
           {isPublicExternalView && publicCard ? (
             /* ================= PUBLIC SHARED CARD LANDING VIEW (/card/:slug) ================= */
