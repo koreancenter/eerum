@@ -374,41 +374,65 @@ export const VaultView: React.FC<VaultViewProps> = ({
   }
 
   return (
-    <div className="w-full min-w-0 max-w-6xl mx-auto flex flex-col gap-3 sm:gap-3.5 animate-in fade-in duration-300">
-      {/* Structured 3-Row Header Control Layout on Mobile (Row 1: Search, Row 2: Right Action Bar, Row 3: Category Scroll Track) */}
-      <div
-        role="region"
+    <div className="w-full max-w-full min-w-0 flex flex-col gap-3 sm:gap-3.5 animate-in fade-in duration-300">
+      {/* 3-Row Vertical Header Stack (Row 1: Search, Row 2: Action Bar, Row 3: Category Scroll) */}
+      <header
         aria-label="명함 보관함 검색 및 필터 도구 모음"
-        className="w-full min-w-0 flex flex-col gap-3 pb-3 border-b border-white/10"
+        className="w-full max-w-full min-w-0 flex flex-col gap-2.5 sm:gap-3 pb-3 border-b border-white/10"
       >
-        {/* Row 1 & Row 2 Wrapper: Stacked on Mobile (flex-col gap-3), Side-by-Side on sm+ */}
-        <div className="w-full min-w-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {/* Row 1: Full-Width Search Input */}
-          <div className="relative w-full min-w-0 sm:max-w-md">
-            <Search className="w-4 h-4 stroke-[1.5] text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="이름, 회사, 직함, 메모 검색"
-              aria-label="명함 보관함 검색"
-              className="w-full h-10 pl-10 pr-9 rounded-xl bg-[#121214] border border-white/10 text-xs text-neutral-200 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={handleClearSearch}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
-                aria-label="검색어 지우기"
-                title="검색어 지우기"
-              >
-                <X className="w-3.5 h-3.5 stroke-[1.5]" />
-              </button>
-            )}
+        {/* Row 1: Full-Width Search Input */}
+        <div className="relative w-full max-w-full min-w-0">
+          <Search className="w-4 h-4 stroke-[1.5] text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="이름, 회사, 직함, 메모 검색"
+            aria-label="명함 보관함 검색"
+            className="w-full h-10 pl-10 pr-9 rounded-xl bg-[#121214] border border-white/10 text-xs text-neutral-200 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={handleClearSearch}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
+              aria-label="검색어 지우기"
+              title="검색어 지우기"
+            >
+              <X className="w-3.5 h-3.5 stroke-[1.5]" />
+            </button>
+          )}
+        </div>
+
+        {/* Row 2: Dedicated Action Bar (Filtered Count Summary + Category Manage + View Toggle + Add Card) */}
+        <div className="w-full max-w-full min-w-0 flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1 flex items-center gap-1.5 text-xs text-zinc-400">
+            <span className="truncate">
+              {selectedCategory === '전체' ? '보관 명함' : selectedCategory}
+            </span>
+            <span className="font-mono tabular-nums text-zinc-300 shrink-0">
+              {filteredCards.length}
+            </span>
           </div>
 
-          {/* Row 2: Right-Aligned Action Bar ([Grid/List Toggle] + [+ Add Card Button]) */}
-          <div className="w-full sm:w-auto flex items-center justify-end gap-2.5 shrink-0">
+          <div className="flex items-center justify-end gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => openCategoryPanel(false)}
+              aria-expanded={isCategoryPanelOpen}
+              aria-label="카테고리 관리 패널 열기"
+              title="카테고리 이름 변경·병합·삭제 관리"
+              className={`h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl border text-xs font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                isCategoryPanelOpen
+                  ? 'bg-white text-neutral-950 border-white font-semibold'
+                  : 'bg-[#121214] hover:bg-white/10 border-white/10 text-zinc-300 hover:text-white'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
+              <span className="sm:hidden">관리</span>
+              <span className="hidden sm:inline">카테고리 관리</span>
+            </button>
+
             <div
               role="group"
               aria-label="보관함 보기 방식"
@@ -420,7 +444,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 aria-pressed={viewMode === 'cards'}
                 aria-label="카드 뷰"
                 title="카드 뷰"
-                className={`w-9 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                className={`w-8 sm:w-9 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
                   viewMode === 'cards'
                     ? 'bg-white/12 text-white'
                     : 'text-zinc-400 hover:text-white'
@@ -434,7 +458,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 aria-pressed={viewMode === 'list'}
                 aria-label="리스트 뷰"
                 title="리스트 뷰"
-                className={`w-9 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                className={`w-8 sm:w-9 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
                   viewMode === 'list'
                     ? 'bg-white/12 text-white'
                     : 'text-zinc-400 hover:text-white'
@@ -449,7 +473,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
               onClick={onOpenScan}
               aria-label="실물 명함 사진 등록"
               title="실물 명함 사진 등록"
-              className="h-9 sm:h-10 px-3.5 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+              className="h-9 sm:h-10 px-3 sm:px-3.5 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
               <span className="whitespace-nowrap">명함 추가</span>
@@ -458,12 +482,12 @@ export const VaultView: React.FC<VaultViewProps> = ({
         </div>
 
         {/* Row 3: Dedicated Full-Width Horizontal Scrolling Track for Category Filter Chips */}
-        <div className="w-full min-w-0 space-y-1.5">
+        <div className="w-full max-w-full min-w-0">
           <div
             ref={categoryScrollRef}
             role="tablist"
             aria-label="보관함 카테고리 필터"
-            className="w-full overflow-x-auto whitespace-nowrap scrollbar-hide touch-pan-x flex items-center gap-2 py-2 px-1"
+            className="w-full max-w-full min-w-0 overflow-x-auto overflow-y-hidden whitespace-nowrap scrollbar-hide overscroll-x-contain touch-pan-x touch-pinch-zoom flex items-center gap-2 py-1.5 px-0.5"
           >
             {filterCategories.map((cat) => {
               const isSelected = selectedCategory === cat;
@@ -475,8 +499,15 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   type="button"
                   role="tab"
                   aria-selected={isSelected}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`min-h-[36px] px-3.5 py-1.5 rounded-full whitespace-nowrap shrink-0 text-xs transition-colors cursor-pointer font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                  onClick={(e) => {
+                    setSelectedCategory(cat);
+                    e.currentTarget.scrollIntoView({
+                      behavior: 'smooth',
+                      inline: 'nearest',
+                      block: 'nearest',
+                    });
+                  }}
+                  className={`min-h-[36px] px-3.5 py-1.5 rounded-full whitespace-nowrap shrink-0 text-xs transition-colors cursor-pointer font-medium touch-pan-x touch-pinch-zoom focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
                     isSelected
                       ? 'bg-white text-neutral-950 font-semibold shadow-sm'
                       : 'bg-[#121214] text-zinc-400 hover:text-white hover:bg-white/10 border border-white/10'
@@ -498,7 +529,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
             {isInlineAdding ? (
               <form
                 onSubmit={handleCommitInlineAdd}
-                className="min-h-[36px] pl-3 pr-1.5 py-1 rounded-full bg-[#161618] border border-white/25 inline-flex items-center gap-1 shrink-0"
+                className="min-h-[36px] pl-3 pr-1.5 py-1 rounded-full bg-[#161618] border border-white/25 inline-flex items-center gap-1 shrink-0 touch-pan-x touch-pinch-zoom"
               >
                 <input
                   ref={inlineInputRef}
@@ -517,14 +548,14 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   }}
                   placeholder="새 카테고리명"
                   aria-label="새 카테고리 이름 입력"
-                  className="w-28 sm:w-32 bg-transparent text-xs text-white placeholder:text-zinc-500 focus:outline-none"
+                  className="w-28 sm:w-32 bg-transparent text-xs text-white placeholder:text-zinc-500 focus:outline-none touch-pan-x touch-pinch-zoom"
                 />
                 <button
                   type="submit"
                   disabled={!inlineCategoryName.trim()}
                   aria-label="카테고리 저장"
                   title="저장"
-                  className="w-6 h-6 rounded-full bg-white hover:bg-zinc-200 disabled:opacity-35 text-neutral-950 flex items-center justify-center cursor-pointer shrink-0"
+                  className="w-6 h-6 rounded-full bg-white hover:bg-zinc-200 disabled:opacity-35 text-neutral-950 flex items-center justify-center cursor-pointer shrink-0 touch-pan-x touch-pinch-zoom"
                 >
                   <Check className="w-3.5 h-3.5 stroke-[2.2]" />
                 </button>
@@ -533,7 +564,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   onClick={handleCancelInlineAdd}
                   aria-label="추가 취소"
                   title="취소"
-                  className="w-6 h-6 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center cursor-pointer shrink-0"
+                  className="w-6 h-6 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center cursor-pointer shrink-0 touch-pan-x touch-pinch-zoom"
                 >
                   <X className="w-3.5 h-3.5 stroke-[1.75]" />
                 </button>
@@ -544,40 +575,24 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 onClick={handleStartInlineAdd}
                 aria-label="새 카테고리 추가"
                 title="새 카테고리 추가"
-                className="min-h-[36px] px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 text-xs text-zinc-300 hover:text-white bg-[#121214] hover:bg-white/10 border border-dashed border-white/20 hover:border-white/35 transition-colors cursor-pointer inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="min-h-[36px] px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 text-xs text-zinc-300 hover:text-white bg-[#121214] hover:bg-white/10 border border-dashed border-white/20 hover:border-white/35 transition-colors cursor-pointer inline-flex items-center gap-1 touch-pan-x touch-pinch-zoom focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[2]" />
                 <span>추가</span>
               </button>
             )}
 
-            <span className="w-px h-4 bg-white/10 shrink-0 mx-0.5" aria-hidden="true" />
-
-            {/* Category Management Panel Trigger (Edit / Merge / Delete Categories) */}
-            <button
-              type="button"
-              onClick={() => openCategoryPanel(false)}
-              aria-expanded={isCategoryPanelOpen}
-              aria-label="카테고리 관리 패널 열기"
-              title="카테고리 이름 변경·병합·삭제 관리"
-              className={`min-h-[36px] px-3 py-1.5 rounded-full border text-xs font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
-                isCategoryPanelOpen
-                  ? 'bg-white text-neutral-950 border-white font-semibold'
-                  : 'bg-[#121214] hover:bg-white/10 border-white/10 text-zinc-300 hover:text-white'
-              }`}
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5]" />
-              <span>관리</span>
-            </button>
+            {/* Trailing flex spacer prevents right-edge clipping on mobile WebKit/Blink */}
+            <span className="w-2 shrink-0" aria-hidden="true" />
           </div>
 
           {inlineAddError && (
-            <p role="alert" className="text-[11px] text-amber-300/90 pl-1">
+            <p role="alert" className="mt-1 text-[11px] text-amber-300/90 pl-1">
               {inlineAddError}
             </p>
           )}
         </div>
-      </div>
+      </header>
 
       {/* Content Rendering: Cards Grid or List Table */}
       {filteredCards.length === 0 ? (
@@ -598,8 +613,8 @@ export const VaultView: React.FC<VaultViewProps> = ({
           </button>
         </div>
       ) : viewMode === 'cards' ? (
-        /* ================= CARDS GALLERY VIEW ================= */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3.5 min-w-0">
+        /* ================= CARDS GALLERY VIEW (2-Column Mobile Grid, 3-Column Desktop) ================= */
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3.5 min-w-0">
           {filteredCards.map((card) => (
             <VaultCardItem
               key={card.id}

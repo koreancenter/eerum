@@ -150,19 +150,25 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
     ? 'border-[#1C1B1A]/12 hover:border-[#1C1B1A]/30'
     : 'border-white/10 hover:border-white/25';
 
-  const actionBtnClass = themeStyles.isLight
-    ? 'p-1.5 rounded-lg text-[#5C5955] hover:text-[#121214] hover:bg-black/[0.06] cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/25'
-    : 'p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/25';
+  const baseFooterBtnLayout =
+    'w-[26px] h-[26px] sm:w-7 sm:h-7 rounded-lg items-center justify-center shrink-0 cursor-pointer transition-colors duration-150 focus-visible:outline-none focus-visible:ring-1';
+
+  const actionBtnTone = themeStyles.isLight
+    ? 'text-[#5C5955] hover:text-[#121214] hover:bg-black/[0.06] focus-visible:ring-black/25'
+    : 'text-zinc-400 hover:text-white hover:bg-white/10 focus-visible:ring-white/25';
+
+  const actionBtnClass = `inline-flex ${baseFooterBtnLayout} ${actionBtnTone}`;
+  const desktopOnlyActionBtnClass = `hidden sm:inline-flex ${baseFooterBtnLayout} ${actionBtnTone}`;
 
   const deleteBtnClass = themeStyles.isLight
-    ? 'p-1.5 rounded-lg text-[#5C5955] hover:text-rose-700 hover:bg-rose-500/10 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-500/30'
-    : 'p-1.5 rounded-lg text-zinc-400 hover:text-rose-300 hover:bg-rose-500/15 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-400/30';
+    ? `inline-flex ${baseFooterBtnLayout} text-[#5C5955] hover:text-rose-700 hover:bg-rose-500/10 focus-visible:ring-rose-500/30`
+    : `inline-flex ${baseFooterBtnLayout} text-zinc-400 hover:text-rose-300 hover:bg-rose-500/15 focus-visible:ring-rose-400/30`;
 
   return (
     <article
-      className={`group relative rounded-xl border ${surfaceBorderClass} ${themeStyles.cardBg} p-3 shadow-sm transition-colors duration-150 flex flex-col justify-between gap-2 min-w-0`}
+      className={`group relative rounded-xl border ${surfaceBorderClass} ${themeStyles.cardBg} p-2.5 sm:p-3.5 shadow-sm transition-colors duration-150 flex flex-col justify-between gap-2 min-w-0 overflow-hidden`}
     >
-      {/* Compact Clickable Card Body: flex justify-between items-start prevents any right-side element from overlapping card text */}
+      {/* Self-Contained Clickable Card Body (No outer or top category/date header) */}
       <div
         role="button"
         tabIndex={0}
@@ -170,97 +176,111 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
         onKeyDown={handleBodyKeyDown}
         aria-label={`${displayName} 명함 상세 보기`}
         title="명함 크게 보기"
-        className={`w-full flex justify-between items-start gap-3 min-w-0 cursor-pointer select-none rounded-lg focus-visible:outline-none focus-visible:ring-2 ${
+        className={`w-full flex flex-col gap-1 min-w-0 cursor-pointer select-none rounded-lg focus-visible:outline-none focus-visible:ring-2 ${
           themeStyles.isLight ? 'focus-visible:ring-black/30' : 'focus-visible:ring-white/35'
         }`}
       >
-        {/* Left Identity & Contact Stack */}
-        <div className="min-w-0 flex-1 space-y-0.5 leading-tight">
-          {orgDisplay && (
-            <p
-              className={`text-[11px] font-medium leading-tight truncate ${themeStyles.textSecondary}`}
-            >
-              {orgDisplay}
-            </p>
-          )}
-
-          <div className="flex items-baseline gap-1.5 min-w-0">
-            <h3
-              className={`text-[15px] font-semibold tracking-tight leading-snug truncate group-hover:underline underline-offset-2 ${themeStyles.textPrimary}`}
-            >
-              {displayName}
-            </h3>
-            {subName && (
-              <span
-                className={`text-[11px] font-normal leading-tight truncate ${themeStyles.textSecondary}`}
+        {/* Top Row: Organization + Name on Left, Optional Thumbnail/Logo on Right */}
+        <div className="flex items-start justify-between gap-1.5 sm:gap-2.5 min-w-0">
+          <div className="min-w-0 flex-1 space-y-0.5 leading-tight">
+            {orgDisplay && (
+              <p
+                className={`text-[10.5px] sm:text-[11px] font-medium leading-tight truncate ${themeStyles.textSecondary}`}
               >
-                {subName}
-              </span>
+                {orgDisplay}
+              </p>
             )}
+
+            <div className="flex items-baseline gap-1 sm:gap-1.5 min-w-0">
+              <h3
+                className={`text-[13.5px] sm:text-[15px] font-semibold tracking-tight leading-snug truncate group-hover:underline underline-offset-2 ${themeStyles.textPrimary}`}
+              >
+                {displayName}
+              </h3>
+              {subName && (
+                <span
+                  className={`hidden sm:inline text-[11px] font-normal leading-tight truncate ${themeStyles.textSecondary}`}
+                >
+                  {subName}
+                </span>
+              )}
+              {card.isMyCard && (
+                <span
+                  className={`text-[10px] font-medium leading-none shrink-0 ${themeStyles.textSecondary}`}
+                >
+                  · 내 명함
+                </span>
+              )}
+            </div>
           </div>
 
-          {titleDisplay && (
-            <p className={`text-[11.5px] leading-tight truncate ${themeStyles.textSecondary}`}>
-              {titleDisplay}
-            </p>
-          )}
-
-          {(contactPrimary || contactSecondary) && (
-            <div
-              className={`pt-0.5 flex items-center gap-1.5 text-[11px] font-mono tabular-nums leading-tight min-w-0 ${themeStyles.textMuted}`}
-            >
-              {contactPrimary && <span className="shrink-0">{contactPrimary}</span>}
-              {contactPrimary && contactSecondary && <span aria-hidden="true">·</span>}
-              {contactSecondary && <span className="truncate">{contactSecondary}</span>}
+          {(photoPreviewUrl || customLogo) && (
+            <div className="shrink-0 flex items-center">
+              {photoPreviewUrl ? (
+                <div
+                  className={`w-9 sm:w-16 aspect-[9/5] rounded sm:rounded-md overflow-hidden border ${themeStyles.accentHairline} bg-black/10 shrink-0`}
+                >
+                  <img
+                    src={photoPreviewUrl}
+                    alt={`${displayName} 실물 명함`}
+                    referrerPolicy="no-referrer"
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : customLogo ? (
+                <img
+                  src={customLogo}
+                  alt=""
+                  aria-hidden="true"
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                  className="h-4 sm:h-5 w-auto max-w-[36px] sm:max-w-[48px] object-contain opacity-90 shrink-0"
+                />
+              ) : null}
             </div>
           )}
         </div>
 
-        {/* Right Non-Overlapping Slot: Inline Category/Owner Label + Optional Photo Thumbnail or Logo */}
-        {(card.isMyCard || card.category || photoPreviewUrl || customLogo) && (
-          <div className="shrink-0 flex flex-col items-end gap-1.5">
-            {(card.isMyCard || card.category) && (
-              <span
-                className={`max-w-[96px] truncate text-[10.5px] leading-tight ${
-                  card.isMyCard
-                    ? `font-semibold ${themeStyles.textPrimary}`
-                    : `font-medium ${themeStyles.textSecondary}`
-                }`}
+        {/* Full-Width Role & Tabular Contact Details */}
+        {(titleDisplay || contactPrimary || contactSecondary) && (
+          <div className="min-w-0 space-y-0.5">
+            {titleDisplay && (
+              <p
+                className={`text-[11px] sm:text-[11.5px] leading-tight truncate ${themeStyles.textSecondary}`}
               >
-                {card.isMyCard ? '내 명함' : card.category}
-              </span>
+                {titleDisplay}
+              </p>
             )}
 
-            {photoPreviewUrl ? (
+            {(contactPrimary || contactSecondary) && (
               <div
-                className={`w-16 sm:w-[72px] aspect-[9/5] rounded-md overflow-hidden border ${themeStyles.accentHairline} bg-black/10 shrink-0`}
+                className={`pt-0.5 flex items-center gap-1.5 text-[10.5px] sm:text-[11px] font-mono tabular-nums leading-tight min-w-0 ${themeStyles.textMuted}`}
               >
-                <img
-                  src={photoPreviewUrl}
-                  alt={`${displayName} 실물 명함`}
-                  referrerPolicy="no-referrer"
-                  loading="lazy"
-                  className="w-full h-full object-cover"
-                />
+                {contactPrimary && (
+                  <span className="truncate sm:shrink-0">{contactPrimary}</span>
+                )}
+                {contactPrimary && contactSecondary && (
+                  <span aria-hidden="true" className="hidden sm:inline">
+                    ·
+                  </span>
+                )}
+                {contactSecondary && (
+                  <span className={`truncate ${contactPrimary ? 'hidden sm:inline' : ''}`}>
+                    {contactSecondary}
+                  </span>
+                )}
               </div>
-            ) : customLogo ? (
-              <img
-                src={customLogo}
-                alt=""
-                aria-hidden="true"
-                loading="lazy"
-                className="h-5 w-auto max-w-[48px] object-contain opacity-90 shrink-0"
-              />
-            ) : null}
+            )}
           </div>
         )}
       </div>
 
-      {/* Integrated Inner Card Footer: Direct Actions */}
-      <div
-        className={`pt-2 border-t ${themeStyles.accentHairline} flex items-center justify-between gap-1`}
+      {/* Integrated Card Footer: Direct Contact & Card Management Actions */}
+      <footer
+        className={`mt-auto pt-2 border-t ${themeStyles.accentHairline} flex items-center justify-between gap-0.5 min-w-0`}
       >
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 min-w-0">
           {card.data.phoneRaw && (
             <>
               <a
@@ -275,7 +295,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
               <a
                 href={`sms:${card.data.phoneRaw}`}
                 onClick={stopLinkPropagation}
-                className={actionBtnClass}
+                className={desktopOnlyActionBtnClass}
                 title="문자 보내기"
                 aria-label={`${displayName}에게 문자 보내기`}
               >
@@ -287,7 +307,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
             <a
               href={`mailto:${card.data.email}`}
               onClick={stopLinkPropagation}
-              className={actionBtnClass}
+              className={card.data.phoneRaw ? desktopOnlyActionBtnClass : actionBtnClass}
               title="이메일 발송"
               aria-label={`${displayName}에게 이메일 보내기`}
             >
@@ -300,7 +320,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               onClick={stopLinkPropagation}
-              className={actionBtnClass}
+              className={desktopOnlyActionBtnClass}
               title="웹사이트 열기"
               aria-label={`${displayName} 웹사이트 열기`}
             >
@@ -318,7 +338,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
           </button>
         </div>
 
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 shrink-0">
           {hasPhoto && (
             <button
               type="button"
@@ -333,7 +353,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
           <button
             type="button"
             onClick={handleExportClick}
-            className={actionBtnClass}
+            className={desktopOnlyActionBtnClass}
             title="독립형 HTML 코드 내보내기"
             aria-label={`${displayName} 명함 다운로드`}
           >
@@ -360,7 +380,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
             </button>
           )}
         </div>
-      </div>
+      </footer>
     </article>
   );
 };
