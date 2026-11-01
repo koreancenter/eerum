@@ -276,7 +276,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
       <div 
-        className="relative w-full max-w-xs sm:max-w-sm rounded-3xl bg-[#121214] border border-white/10 text-neutral-100 shadow-2xl p-6 sm:p-7 flex flex-col items-center"
+        className="relative w-full max-w-xs sm:max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl bg-[#121214] border border-white/10 text-neutral-100 shadow-2xl p-5 sm:p-7 flex flex-col items-center"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cancel button if allowed */}
@@ -357,13 +357,13 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
         )}
 
         {/* Numeric Keypad (3x4 Layout: 1-9, Backspace, 0, Clear) */}
-        <div className="grid grid-cols-3 gap-3 w-full max-w-[260px] mb-3">
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-3 w-full max-w-[260px] mb-2 sm:mb-3">
           {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
             <button
               key={digit}
               type="button"
               onClick={() => handleDigit(digit)}
-              className="h-14 rounded-2xl bg-[#0A0A0B] hover:bg-white/10 active:bg-white/15 border border-white/10 text-white font-semibold text-xl tabular-nums transition-all duration-150 active:scale-95 cursor-pointer shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+              className="h-12 sm:h-14 rounded-2xl bg-[#0A0A0B] hover:bg-white/10 active:bg-white/15 border border-white/10 text-white font-semibold text-lg sm:text-xl tabular-nums transition-all duration-150 active:scale-95 cursor-pointer shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
             >
               {digit}
             </button>
@@ -371,7 +371,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
           <button
             type="button"
             onClick={handleBackspace}
-            className="h-14 rounded-2xl bg-[#0A0A0B] hover:bg-white/10 active:bg-white/15 border border-white/10 text-zinc-300 hover:text-white flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+            className="h-12 sm:h-14 rounded-2xl bg-[#0A0A0B] hover:bg-white/10 active:bg-white/15 border border-white/10 text-zinc-300 hover:text-white flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
             title="지우기"
           >
             <Delete className="w-5 h-5" />
@@ -379,14 +379,14 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
           <button
             type="button"
             onClick={() => handleDigit('0')}
-            className="h-14 rounded-2xl bg-[#0A0A0B] hover:bg-white/10 active:bg-white/15 border border-white/10 text-white font-semibold text-xl tabular-nums transition-all duration-150 active:scale-95 cursor-pointer shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+            className="h-12 sm:h-14 rounded-2xl bg-[#0A0A0B] hover:bg-white/10 active:bg-white/15 border border-white/10 text-white font-semibold text-lg sm:text-xl tabular-nums transition-all duration-150 active:scale-95 cursor-pointer shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
           >
             0
           </button>
           <button
             type="button"
             onClick={handleClear}
-            className="h-14 rounded-2xl bg-[#0A0A0B] hover:bg-white/10 active:bg-white/15 border border-white/10 text-zinc-400 hover:text-white text-xs font-semibold uppercase tracking-wider transition-all duration-150 active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+            className="h-12 sm:h-14 rounded-2xl bg-[#0A0A0B] hover:bg-white/10 active:bg-white/15 border border-white/10 text-zinc-400 hover:text-white text-xs font-semibold uppercase tracking-wider transition-all duration-150 active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
             title="전체 지우기"
           >
             Clear
