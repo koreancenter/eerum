@@ -20,10 +20,12 @@ import { EditorPreviewPanel } from './editor/EditorPreviewPanel';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { loadVaultCategories } from '../utils/categories';
 
-interface CardEditorModalProps {
+export interface CardEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  card: StoredCard;
+  card?: StoredCard | null;
+  editingCard?: StoredCard | null;
+  initialData?: StoredCard | CardData | null;
   onSave: (updatedCard: StoredCard) => void;
   isMyCardMode?: boolean;
   isCreating?: boolean;
@@ -72,90 +74,196 @@ const CREATION_MODES: { id: CardCreationMode; label: string }[] = [
   { id: 'custom_html', label: '커스텀 코드' }
 ];
 
+/**
+ * Tab & Mode Auto-Selection:
+ * - If card.creation_mode === 'photo' or card.photo_url exists -> set tab to 'photo' (실물 사진).
+ * - If card.creation_mode === 'template' or card.template_id exists -> set tab to 'template' (디자인 템플릿).
+ * - If card.creation_mode === 'custom' or 'custom_html' -> set tab to 'custom' (커스텀 코드).
+ */
+export function resolveCardCreationMode(target?: any): CardCreationMode {
+  if (!target) return 'template';
+
+  // 1. Photo mode or photo_url exists
+  if (
+    target.creation_mode === 'photo' ||
+    Boolean(target.photo_url)
+  ) {
+    return 'photo';
+  }
+
+  // 2. Template mode, template_id, or layout_type exists
+  if (
+    target.creation_mode === 'template' ||
+    Boolean(target.template_id) ||
+    Boolean(target.layout_type)
+  ) {
+    return 'template';
+  }
+
+  // 3. Custom mode or custom_html exists
+  if (
+    target.creation_mode === 'custom' ||
+    target.creation_mode === 'custom_html' ||
+    Boolean(target.html_front)
+  ) {
+    return 'custom_html';
+  }
+
+  // 4. Fallback check for physical photo image presence
+  if (target.isPhotoCard || target.front_image_url || target.scannedImage) {
+    return 'photo';
+  }
+
+  return 'template';
+}
+
+function getSafeCard(c?: StoredCard | CardData | null, isMyCard = false): StoredCard {
+  if (c && 'data' in c && c.data) {
+    return c as StoredCard;
+  }
+  if (c && ('name' in c || 'organization' in c)) {
+    const dataObj = c as CardData;
+    return {
+      id: `card-${Date.now()}`,
+      isMyCard,
+      isDefault: false,
+      theme: 'pure_white',
+      layout_type: 'editorial_minimal',
+      category: isMyCard ? '글로벌 네트워크' : 'VIP 파트너',
+      createdAt: new Date().toISOString().split('T')[0],
+      data: dataObj,
+    };
+  }
+  return {
+    id: `card-${Date.now()}`,
+    isMyCard,
+    isDefault: false,
+    theme: 'pure_white',
+    layout_type: 'editorial_minimal',
+    category: isMyCard ? '글로벌 네트워크' : 'VIP 파트너',
+    createdAt: new Date().toISOString().split('T')[0],
+    data: {
+      name: '',
+      nameEn: '',
+      nameKr: '',
+      organization: '',
+      organizationKr: '',
+      subOrg: '',
+      title: '',
+      titleKr: '',
+      phone: '',
+      phoneRaw: '',
+      whatsappUrl: '',
+      email: '',
+      website: '',
+      websiteDisplay: '',
+      addressLines: [],
+      addressKr: '',
+      address_en: '',
+      googleMapsUrl: '',
+      naverMapsUrl: '',
+    },
+  };
+}
+
 export const CardEditorModal: React.FC<CardEditorModalProps> = ({
   isOpen,
   onClose,
   card,
+  editingCard,
+  initialData,
   onSave,
   isMyCardMode = false,
   isCreating = false
 }) => {
-  // Primary Creation Mode: 'template' | 'photo' | 'custom_html'
-  const [creationMode, setCreationMode] = useState<CardCreationMode>(
-    card.creation_mode || (card.isPhotoCard ? 'photo' : card.html_front ? 'custom_html' : 'template')
+  const targetCard = editingCard || initialData || card;
+  const activeCard = React.useMemo(
+    () => getSafeCard(targetCard, isMyCardMode),
+    [targetCard, isMyCardMode]
+  );
+
+  // Primary Creation Mode: 'template' | 'photo' | 'custom_html' | 'custom'
+  const [creationMode, setCreationMode] = useState<CardCreationMode>(() =>
+    resolveCardCreationMode(targetCard)
   );
 
   // Template Mode states
   const [templateSubTab, setTemplateSubTab] = useState<'visual_atelier' | 'identity_profile'>(
     isCreating ? 'identity_profile' : 'visual_atelier'
   );
-  const [theme, setTheme] = useState<CardTheme>(card.theme || 'pure_white');
-  const [layoutType, setLayoutType] = useState<CardLayoutType>(card.layout_type || 'editorial_minimal');
-  const [features, setFeatures] = useState<CardFeatures>({
-    show_en_name: card.card_features?.show_en_name ?? true,
-    show_sub_org: card.card_features?.show_sub_org ?? true,
-    show_address: card.card_features?.show_address ?? true,
-    custom_logo: card.card_features?.custom_logo ?? '',
-    monogram_text: card.card_features?.monogram_text ?? ''
-  });
+  const [theme, setTheme] = useState<CardTheme>(() => activeCard.theme || 'pure_white');
+  const [layoutType, setLayoutType] = useState<CardLayoutType>(() =>
+    (activeCard.layout_type as CardLayoutType) ||
+    ((activeCard as any).template_id as CardLayoutType) ||
+    'editorial_minimal'
+  );
+  const [features, setFeatures] = useState<CardFeatures>(() => ({
+    show_en_name: activeCard.card_features?.show_en_name ?? true,
+    show_sub_org: activeCard.card_features?.show_sub_org ?? true,
+    show_address: activeCard.card_features?.show_address ?? true,
+    custom_logo: activeCard.card_features?.custom_logo ?? '',
+    monogram_text: activeCard.card_features?.monogram_text ?? ''
+  }));
 
   // Common Profile Data
-  const [formData, setFormData] = useState<CardData>({
-    ...card.data,
-    nameEn: card.data.nameEn ?? ''
-  });
+  const [formData, setFormData] = useState<CardData>(() => ({
+    ...activeCard.data,
+    nameEn: activeCard.data.nameEn ?? ''
+  }));
   const [category, setCategory] = useState<string>(() => {
     const dynamicCats = loadVaultCategories();
-    if (card.category) return card.category;
+    if (activeCard.category) return activeCard.category;
     const preferred = isMyCardMode ? '글로벌 네트워크' : 'VIP 파트너';
     return dynamicCats.includes(preferred) ? preferred : dynamicCats[0] || preferred;
   });
-  const [notes, setNotes] = useState<string>(card.notes || '');
-  const [slug, setSlug] = useState<string>(
-    isMyCardMode ? (card.slug || `card-${String(Date.now()).slice(-4)}`) : ''
+  const [notes, setNotes] = useState<string>(() => activeCard.notes || '');
+  const [slug, setSlug] = useState<string>(() =>
+    isMyCardMode ? (activeCard.slug || `card-${String(Date.now()).slice(-4)}`) : ''
   );
-  const [customDomain, setCustomDomain] = useState<string>(
-    isMyCardMode ? (card.customDomain || '') : ''
+  const [customDomain, setCustomDomain] = useState<string>(() =>
+    isMyCardMode ? (activeCard.customDomain || '') : ''
   );
-  const [isDefault, setIsDefault] = useState<boolean>(
-    isMyCardMode ? Boolean(card.isDefault) : false
+  const [isDefault, setIsDefault] = useState<boolean>(() =>
+    isMyCardMode ? Boolean(activeCard.isDefault) : false
   );
 
   // Custom HTML Mode states
-  const [htmlFront, setHtmlFront] = useState<string>(
-    card.html_front || DEFAULT_LUXURY_HTML_FRONT
+  const [htmlFront, setHtmlFront] = useState<string>(() =>
+    activeCard.html_front || DEFAULT_LUXURY_HTML_FRONT
   );
-  const [htmlBack, setHtmlBack] = useState<string>(
-    card.html_back || DEFAULT_LUXURY_HTML_BACK
+  const [htmlBack, setHtmlBack] = useState<string>(() =>
+    activeCard.html_back || DEFAULT_LUXURY_HTML_BACK
   );
   const [htmlEditorActiveFace, setHtmlEditorActiveFace] = useState<'front' | 'back'>('front');
 
   // Photo Mode states
-  const [frontImageUrl, setFrontImageUrl] = useState<string | undefined>(
-    card.front_image_url || card.scannedImage
+  const [frontImageUrl, setFrontImageUrl] = useState<string | undefined>(() =>
+    (activeCard as any).photo_url || activeCard.front_image_url || activeCard.scannedImage
   );
-  const [backImageUrl, setBackImageUrl] = useState<string | undefined>(
-    card.back_image_url || card.scannedImageBack
+  const [backImageUrl, setBackImageUrl] = useState<string | undefined>(() =>
+    (activeCard as any).back_photo_url || activeCard.back_image_url || activeCard.scannedImageBack
   );
 
   // Preview Face
   const [previewFace, setPreviewFace] = useState<'front' | 'back'>('front');
 
-  // Sync state whenever card or isOpen changes
+  // Sync state whenever card, editingCard, initialData or isOpen changes
   useEffect(() => {
     if (isOpen) {
-      const mode: CardCreationMode =
-        card.creation_mode || (card.isPhotoCard ? 'photo' : card.html_front ? 'custom_html' : 'template');
+      const currentTarget = editingCard || initialData || card;
+      const safe = getSafeCard(currentTarget, isMyCardMode);
+      const mode = resolveCardCreationMode(currentTarget);
       setCreationMode(mode);
       setTemplateSubTab(isCreating ? 'identity_profile' : 'visual_atelier');
 
       const initialAddressEn = (
-        card.data.address_en ||
-        card.details?.address_en ||
-        card.data.details?.address_en ||
-        (card.data.addressLines && card.data.addressLines.length > 0 ? card.data.addressLines.join(', ') : '')
+        safe.data.address_en ||
+        safe.data.addressEn ||
+        safe.details?.address_en ||
+        safe.data.details?.address_en ||
+        (safe.data.addressLines && safe.data.addressLines.length > 0 ? safe.data.addressLines.join(', ') : '')
       ).trim();
-      const rawAddressKr = (card.data.addressKr ?? '').trim();
+      const rawAddressKr = (safe.data.addressKr ?? '').trim();
       const isPlaceholderAddressEn =
         initialAddressEn.includes('77 Cheongdam-ro') &&
         (initialAddressEn.includes('06015') || initialAddressEn.includes('Republic of Korea'));
@@ -166,16 +274,16 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
           : initialAddressEn;
 
       const primaryName = isCreating
-        ? (card.data.name ?? '')
-        : (card.data.name || card.data.nameKr || '');
+        ? (safe.data.name ?? '')
+        : (safe.data.name || safe.data.nameKr || '');
 
       const rawSubName = isCreating
         ? ''
         : (
-            card.data.nameEn ??
-            card.data.details?.en_name ??
-            card.details?.en_name ??
-            (card.data.name ? card.data.nameKr : '') ??
+            safe.data.nameEn ??
+            safe.data.details?.en_name ??
+            safe.details?.en_name ??
+            (safe.data.name ? safe.data.nameKr : '') ??
             ''
           ).trim();
       const cleanNameEn =
@@ -183,27 +291,27 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
           ? rawSubName
           : '';
 
-      const rawOrg = card.data.organization ?? '';
-      const rawOrgKr = card.data.organizationKr ?? '';
+      const rawOrg = safe.data.organization ?? '';
+      const rawOrgKr = safe.data.organizationKr ?? '';
       const cleanOrg =
         isCreating
           ? ''
           : rawOrg.trim() && rawOrgKr.trim() && rawOrg.trim().toLowerCase() === rawOrgKr.trim().toLowerCase()
             ? ''
             : rawOrg;
-      const cleanOrgKr = isCreating ? (card.data.organizationKr ?? '') : rawOrgKr;
+      const cleanOrgKr = isCreating ? (safe.data.organizationKr ?? '') : rawOrgKr;
 
-      const rawTitle = card.data.title ?? '';
-      const rawTitleKr = card.data.titleKr ?? '';
+      const rawTitle = safe.data.title ?? '';
+      const rawTitleKr = safe.data.titleKr ?? '';
       const cleanTitle =
         isCreating
           ? ''
           : rawTitle.trim() && rawTitleKr.trim() && rawTitle.trim().toLowerCase() === rawTitleKr.trim().toLowerCase()
             ? ''
             : rawTitle;
-      const cleanTitleKr = isCreating ? (card.data.titleKr ?? '') : rawTitleKr;
+      const cleanTitleKr = isCreating ? (safe.data.titleKr ?? '') : rawTitleKr;
 
-      const rawSubOrg = card.data.subOrg ?? card.data.details?.sub_org ?? card.details?.sub_org ?? '';
+      const rawSubOrg = safe.data.subOrg ?? safe.data.details?.sub_org ?? safe.details?.sub_org ?? '';
       const cleanSubOrg =
         rawSubOrg.trim() &&
         rawSubOrg.trim().toLowerCase() !== cleanOrg.trim().toLowerCase() &&
@@ -211,18 +319,18 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
           ? rawSubOrg
           : '';
 
-      const defaultMySlug = card.slug || `card-${String(Date.now()).slice(-4)}`;
-      const rawCardWebsite = (card.data.website ?? '').trim();
+      const defaultMySlug = safe.slug || `card-${String(Date.now()).slice(-4)}`;
+      const rawCardWebsite = (safe.data.website ?? '').trim();
       const initialWebsite = isMyCardMode
         ? (rawCardWebsite || `https://${APP_BASE_DOMAIN}/card/${defaultMySlug}`)
         : rawCardWebsite;
       const initialWebsiteDisplay = isMyCardMode
-        ? ((card.data.websiteDisplay ?? '').trim() || `${APP_BASE_DOMAIN}/card/${defaultMySlug}`)
-        : ((card.data.websiteDisplay ?? '').trim() ||
+        ? ((safe.data.websiteDisplay ?? '').trim() || `${APP_BASE_DOMAIN}/card/${defaultMySlug}`)
+        : ((safe.data.websiteDisplay ?? '').trim() ||
             (rawCardWebsite ? rawCardWebsite.replace(/^https?:\/\//i, '').replace(/\/$/, '') : ''));
 
-      const initialData: CardData = {
-        ...card.data,
+      const initialDataResolved: CardData = {
+        ...safe.data,
         name: primaryName,
         nameEn: cleanNameEn,
         nameKr: '',
@@ -231,58 +339,81 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         subOrg: cleanSubOrg,
         title: cleanTitle,
         titleKr: cleanTitleKr,
-        phone: card.data.phone ?? '',
-        phoneRaw: card.data.phoneRaw ?? '',
-        whatsappUrl: card.data.whatsappUrl ?? '',
-        email: card.data.email ?? '',
-        addressKr: card.data.addressKr ?? '',
+        phone: safe.data.phone ?? '',
+        phoneRaw: safe.data.phoneRaw ?? safe.data.phone?.replace(/[^0-9+]/g, '') ?? '',
+        whatsappUrl: safe.data.whatsappUrl ?? '',
+        email: safe.data.email ?? '',
+        addressKr: safe.data.addressKr ?? '',
         address_en: cleanAddressEn,
-        addressLines: cleanAddressEn ? [cleanAddressEn] : [],
+        addressLines: cleanAddressEn ? [cleanAddressEn] : (safe.data.addressLines || []),
         website: initialWebsite,
         websiteDisplay: initialWebsiteDisplay,
-        googleMapsUrl: card.data.googleMapsUrl ?? '',
-        naverMapsUrl: card.data.naverMapsUrl ?? '',
+        googleMapsUrl: safe.data.googleMapsUrl ?? '',
+        naverMapsUrl: safe.data.naverMapsUrl ?? '',
         details: {
-          ...card.details,
+          ...safe.details,
+          ...safe.data.details,
           en_name: cleanNameEn,
           sub_org: cleanSubOrg,
-          address: card.data.addressKr ?? '',
+          address: safe.data.addressKr ?? '',
           address_en: cleanAddressEn,
-          slogan: card.data.backTagline ?? '',
-          show_address: card.card_features?.show_address ?? true,
-          show_en_name: card.card_features?.show_en_name ?? true
+          slogan: safe.data.backTagline ?? '',
+          show_address: safe.card_features?.show_address ?? true,
+          show_en_name: safe.card_features?.show_en_name ?? true
         }
       };
-      setFormData(initialData);
-      setTheme(card.theme || 'pure_white');
-      setLayoutType(card.layout_type || 'editorial_minimal');
+      setFormData(initialDataResolved);
+
+      const resolvedTheme = safe.theme || (safe as any).theme_preset || 'pure_white';
+      setTheme(resolvedTheme);
+
+      const resolvedLayout =
+        (safe.layout_type as CardLayoutType) ||
+        ((safe as any).template_id as CardLayoutType) ||
+        'editorial_minimal';
+      setLayoutType(resolvedLayout);
+
       setFeatures({
-        show_en_name: card.card_features?.show_en_name ?? true,
-        show_sub_org: card.card_features?.show_sub_org ?? true,
-        show_address: card.card_features?.show_address ?? true,
-        custom_logo: card.card_features?.custom_logo ?? '',
-        monogram_text: card.card_features?.monogram_text ?? ''
+        show_en_name: safe.card_features?.show_en_name ?? true,
+        show_sub_org: safe.card_features?.show_sub_org ?? true,
+        show_address: safe.card_features?.show_address ?? true,
+        custom_logo: safe.card_features?.custom_logo ?? '',
+        monogram_text: safe.card_features?.monogram_text ?? ''
       });
+
       const currentDynamicCats = loadVaultCategories();
       const preferredDefault = isMyCardMode ? '글로벌 네트워크' : 'VIP 파트너';
       const resolvedCategory =
-        card.category && (!isCreating || currentDynamicCats.includes(card.category))
-          ? card.category
+        safe.category && (!isCreating || currentDynamicCats.includes(safe.category))
+          ? safe.category
           : currentDynamicCats.includes(preferredDefault)
             ? preferredDefault
             : currentDynamicCats[0] || preferredDefault;
       setCategory(resolvedCategory);
-      setNotes(card.notes || '');
+
+      setNotes(safe.notes || '');
       setSlug(isMyCardMode ? defaultMySlug : '');
-      setCustomDomain(isMyCardMode ? (card.customDomain || '') : '');
-      setIsDefault(isMyCardMode ? Boolean(card.isDefault) : false);
-      setHtmlFront(card.html_front || DEFAULT_LUXURY_HTML_FRONT);
-      setHtmlBack(card.html_back || DEFAULT_LUXURY_HTML_BACK);
-      setFrontImageUrl(card.front_image_url || card.scannedImage);
-      setBackImageUrl(card.back_image_url || card.scannedImageBack);
+      setCustomDomain(isMyCardMode ? (safe.customDomain || '') : '');
+      setIsDefault(isMyCardMode ? Boolean(safe.isDefault) : false);
+
+      setHtmlFront(safe.html_front || DEFAULT_LUXURY_HTML_FRONT);
+      setHtmlBack(safe.html_back || DEFAULT_LUXURY_HTML_BACK);
+
+      const frontPhoto =
+        (safe as any).photo_url ||
+        safe.front_image_url ||
+        safe.scannedImage ||
+        undefined;
+      const backPhoto =
+        (safe as any).back_photo_url ||
+        safe.back_image_url ||
+        safe.scannedImageBack ||
+        undefined;
+      setFrontImageUrl(frontPhoto);
+      setBackImageUrl(backPhoto);
       setPreviewFace('front');
     }
-  }, [card, isOpen, isMyCardMode, isCreating]);
+  }, [card, editingCard, initialData, isOpen, isMyCardMode, isCreating]);
 
   if (!isOpen) return null;
 
@@ -373,29 +504,31 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
       setLayoutType('editorial_minimal');
       setCreationMode('template');
     } else {
-      const origWeb = (card.data.website ?? '').trim();
+      const origWeb = (activeCard.data.website ?? '').trim();
       setFormData({
-        ...card.data,
-        name: card.data.name || card.data.nameKr || '',
-        nameEn: card.data.nameEn ?? '',
+        ...activeCard.data,
+        name: activeCard.data.name || activeCard.data.nameKr || '',
+        nameEn: activeCard.data.nameEn ?? '',
         nameKr: '',
         website: isMyCardMode
-          ? (origWeb || `https://${APP_BASE_DOMAIN}/card/${card.slug || 'card'}`)
+          ? (origWeb || `https://${APP_BASE_DOMAIN}/card/${activeCard.slug || 'card'}`)
           : origWeb,
         websiteDisplay: isMyCardMode
-          ? ((card.data.websiteDisplay ?? '').trim() || `${APP_BASE_DOMAIN}/card/${card.slug || 'card'}`)
-          : ((card.data.websiteDisplay ?? '').trim() || (origWeb ? origWeb.replace(/^https?:\/\//i, '').replace(/\/$/, '') : ''))
+          ? ((activeCard.data.websiteDisplay ?? '').trim() || `${APP_BASE_DOMAIN}/card/${activeCard.slug || 'card'}`)
+          : ((activeCard.data.websiteDisplay ?? '').trim() || (origWeb ? origWeb.replace(/^https?:\/\//i, '').replace(/\/$/, '') : ''))
       });
-      setSlug(isMyCardMode ? (card.slug || 'card') : '');
-      setCustomDomain(isMyCardMode ? (card.customDomain || '') : '');
-      setCategory(card.category || (isMyCardMode ? '글로벌 네트워크' : 'VIP 파트너'));
-      setNotes(card.notes || '');
-      setIsDefault(isMyCardMode ? Boolean(card.isDefault) : false);
-      setTheme(card.theme || 'pure_white');
-      setLayoutType(card.layout_type || 'editorial_minimal');
-      setCreationMode(
-        card.creation_mode || (card.isPhotoCard ? 'photo' : card.html_front ? 'custom_html' : 'template')
+      setSlug(isMyCardMode ? (activeCard.slug || 'card') : '');
+      setCustomDomain(isMyCardMode ? (activeCard.customDomain || '') : '');
+      setCategory(activeCard.category || (isMyCardMode ? '글로벌 네트워크' : 'VIP 파트너'));
+      setNotes(activeCard.notes || '');
+      setIsDefault(isMyCardMode ? Boolean(activeCard.isDefault) : false);
+      setTheme(activeCard.theme || 'pure_white');
+      setLayoutType(
+        (activeCard.layout_type as CardLayoutType) ||
+        ((activeCard as any).template_id as CardLayoutType) ||
+        'editorial_minimal'
       );
+      setCreationMode(resolveCardCreationMode(activeCard));
     }
   };
 
@@ -464,13 +597,14 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
     };
 
     const isPhotoMode = creationMode === 'photo';
-    const isHtmlMode = creationMode === 'custom_html';
+    const isHtmlMode = creationMode === 'custom_html' || (creationMode as string) === 'custom';
 
     const updated: StoredCard = {
-      ...card,
+      ...activeCard,
       data: finalData,
       theme,
       layout_type: layoutType,
+      template_id: layoutType,
       card_features: features,
       category,
       notes,
@@ -479,8 +613,8 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
       isDefault: isMyCardMode ? isDefault : false,
       isMyCard: Boolean(isMyCardMode),
       creation_mode: creationMode,
-      owner_key: isMyCardMode ? (card.owner_key || `key_${Date.now()}`) : undefined,
-      created_at: card.created_at || new Date().toISOString(),
+      owner_key: isMyCardMode ? (activeCard.owner_key || `key_${Date.now()}`) : undefined,
+      created_at: activeCard.created_at || new Date().toISOString(),
       details: {
         en_name: cleanNameEn,
         sub_org: cleanSubOrg,
@@ -494,8 +628,10 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
       html_back: isHtmlMode ? sanitizeHtml(htmlBack) : undefined,
       front_image_url: isPhotoMode ? frontImageUrl : undefined,
       back_image_url: isPhotoMode ? backImageUrl : undefined,
-      scannedImage: isPhotoMode ? frontImageUrl : undefined,
-      scannedImageBack: isPhotoMode ? backImageUrl : undefined,
+      photo_url: isPhotoMode ? frontImageUrl : undefined,
+      back_photo_url: isPhotoMode ? backImageUrl : undefined,
+      scannedImage: isPhotoMode ? frontImageUrl : activeCard.scannedImage,
+      scannedImageBack: isPhotoMode ? backImageUrl : activeCard.scannedImageBack,
       isPhotoCard: isPhotoMode && Boolean(frontImageUrl)
     };
 
@@ -558,7 +694,9 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
           {/* Minimal Border-Bottom Typographic Mode Switcher */}
           <nav className="flex items-center gap-7 overflow-x-auto no-scrollbar" aria-label="생성 방식">
             {CREATION_MODES.map((mode) => {
-              const isActive = creationMode === mode.id;
+              const isActive =
+                creationMode === mode.id ||
+                (mode.id === 'custom_html' && (creationMode === 'custom' || creationMode === 'custom_html'));
               return (
                 <button
                   key={mode.id}
@@ -626,7 +764,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
               />
             )}
 
-            {creationMode === 'custom_html' && (
+            {(creationMode === 'custom_html' || (creationMode as string) === 'custom') && (
               <CustomHtmlEditor
                 htmlFront={htmlFront}
                 htmlBack={htmlBack}
@@ -682,3 +820,6 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
     </div>
   );
 };
+
+export const CardEditModal = CardEditorModal;
+export const CardFormModal = CardEditorModal;

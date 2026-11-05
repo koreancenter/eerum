@@ -75,7 +75,9 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
         websiteDisplay: effectiveDisplayUrl,
       };
 
-  const isVerticalCard = isVerticalLayout(layoutType) && creationMode === 'template';
+  const isVerticalCard =
+    isVerticalLayout(layoutType) &&
+    (creationMode === 'template' || creationMode === 'photo');
   const sanitizedFront = useMemo(() => sanitizeHtml(htmlFront), [htmlFront]);
   const sanitizedBack = useMemo(() => sanitizeHtml(htmlBack), [htmlBack]);
 
@@ -121,13 +123,18 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
                   className="w-full h-full object-cover rounded-2xl"
                 />
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-[#121214] border border-white/[0.06] rounded-2xl">
-                  <p className="text-xs text-zinc-400">등록된 사진이 없습니다</p>
-                </div>
+                <BusinessCardFront
+                  data={cardDataForPreview}
+                  theme={theme}
+                  layout_type={layoutType}
+                  card_features={features}
+                  isPrintPreview={false}
+                  hideBorder={true}
+                />
               )
             )}
 
-            {creationMode === 'custom_html' && (
+            {(creationMode === 'custom_html' || (creationMode as string) === 'custom') && (
               sanitizedFront ? (
                 <div className="w-full h-full overflow-hidden rounded-2xl">
                   <SandboxedCardRenderer
@@ -175,7 +182,7 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
               )
             )}
 
-            {creationMode === 'custom_html' && (
+            {(creationMode === 'custom_html' || (creationMode as string) === 'custom') && (
               sanitizedBack ? (
                 <div className="w-full h-full overflow-hidden rounded-2xl">
                   <SandboxedCardRenderer

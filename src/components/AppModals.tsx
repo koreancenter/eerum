@@ -241,13 +241,15 @@ export const AppModals: React.FC<AppModalsProps> = ({
         )}
 
         {/* Multi-mode Card Editor Modal */}
-        {modals.editingCard && modals.isEditorOpen && (
+        {modals.isEditorOpen && (
           <CardEditorModal
             isOpen={modals.isEditorOpen}
             onClose={modals.closeEditor}
-            card={modals.editingCard}
+            card={modals.editingCard || undefined}
+            editingCard={modals.editingCard}
+            initialData={modals.editingCard}
             onSave={onSaveCard}
-            isMyCardMode={Boolean(modals.editingCard.isMyCard)}
+            isMyCardMode={Boolean(modals.editingCard?.isMyCard)}
             isCreating={modals.isCreatingCard}
           />
         )}

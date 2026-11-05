@@ -1,4 +1,4 @@
-export type CardCreationMode = 'template' | 'custom_html' | 'photo';
+export type CardCreationMode = 'template' | 'custom_html' | 'photo' | 'custom';
 
 export interface BaseCard {
   id: string;
@@ -148,6 +148,9 @@ export interface StoredCard {
 
   // 3-Way Card Creation Architecture Integration
   creation_mode?: CardCreationMode;
+  template_id?: string;
+  photo_url?: string;
+  back_photo_url?: string;
   owner_key?: string;
   created_at?: string;
   html_front?: string;
