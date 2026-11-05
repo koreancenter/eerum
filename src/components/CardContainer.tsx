@@ -94,8 +94,9 @@ export const CardContainer: React.FC<CardContainerProps> = ({
       transition={{ layout: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } }}
       style={{
         maxWidth: isPortrait 
-          ? 'min(100%, 340px, calc((100dvh - 195px) * 5 / 8), calc((100vh - 195px) * 5 / 8))' 
+          ? 'min(100%, calc((100vh - 240px) * 5 / 8), 320px)' 
           : '560px',
+        maxHeight: isPortrait ? 'calc(100vh - 240px)' : 'none',
         width: '100%',
       }}
       className="mx-auto select-none flex flex-col items-center transition-all duration-300"
@@ -124,8 +125,9 @@ export const CardContainer: React.FC<CardContainerProps> = ({
             transformStyle: 'preserve-3d',
             WebkitTransformStyle: 'preserve-3d',
             maxWidth: isPortrait 
-              ? 'min(100%, 340px, calc((100dvh - 195px) * 5 / 8), calc((100vh - 195px) * 5 / 8))' 
+              ? 'min(100%, calc((100vh - 240px) * 5 / 8), 320px)' 
               : '100%',
+            maxHeight: isPortrait ? 'calc(100vh - 240px)' : 'none',
           }}
           className="relative w-full cursor-pointer group shadow-[0_24px_64px_rgba(0,0,0,0.6)] rounded-2xl transition-shadow duration-300 hover:shadow-[0_32px_80px_rgba(0,0,0,0.75)]"
         >
@@ -184,7 +186,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
           onOpenShare={onOpenShare}
           isPhotoCard={isPhotoCard}
           orientation={orientation}
-          onToggleOrientation={!isVerticalCard && isOwner ? () => setOrientation(prev => prev === 'portrait' ? 'landscape' : 'portrait') : undefined}
+          onToggleOrientation={isOwner ? () => setOrientation(prev => prev === 'portrait' ? 'landscape' : 'portrait') : undefined}
           cardUrl={cardUrl}
           onShowToast={onShowToast}
         />

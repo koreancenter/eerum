@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { StoredCard, CardOrientation } from '../types/card';
+import { isVerticalLayout } from '../constants/templates';
 import { BusinessCardFront } from './BusinessCardFront';
 import { BusinessCardBack } from './BusinessCardBack';
 import { ActionButtons } from './ActionButtons';
@@ -56,7 +57,10 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
   const initialIndex = Math.max(0, personalCards.findIndex((c) => c.id === activeCardId));
   const [currentIndex, setCurrentIndex] = useState<number>(initialIndex >= 0 ? initialIndex : 0);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
-  const [orientation, setOrientation] = useState<CardOrientation>('landscape');
+  const [orientation, setOrientation] = useState<CardOrientation>(() => {
+    const initCard = personalCards[initialIndex >= 0 ? initialIndex : 0];
+    return initCard && isVerticalLayout(initCard.layout_type) ? 'portrait' : 'landscape';
+  });
   const [dragOffset, setDragOffset] = useState<number>(0);
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
@@ -77,9 +81,11 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
     if (idx >= 0) {
       setCurrentIndex(idx);
       setIsFlipped(false);
+      setOrientation(isVerticalLayout(personalCards[idx].layout_type) ? 'portrait' : 'landscape');
     } else if (personalCards.length > 0) {
       setCurrentIndex(0);
       setIsFlipped(false);
+      setOrientation(isVerticalLayout(personalCards[0].layout_type) ? 'portrait' : 'landscape');
     }
   }, [activeCardId, personalCards]);
 
@@ -91,6 +97,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
 
     if (bounded < personalCards.length) {
       onSelectCard(personalCards[bounded].id);
+      setOrientation(isVerticalLayout(personalCards[bounded].layout_type) ? 'portrait' : 'landscape');
     }
   }, [totalSlides, personalCards, onSelectCard]);
 
@@ -290,14 +297,14 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
         onMouseUp={handlePointerUp}
         onMouseLeave={handlePointerUp}
       >
-        {/* Left Arrow (Desktop) */}
+        {/* Left Arrow (Visible on Mobile & Desktop) */}
         {currentIndex > 0 && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               goToSlide(currentIndex - 1);
             }}
-            className="hidden sm:flex absolute left-2 md:left-6 z-30 p-2.5 rounded-full bg-black/70 hover:bg-black/90 border border-white/10 text-white/70 hover:text-white backdrop-blur-md transition-all active:scale-90 cursor-pointer shadow-xl"
+            className="flex absolute left-1 sm:left-2 md:left-6 z-30 p-2 sm:p-2.5 rounded-full bg-black/70 hover:bg-black/90 border border-white/10 text-white/70 hover:text-white backdrop-blur-md transition-all active:scale-90 cursor-pointer shadow-xl"
             title="이전 명함 보기"
             aria-label="이전 명함"
           >
@@ -305,14 +312,14 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
           </button>
         )}
 
-        {/* Right Arrow (Desktop) */}
+        {/* Right Arrow (Visible on Mobile & Desktop) */}
         {currentIndex < totalSlides - 1 && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               goToSlide(currentIndex + 1);
             }}
-            className="hidden sm:flex absolute right-2 md:right-6 z-30 p-2.5 rounded-full bg-black/70 hover:bg-black/90 border border-white/10 text-white/70 hover:text-white backdrop-blur-md transition-all active:scale-90 cursor-pointer shadow-xl"
+            className="flex absolute right-1 sm:right-2 md:right-6 z-30 p-2 sm:p-2.5 rounded-full bg-black/70 hover:bg-black/90 border border-white/10 text-white/70 hover:text-white backdrop-blur-md transition-all active:scale-90 cursor-pointer shadow-xl"
             title="다음 명함 보기"
             aria-label="다음 명함"
           >
@@ -334,7 +341,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
           {personalCards.map((card, idx) => {
             const isCenter = idx === currentIndex;
             const isFlippedCard = isCenter && isFlipped;
-            const isCardPortrait = card.layout_type === 'vertical_atelier' || (isCenter && orientation === 'portrait');
+            const isCardPortrait = isVerticalLayout(card.layout_type) || orientation === 'portrait';
 
             return (
               <div
@@ -361,8 +368,11 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
                   className="w-full [perspective:1400px] flex justify-center transition-all duration-300"
                   style={{
                     maxWidth: isCardPortrait
-                      ? 'min(100%, 340px, calc((100dvh - 195px) * 5 / 8), calc((100vh - 195px) * 5 / 8))'
+                      ? 'min(100%, calc((100vh - 240px) * 5 / 8), 320px)'
                       : 'min(100%, 540px)',
+                    maxHeight: isCardPortrait
+                      ? 'calc(100vh - 240px)'
+                      : 'none',
                   }}
                 >
                   {/* 3D Flip Card */}
@@ -373,8 +383,11 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
                       WebkitTransformStyle: 'preserve-3d',
                       transition: 'transform 0.65s cubic-bezier(0.16, 1, 0.3, 1)',
                       maxWidth: isCardPortrait
-                        ? 'min(100%, 340px, calc((100dvh - 195px) * 5 / 8), calc((100vh - 195px) * 5 / 8))'
+                        ? 'min(100%, calc((100vh - 240px) * 5 / 8), 320px)'
                         : '100%',
+                      maxHeight: isCardPortrait
+                        ? 'calc(100vh - 240px)'
+                        : 'none',
                     }}
                     className={`relative w-full rounded-2xl group transition-shadow duration-300 ${
                       isCenter 
@@ -493,8 +506,8 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
             onOpenEdit={() => onOpenEdit && onOpenEdit(activeCard)}
             onOpenShare={() => onOpenShare(activeCard)}
             isPhotoCard={activeCard.isPhotoCard || activeCard.creation_mode === 'photo'}
-            orientation={activeCard.layout_type === 'vertical_atelier' ? 'portrait' : orientation}
-            onToggleOrientation={activeCard.layout_type !== 'vertical_atelier' ? () => setOrientation(prev => prev === 'portrait' ? 'landscape' : 'portrait') : undefined}
+            orientation={orientation}
+            onToggleOrientation={() => setOrientation(prev => prev === 'portrait' ? 'landscape' : 'portrait')}
           />
         )}
       </div>
