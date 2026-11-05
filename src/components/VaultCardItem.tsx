@@ -1,4 +1,5 @@
 import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { StoredCard } from '../types/card';
 import {
   Phone,
@@ -28,7 +29,13 @@ interface VaultCardKebabMenuProps {
   onDeleteCard: (cardId: string) => void;
   onOpenPhotoArchive: (card: StoredCard) => void;
   buttonClassName?: string;
-  menuDirection?: 'up' | 'down';
+  menuDirection?: 'up' | 'down' | 'auto';
+}
+
+interface PositionStyle {
+  top?: number;
+  bottom?: number;
+  right: number;
 }
 
 /**
@@ -38,6 +45,9 @@ interface VaultCardKebabMenuProps {
  * - Export HTML Code (독립형 HTML 내보내기)
  * - View Original Photo Archive (실물 명함 사진 원본)
  * - Delete Card (명함 삭제)
+ *
+ * Uses React Portal attached to document.body and smart boundary auto-flip
+ * to prevent clipping by any parent overflow-hidden or overflow-x-auto container.
  */
 const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
   card,
@@ -47,34 +57,90 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
   onDeleteCard,
   onOpenPhotoArchive,
   buttonClassName,
-  menuDirection = 'up',
+  menuDirection = 'auto',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuCoords, setMenuCoords] = useState<PositionStyle | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const updateMenuPosition = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const estimatedMenuHeight = 220; // 5 menu items + margins
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+
+    // Smart Boundary Detection / Direction Auto-Flip:
+    // If the trigger button is near bottom of viewport (spaceBelow < 220 or rect.bottom > window.innerHeight - 200),
+    // or if explicitly set to 'up' and space above is sufficient, open upward.
+    const shouldOpenUp =
+      (menuDirection === 'up' && spaceAbove >= estimatedMenuHeight) ||
+      spaceBelow < estimatedMenuHeight;
+
+    const right = Math.max(8, window.innerWidth - rect.right);
+
+    if (shouldOpenUp) {
+      setMenuCoords({
+        bottom: window.innerHeight - rect.top + 6,
+        right,
+      });
+    } else {
+      setMenuCoords({
+        top: rect.bottom + 6,
+        right,
+      });
+    }
+  }, [menuDirection]);
 
   useEffect(() => {
     if (!isOpen) return;
+
+    updateMenuPosition();
+
+    const handleScrollOrResize = () => {
+      setIsOpen(false);
+    };
+
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsOpen(false);
       }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
     };
-  }, [isOpen]);
+  }, [isOpen, updateMenuPosition]);
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsOpen((prev) => !prev);
+    if (!isOpen) {
+      updateMenuPosition();
+      setIsOpen(true);
+    } else {
+      setIsOpen(false);
+    }
   };
 
   const handleEdit = (e: React.MouseEvent) => {
@@ -109,9 +175,88 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
 
   const displayName = card.data.name || card.data.nameKr || '명함';
 
+  const menuPortal =
+    isOpen && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            aria-orientation="vertical"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              top: menuCoords?.top !== undefined ? `${menuCoords.top}px` : undefined,
+              bottom: menuCoords?.bottom !== undefined ? `${menuCoords.bottom}px` : undefined,
+              right: menuCoords ? `${menuCoords.right}px` : '8px',
+            }}
+            className="w-44 rounded-xl bg-[#161618]/95 backdrop-blur-xl border border-white/12 shadow-2xl p-1 z-[9999] animate-in fade-in zoom-in-95 duration-150 divide-y divide-white/5 text-xs text-neutral-200 select-none"
+          >
+            <div className="py-0.5 space-y-0.5">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleEdit}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <span>명함 수정</span>
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleVCard}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <UserPlus className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <span>연락처 저장 (.vcf)</span>
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleExport}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <span>HTML 내보내기</span>
+              </button>
+
+              {hasPhoto && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handlePhoto}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <Camera className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                  <span>실물 사진 원본</span>
+                </button>
+              )}
+            </div>
+
+            {!card.isMyCard && (
+              <div className="pt-0.5">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleDelete}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-rose-400 hover:text-rose-300 hover:bg-rose-500/15 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>명함 삭제</span>
+                </button>
+              </div>
+            )}
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
-    <div className="relative inline-block text-left" ref={menuRef}>
+    <div className="relative inline-block text-left">
       <button
+        ref={buttonRef}
         type="button"
         onClick={handleToggle}
         aria-haspopup="menu"
@@ -126,74 +271,7 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
         <MoreVertical className="w-3.5 h-3.5 stroke-[1.75]" />
       </button>
 
-      {isOpen && (
-        <div
-          role="menu"
-          aria-orientation="vertical"
-          onClick={(e) => e.stopPropagation()}
-          className={`absolute right-0 ${
-            menuDirection === 'up' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
-          } w-44 rounded-xl bg-[#161618]/95 backdrop-blur-xl border border-white/12 shadow-2xl p-1 z-50 animate-in fade-in zoom-in-95 duration-150 divide-y divide-white/5 text-xs text-neutral-200 select-none`}
-        >
-          <div className="py-0.5 space-y-0.5">
-            <button
-              type="button"
-              role="menuitem"
-              onClick={handleEdit}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            >
-              <Edit3 className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-              <span>명함 수정</span>
-            </button>
-
-            <button
-              type="button"
-              role="menuitem"
-              onClick={handleVCard}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            >
-              <UserPlus className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-              <span>연락처 저장 (.vcf)</span>
-            </button>
-
-            <button
-              type="button"
-              role="menuitem"
-              onClick={handleExport}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-              <span>HTML 내보내기</span>
-            </button>
-
-            {hasPhoto && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={handlePhoto}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-              >
-                <Camera className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                <span>실물 사진 원본</span>
-              </button>
-            )}
-          </div>
-
-          {!card.isMyCard && (
-            <div className="pt-0.5">
-              <button
-                type="button"
-                role="menuitem"
-                onClick={handleDelete}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-rose-400 hover:text-rose-300 hover:bg-rose-500/15 transition-colors cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                <span>명함 삭제</span>
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {menuPortal}
     </div>
   );
 };
@@ -627,7 +705,7 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
           onDeleteCard={onDeleteCard}
           onOpenPhotoArchive={onOpenPhotoArchive}
           buttonClassName="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-          menuDirection="down"
+          menuDirection="auto"
         />
       </div>
     </div>
@@ -744,7 +822,7 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
             onDeleteCard={onDeleteCard}
             onOpenPhotoArchive={onOpenPhotoArchive}
             buttonClassName="p-1.5 rounded-lg hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            menuDirection="down"
+            menuDirection="auto"
           />
         </div>
       </td>
