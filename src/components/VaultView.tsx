@@ -10,6 +10,7 @@ import {
   Plus,
   Check,
   SlidersHorizontal,
+  Mic,
 } from 'lucide-react';
 import { PhotoArchiveModal } from './PhotoArchiveModal';
 import {
@@ -30,6 +31,17 @@ import {
 
 const SEARCH_DEBOUNCE_MS = 180;
 
+interface IWindowSpeechRecognition extends Window {
+  SpeechRecognition?: any;
+  webkitSpeechRecognition?: any;
+}
+
+const getSpeechRecognitionClass = () => {
+  if (typeof window === 'undefined') return null;
+  const win = window as unknown as IWindowSpeechRecognition;
+  return win.SpeechRecognition || win.webkitSpeechRecognition || null;
+};
+
 interface VaultViewProps {
   cards: StoredCard[];
   onSelectCard: (card: StoredCard) => void;
@@ -44,6 +56,7 @@ interface VaultViewProps {
   onRenameCategory?: (oldName: string, newName: string) => void;
   onMergeCategories?: (sourceCategory: string, targetCategory: string) => void;
   onDeleteCategory?: (deletedName: string, fallbackCategory: string) => void;
+  onShowToast?: (msg: string) => void;
 }
 
 export const VaultView: React.FC<VaultViewProps> = ({
@@ -58,6 +71,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
   onRenameCategory,
   onMergeCategories,
   onDeleteCategory,
+  onShowToast,
 }) => {
   const cardsRef = useRef<StoredCard[]>(cards);
   cardsRef.current = cards;
@@ -71,6 +85,13 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   const [photoArchiveCardId, setPhotoArchiveCardId] = useState<string | null>(null);
+
+  // Web Speech API Voice Search States
+  const [isListening, setIsListening] = useState<boolean>(false);
+  const [voiceFeedback, setVoiceFeedback] = useState<string | null>(null);
+  const [localToast, setLocalToast] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const toastTimerRef = useRef<number | null>(null);
 
   // Inline `+` Add Category Input State inside the horizontal category scroll bar
   const [isInlineAdding, setIsInlineAdding] = useState<boolean>(false);
@@ -156,6 +177,134 @@ export const VaultView: React.FC<VaultViewProps> = ({
     setSearchQuery('');
     setDebouncedSearchQuery('');
   }, []);
+
+  // Graceful Toast notification (invokes parent prop and displays local fallback alert)
+  const triggerToast = useCallback(
+    (msg: string) => {
+      if (onShowToast) {
+        onShowToast(msg);
+      }
+      setLocalToast(msg);
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+      toastTimerRef.current = window.setTimeout(() => {
+        setLocalToast(null);
+      }, 2800);
+    },
+    [onShowToast]
+  );
+
+  // Web Speech API lifecycle & unmount cleanup
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {}
+        recognitionRef.current = null;
+      }
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
+  const stopVoiceSearch = useCallback(() => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+    }
+    setIsListening(false);
+    setVoiceFeedback(null);
+  }, []);
+
+  const toggleVoiceSearch = useCallback(() => {
+    const SpeechRecognitionClass = getSpeechRecognitionClass();
+
+    if (!SpeechRecognitionClass) {
+      triggerToast(
+        '현재 브라우저에서는 음성 검색(Web Speech API)을 지원하지 않습니다. Chrome 또는 Safari 최신 버전을 권장합니다.'
+      );
+      return;
+    }
+
+    if (isListening) {
+      stopVoiceSearch();
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognitionClass();
+      // Set recognition language to 'ko-KR' (or fallback to browser default)
+      const selectedLang: string = 'ko-KR';
+      const browserDefaultLang: string =
+        (typeof navigator !== 'undefined' && navigator.language) || 'ko-KR';
+      recognition.lang = selectedLang || browserDefaultLang;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      recognition.continuous = false;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        setVoiceFeedback('말씀하세요... (듣는 중)');
+      };
+
+      recognition.onresult = (event: any) => {
+        let finalTranscript = '';
+        let interimTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const item = event.results[i];
+          if (item.isFinal) {
+            finalTranscript += item[0]?.transcript || '';
+          } else {
+            interimTranscript += item[0]?.transcript || '';
+          }
+        }
+
+        const activeText = (finalTranscript || interimTranscript).trim();
+        if (activeText) {
+          // Automatically populate search state (`searchQuery`) upon `onresult` event to filter the card list instantaneously
+          setSearchQuery(activeText);
+          setDebouncedSearchQuery(activeText);
+          setVoiceFeedback(`인식됨: "${activeText}"`);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Voice search error:', event.error);
+        setIsListening(false);
+        setVoiceFeedback(null);
+
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          triggerToast('마이크 사용 권한이 차단되었습니다. 브라우저 설정에서 마이크 권한을 허용해 주세요.');
+        } else if (event.error === 'no-speech') {
+          triggerToast('음성이 감지되지 않았습니다. 마이크에 대고 다시 말씀해 주세요.');
+        } else if (event.error === 'network') {
+          triggerToast('음성 인식 네트워크 연결에 실패했습니다.');
+        } else if (event.error !== 'aborted') {
+          triggerToast(`음성 검색에 실패했습니다 (${event.error})`);
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        setTimeout(() => {
+          setVoiceFeedback(null);
+        }, 1200);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.error('Failed to start voice search:', err);
+      setIsListening(false);
+      setVoiceFeedback(null);
+      triggerToast('음성 검색을 시작하지 못했습니다. 마이크 설정을 확인해 주세요.');
+    }
+  }, [isListening, stopVoiceSearch, triggerToast]);
 
   const photoArchiveCard = useMemo(
     () => (photoArchiveCardId ? cards.find((c) => c.id === photoArchiveCardId) || null : null),
@@ -375,109 +524,230 @@ export const VaultView: React.FC<VaultViewProps> = ({
 
   return (
     <div className="w-full max-w-full min-w-0 flex flex-col gap-3 sm:gap-3.5 animate-in fade-in duration-300">
-      {/* 3-Row Vertical Header Stack (Row 1: Search, Row 2: Action Bar, Row 3: Category Scroll) */}
+      {/* 2-Row Header Layout (Row 1: Section Title & Combined Action Bar with Search, Row 2: Category Filter Chips) */}
       <header
         aria-label="명함 보관함 검색 및 필터 도구 모음"
         className="w-full max-w-full min-w-0 flex flex-col gap-2.5 sm:gap-3 pb-3 border-b border-white/10"
       >
-        {/* Row 1: Full-Width Search Input */}
-        <div className="relative w-full max-w-full min-w-0">
-          <Search className="w-4 h-4 stroke-[1.5] text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="이름, 회사, 직함, 메모 검색"
-            aria-label="명함 보관함 검색"
-            className="w-full h-10 pl-10 pr-9 rounded-xl bg-[#121214] border border-white/10 text-xs text-neutral-200 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={handleClearSearch}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
-              aria-label="검색어 지우기"
-              title="검색어 지우기"
-            >
-              <X className="w-3.5 h-3.5 stroke-[1.5]" />
-            </button>
-          )}
-        </div>
-
-        {/* Row 2: Dedicated Action Bar (Filtered Count Summary + Category Manage + View Toggle + Add Card) */}
-        <div className="w-full max-w-full min-w-0 flex items-center justify-between gap-2">
-          <div className="min-w-0 flex-1 flex items-center gap-1.5 text-xs text-zinc-400">
-            <span className="truncate">
-              {selectedCategory === '전체' ? '보관 명함' : selectedCategory}
-            </span>
-            <span className="font-mono tabular-nums text-zinc-300 shrink-0">
-              {filteredCards.length}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => openCategoryPanel(false)}
-              aria-expanded={isCategoryPanelOpen}
-              aria-label="카테고리 관리 패널 열기"
-              title="카테고리 이름 변경·병합·삭제 관리"
-              className={`h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl border text-xs font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
-                isCategoryPanelOpen
-                  ? 'bg-white text-neutral-950 border-white font-semibold'
-                  : 'bg-[#121214] hover:bg-white/10 border-white/10 text-zinc-300 hover:text-white'
-              }`}
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
-              <span className="sm:hidden">관리</span>
-              <span className="hidden sm:inline">카테고리 관리</span>
-            </button>
-
-            <div
-              role="group"
-              aria-label="보관함 보기 방식"
-              className="grid grid-cols-2 p-0.5 h-9 sm:h-10 bg-[#121214] rounded-xl border border-white/10 shrink-0"
-            >
-              <button
-                type="button"
-                onClick={() => setViewMode('cards')}
-                aria-pressed={viewMode === 'cards'}
-                aria-label="카드 뷰"
-                title="카드 뷰"
-                className={`w-8 sm:w-9 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
-                  viewMode === 'cards'
-                    ? 'bg-white/12 text-white'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                <LayoutGrid className="w-4 h-4 stroke-[1.5]" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('list')}
-                aria-pressed={viewMode === 'list'}
-                aria-label="리스트 뷰"
-                title="리스트 뷰"
-                className={`w-8 sm:w-9 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
-                  viewMode === 'list'
-                    ? 'bg-white/12 text-white'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                <List className="w-4 h-4 stroke-[1.5]" />
-              </button>
+        {/* Row 1: Section Title/Count on Left + Combined Action Controls (Search, Manage, View Toggle, Add) on Right */}
+        <div className="w-full max-w-full min-w-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3">
+          {/* Left: Section Title & Count ("보관 명함 3") */}
+          <div className="flex items-center justify-between sm:justify-start gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+              <span className="font-semibold text-white tracking-tight">
+                {selectedCategory === '전체' ? '보관 명함' : selectedCategory}
+              </span>
+              <span className="font-mono tabular-nums text-zinc-300 font-semibold px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[11px]">
+                {filteredCards.length}
+              </span>
             </div>
 
-            <button
-              type="button"
-              onClick={onOpenScan}
-              aria-label="실물 명함 사진 등록"
-              title="실물 명함 사진 등록"
-              className="h-9 sm:h-10 px-3 sm:px-3.5 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
-              <span className="whitespace-nowrap">명함 추가</span>
-            </button>
+            {/* Mobile-Only Action Button Cluster (< sm) */}
+            <div className="flex sm:hidden items-center justify-end gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => openCategoryPanel(false)}
+                aria-expanded={isCategoryPanelOpen}
+                aria-label="카테고리 관리 패널 열기"
+                title="카테고리 이름 변경·병합·삭제 관리"
+                className={`h-8.5 px-2.5 rounded-xl border text-xs font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-1 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                  isCategoryPanelOpen
+                    ? 'bg-white text-neutral-950 border-white font-semibold'
+                    : 'bg-[#121214] hover:bg-white/10 border-white/10 text-zinc-300 hover:text-white'
+                }`}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
+                <span>관리</span>
+              </button>
+
+              <div
+                role="group"
+                aria-label="보관함 보기 방식"
+                className="grid grid-cols-2 p-0.5 h-8.5 bg-[#121214] rounded-xl border border-white/10 shrink-0"
+              >
+                <button
+                  type="button"
+                  onClick={() => setViewMode('cards')}
+                  aria-pressed={viewMode === 'cards'}
+                  aria-label="카드 뷰"
+                  title="카드 뷰"
+                  className={`w-7.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                    viewMode === 'cards'
+                      ? 'bg-white/12 text-white'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5 stroke-[1.5]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  aria-pressed={viewMode === 'list'}
+                  aria-label="리스트 뷰"
+                  title="리스트 뷰"
+                  className={`w-7.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                    viewMode === 'list'
+                      ? 'bg-white/12 text-white'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <List className="w-3.5 h-3.5 stroke-[1.5]" />
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={onOpenScan}
+                aria-label="실물 명함 사진 등록"
+                title="실물 명함 사진 등록"
+                className="h-8.5 px-2.5 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 inline-flex items-center justify-center gap-1 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
+                <span className="whitespace-nowrap">추가</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Right on Desktop / Responsive on Mobile: Search Bar + (Desktop Action Controls) */}
+          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-2.5 md:gap-3 w-full sm:w-auto">
+            {/* 1. Search Bar (Combines Input + Clear + Voice Search Mic Button 🎙️, max-width 320px on desktop) */}
+            <div className="relative w-full sm:w-60 md:w-72 lg:w-80 sm:max-w-[320px] shrink min-w-0">
+              <Search
+                className={`w-3.5 h-3.5 stroke-[1.75] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-200 ${
+                  isListening ? 'text-rose-400' : 'text-zinc-400'
+                }`}
+              />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={
+                  isListening
+                    ? (voiceFeedback || '말씀하세요... (음성 듣는 중)')
+                    : '이름, 회사, 직함, 메모 검색'
+                }
+                aria-label="명함 보관함 검색"
+                className={`w-full h-9 sm:h-9.5 pl-8.5 pr-20 rounded-xl bg-[#121214] border text-xs text-neutral-200 placeholder:text-zinc-400 focus:outline-none transition-all duration-200 ${
+                  isListening
+                    ? 'border-rose-500/50 ring-2 ring-rose-500/20 placeholder:text-rose-300/80 shadow-[0_0_16px_rgba(244,63,94,0.18)]'
+                    : 'border-white/10 focus:ring-1 focus:ring-white/20 focus:border-white/20'
+                }`}
+              />
+
+              {/* Right Controls: Clear Query + Web Speech Voice Search Button (🎙️) */}
+              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={handleClearSearch}
+                    className="w-5 h-5 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
+                    aria-label="검색어 지우기"
+                    title="검색어 지우기"
+                  >
+                    <X className="w-3.5 h-3.5 stroke-[1.5]" />
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={toggleVoiceSearch}
+                  aria-label={isListening ? '음성 검색 중지' : '음성으로 검색'}
+                  title={
+                    isListening
+                      ? '음성 인식 중 (클릭하여 중지)'
+                      : '음성 검색 (클릭하여 한국어 음성으로 검색 🎙️)'
+                  }
+                  className={`h-6.5 px-1.5 rounded-lg inline-flex items-center justify-center gap-1 text-[11px] cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                    isListening
+                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 ring-2 ring-rose-500/30 animate-pulse shadow-[0_0_12px_rgba(244,63,94,0.35)] font-medium'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95'
+                  }`}
+                >
+                  <Mic
+                    className={`w-3 h-3 stroke-[1.75] ${
+                      isListening ? 'text-rose-400 animate-bounce' : ''
+                    }`}
+                  />
+                  <span className="text-[11px] leading-none" aria-hidden="true">
+                    🎙️
+                  </span>
+                  {isListening && (
+                    <span className="text-[9px] font-semibold text-rose-300 pl-0.5 animate-pulse hidden sm:inline">
+                      듣는 중
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Desktop Action Controls (Category Manage, View Switcher, Add Card) */}
+            <div className="hidden sm:flex items-center justify-end gap-2 md:gap-2.5 shrink-0">
+              {/* 2. Category Management Button */}
+              <button
+                type="button"
+                onClick={() => openCategoryPanel(false)}
+                aria-expanded={isCategoryPanelOpen}
+                aria-label="카테고리 관리 패널 열기"
+                title="카테고리 이름 변경·병합·삭제 관리"
+                className={`h-9 sm:h-9.5 px-2.5 sm:px-3 rounded-xl border text-xs font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                  isCategoryPanelOpen
+                    ? 'bg-white text-neutral-950 border-white font-semibold'
+                    : 'bg-[#121214] hover:bg-white/10 border-white/10 text-zinc-300 hover:text-white'
+                }`}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
+                <span className="hidden md:inline">카테고리 관리</span>
+                <span className="md:hidden">관리</span>
+              </button>
+
+              {/* 3. Grid/List View Switcher Button */}
+              <div
+                role="group"
+                aria-label="보관함 보기 방식"
+                className="grid grid-cols-2 p-0.5 h-9 sm:h-9.5 bg-[#121214] rounded-xl border border-white/10 shrink-0"
+              >
+                <button
+                  type="button"
+                  onClick={() => setViewMode('cards')}
+                  aria-pressed={viewMode === 'cards'}
+                  aria-label="카드 뷰"
+                  title="카드 뷰"
+                  className={`w-8 sm:w-8.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                    viewMode === 'cards'
+                      ? 'bg-white/12 text-white'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5 stroke-[1.5]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  aria-pressed={viewMode === 'list'}
+                  aria-label="리스트 뷰"
+                  title="리스트 뷰"
+                  className={`w-8 sm:w-8.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                    viewMode === 'list'
+                      ? 'bg-white/12 text-white'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <List className="w-3.5 h-3.5 stroke-[1.5]" />
+                </button>
+              </div>
+
+              {/* 4. "+ Add Card" Button */}
+              <button
+                type="button"
+                onClick={onOpenScan}
+                aria-label="실물 명함 사진 등록"
+                title="실물 명함 사진 등록"
+                className="h-9 sm:h-9.5 px-3 sm:px-3.5 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
+                <span className="whitespace-nowrap">명함 추가</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -698,6 +968,18 @@ export const VaultView: React.FC<VaultViewProps> = ({
         onDeleteCategory={handlePanelDeleteCategory}
         onResetCategories={handlePanelResetCategories}
       />
+
+      {/* Web Speech Voice Search & Mic Permission Toast Notification */}
+      {localToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-[#161618]/95 border border-white/15 text-white text-xs font-medium shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-200 flex items-center gap-2 pointer-events-none"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0 animate-ping" />
+          <span>{localToast}</span>
+        </div>
+      )}
     </div>
   );
 };

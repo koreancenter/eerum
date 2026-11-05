@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import { StoredCard } from '../types/card';
 import {
   Phone,
@@ -10,9 +10,193 @@ import {
   Download,
   Camera,
   MessageSquare,
+  MoreVertical,
 } from 'lucide-react';
 import { resolveThemeStyles } from '../constants/templates';
 import { downloadVCard } from '@/utils/cardSerializer';
+
+export const extractCleanPhoneNumber = (phoneRaw?: string, phone?: string): string => {
+  const raw = (phoneRaw || phone || '').trim();
+  return raw.replace(/[^0-9+]/g, '');
+};
+
+interface VaultCardKebabMenuProps {
+  card: StoredCard;
+  hasPhoto: boolean;
+  onEditCard: (card: StoredCard) => void;
+  onExportCard: (card: StoredCard) => void;
+  onDeleteCard: (cardId: string) => void;
+  onOpenPhotoArchive: (card: StoredCard) => void;
+  buttonClassName?: string;
+  menuDirection?: 'up' | 'down';
+}
+
+/**
+ * Sleek Dark Luxury Kebab Context Menu (`⋮`) for secondary administrative card tools:
+ * - Edit Card (명함 수정)
+ * - Save Contact vCard (.vcf) (주소록 저장)
+ * - Export HTML Code (독립형 HTML 내보내기)
+ * - View Original Photo Archive (실물 명함 사진 원본)
+ * - Delete Card (명함 삭제)
+ */
+const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
+  card,
+  hasPhoto,
+  onEditCard,
+  onExportCard,
+  onDeleteCard,
+  onOpenPhotoArchive,
+  buttonClassName,
+  menuDirection = 'up',
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen((prev) => !prev);
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(false);
+    onEditCard(card);
+  };
+
+  const handleVCard = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(false);
+    downloadVCard(card.data);
+  };
+
+  const handleExport = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(false);
+    onExportCard(card);
+  };
+
+  const handlePhoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(false);
+    onOpenPhotoArchive(card);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(false);
+    onDeleteCard(card.id);
+  };
+
+  const displayName = card.data.name || card.data.nameKr || '명함';
+
+  return (
+    <div className="relative inline-block text-left" ref={menuRef}>
+      <button
+        type="button"
+        onClick={handleToggle}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        aria-label={`${displayName} 관리 더보기 메뉴`}
+        title="명함 관리 메뉴 (수정, 삭제, 주소록, HTML)"
+        className={
+          buttonClassName ||
+          'p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20'
+        }
+      >
+        <MoreVertical className="w-3.5 h-3.5 stroke-[1.75]" />
+      </button>
+
+      {isOpen && (
+        <div
+          role="menu"
+          aria-orientation="vertical"
+          onClick={(e) => e.stopPropagation()}
+          className={`absolute right-0 ${
+            menuDirection === 'up' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+          } w-44 rounded-xl bg-[#161618]/95 backdrop-blur-xl border border-white/12 shadow-2xl p-1 z-50 animate-in fade-in zoom-in-95 duration-150 divide-y divide-white/5 text-xs text-neutral-200 select-none`}
+        >
+          <div className="py-0.5 space-y-0.5">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={handleEdit}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <Edit3 className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+              <span>명함 수정</span>
+            </button>
+
+            <button
+              type="button"
+              role="menuitem"
+              onClick={handleVCard}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <UserPlus className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+              <span>연락처 저장 (.vcf)</span>
+            </button>
+
+            <button
+              type="button"
+              role="menuitem"
+              onClick={handleExport}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+              <span>HTML 내보내기</span>
+            </button>
+
+            {hasPhoto && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handlePhoto}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <Camera className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <span>실물 사진 원본</span>
+              </button>
+            )}
+          </div>
+
+          {!card.isMyCard && (
+            <div className="pt-0.5">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleDelete}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-rose-400 hover:text-rose-300 hover:bg-rose-500/15 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                <span>명함 삭제</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export interface VaultCardItemProps {
   card: StoredCard;
@@ -88,12 +272,27 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
     };
   }, [card.data, card.card_features]);
 
-  const handleOpenPhotoClick = useCallback(
+  const rawPhone = card.data.phoneRaw || card.data.phone || '';
+  const cleanPhoneNumber = useMemo(() => extractCleanPhoneNumber(card.data.phoneRaw, card.data.phone), [card.data.phoneRaw, card.data.phone]);
+
+  const handleCallClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      onOpenPhotoArchive(card);
+      if (cleanPhoneNumber) {
+        window.location.href = `tel:${cleanPhoneNumber}`;
+      }
     },
-    [card, onOpenPhotoArchive]
+    [cleanPhoneNumber]
+  );
+
+  const handleSmsClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (cleanPhoneNumber) {
+        window.location.href = `sms:${cleanPhoneNumber}`;
+      }
+    },
+    [cleanPhoneNumber]
   );
 
   const handleSelectClick = useCallback(() => {
@@ -108,38 +307,6 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
       }
     },
     [card, onSelectCard]
-  );
-
-  const handleDownloadVCard = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      downloadVCard(card.data);
-    },
-    [card.data]
-  );
-
-  const handleExportClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onExportCard(card);
-    },
-    [card, onExportCard]
-  );
-
-  const handleEditClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onEditCard(card);
-    },
-    [card, onEditCard]
-  );
-
-  const handleDeleteClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onDeleteCard(card.id);
-    },
-    [card.id, onDeleteCard]
   );
 
   const stopLinkPropagation = useCallback((e: React.MouseEvent) => {
@@ -160,13 +327,9 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
   const actionBtnClass = `inline-flex ${baseFooterBtnLayout} ${actionBtnTone}`;
   const desktopOnlyActionBtnClass = `hidden sm:inline-flex ${baseFooterBtnLayout} ${actionBtnTone}`;
 
-  const deleteBtnClass = themeStyles.isLight
-    ? `inline-flex ${baseFooterBtnLayout} text-[#5C5955] hover:text-rose-700 hover:bg-rose-500/10 focus-visible:ring-rose-500/30`
-    : `inline-flex ${baseFooterBtnLayout} text-zinc-400 hover:text-rose-300 hover:bg-rose-500/15 focus-visible:ring-rose-400/30`;
-
   return (
     <article
-      className={`group relative rounded-xl border ${surfaceBorderClass} ${themeStyles.cardBg} p-2.5 sm:p-3.5 shadow-sm transition-colors duration-150 flex flex-col justify-between gap-2 min-w-0 overflow-hidden`}
+      className={`group relative rounded-xl border ${surfaceBorderClass} ${themeStyles.cardBg} p-2.5 sm:p-3.5 shadow-sm transition-colors duration-150 flex flex-col justify-between gap-2 min-w-0`}
     >
       {/* Self-Contained Clickable Card Body (No outer or top category/date header) */}
       <div
@@ -276,44 +439,47 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
         )}
       </div>
 
-      {/* Integrated Card Footer: Direct Contact & Card Management Actions */}
+      {/* Integrated Card Footer: Direct Contact & Grouped Kebab Management Actions */}
       <footer
-        className={`mt-auto pt-2 border-t ${themeStyles.accentHairline} flex items-center justify-between gap-0.5 min-w-0`}
+        className={`mt-auto pt-2 border-t ${themeStyles.accentHairline} flex items-center justify-between gap-1 min-w-0`}
       >
-        <div className="flex items-center gap-0.5 min-w-0">
-          {card.data.phoneRaw && (
+        {/* Left: Primary Quick Actions (Call, SMS, optional Mail & Website) */}
+        <div className="flex items-center gap-1 min-w-0">
+          {cleanPhoneNumber ? (
             <>
-              <a
-                href={`tel:${card.data.phoneRaw}`}
-                onClick={stopLinkPropagation}
+              <button
+                type="button"
+                onClick={handleCallClick}
                 className={actionBtnClass}
-                title="전화 걸기"
-                aria-label={`${displayName}에게 전화 걸기`}
+                title={`전화 걸기 (${cleanPhoneNumber})`}
+                aria-label={`${displayName}에게 즉시 전화 걸기`}
               >
-                <Phone className="w-3.5 h-3.5 stroke-[1.5]" />
-              </a>
-              <a
-                href={`sms:${card.data.phoneRaw}`}
-                onClick={stopLinkPropagation}
-                className={desktopOnlyActionBtnClass}
-                title="문자 보내기"
-                aria-label={`${displayName}에게 문자 보내기`}
+                <Phone className="w-3.5 h-3.5 stroke-[1.75]" />
+              </button>
+              <button
+                type="button"
+                onClick={handleSmsClick}
+                className={actionBtnClass}
+                title={`문자 보내기 (${cleanPhoneNumber})`}
+                aria-label={`${displayName}에게 즉시 문자 보내기`}
               >
-                <MessageSquare className="w-3.5 h-3.5 stroke-[1.5]" />
-              </a>
+                <MessageSquare className="w-3.5 h-3.5 stroke-[1.75]" />
+              </button>
             </>
-          )}
+          ) : null}
+
           {card.data.email && (
             <a
               href={`mailto:${card.data.email}`}
               onClick={stopLinkPropagation}
               className={card.data.phoneRaw ? desktopOnlyActionBtnClass : actionBtnClass}
-              title="이메일 발송"
+              title={`이메일 작성 (${card.data.email})`}
               aria-label={`${displayName}에게 이메일 보내기`}
             >
               <Mail className="w-3.5 h-3.5 stroke-[1.5]" />
             </a>
           )}
+
           {card.data.website && (
             <a
               href={card.data.website}
@@ -327,59 +493,19 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
               <Globe className="w-3.5 h-3.5 stroke-[1.5]" />
             </a>
           )}
-          <button
-            type="button"
-            onClick={handleDownloadVCard}
-            className={actionBtnClass}
-            title="주소록 저장 (.vcf)"
-            aria-label={`${displayName} 연락처 저장`}
-          >
-            <UserPlus className="w-3.5 h-3.5 stroke-[1.5]" />
-          </button>
         </div>
 
-        <div className="flex items-center gap-0.5 shrink-0">
-          {hasPhoto && (
-            <button
-              type="button"
-              onClick={handleOpenPhotoClick}
-              className={actionBtnClass}
-              title="실물 명함 원본 사진 보기"
-              aria-label={`${displayName} 실물 명함 원본 사진 보기`}
-            >
-              <Camera className="w-3.5 h-3.5 stroke-[1.5]" />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={handleExportClick}
-            className={desktopOnlyActionBtnClass}
-            title="독립형 HTML 코드 내보내기"
-            aria-label={`${displayName} 명함 다운로드`}
-          >
-            <Download className="w-3.5 h-3.5 stroke-[1.5]" />
-          </button>
-          <button
-            type="button"
-            onClick={handleEditClick}
-            className={actionBtnClass}
-            title="명함 수정"
-            aria-label={`${displayName} 명함 수정`}
-          >
-            <Edit3 className="w-3.5 h-3.5 stroke-[1.5]" />
-          </button>
-          {!card.isMyCard && (
-            <button
-              type="button"
-              onClick={handleDeleteClick}
-              className={deleteBtnClass}
-              title="명함 삭제"
-              aria-label={`${displayName} 명함 삭제`}
-            >
-              <Trash2 className="w-3.5 h-3.5 stroke-[1.5]" />
-            </button>
-          )}
-        </div>
+        {/* Right: Secondary Administrative Tools (Edit, Delete, Export vCard, HTML, Photo) in Sleek Kebab */}
+        <VaultCardKebabMenu
+          card={card}
+          hasPhoto={hasPhoto}
+          onEditCard={onEditCard}
+          onExportCard={onExportCard}
+          onDeleteCard={onDeleteCard}
+          onOpenPhotoArchive={onOpenPhotoArchive}
+          buttonClassName={actionBtnClass}
+          menuDirection="up"
+        />
       </footer>
     </article>
   );
@@ -409,9 +535,33 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
   const displayTitle = (card.data.titleKr || card.data.title || '').trim();
   const displayOrg = (card.data.organizationKr || card.data.organization || '').trim();
   const displayContact = (card.data.phone || card.data.email || '').trim();
+  const cleanPhoneNumber = useMemo(
+    () => extractCleanPhoneNumber(card.data.phoneRaw, card.data.phone),
+    [card.data.phoneRaw, card.data.phone]
+  );
+
+  const handleCallClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (cleanPhoneNumber) {
+        window.location.href = `tel:${cleanPhoneNumber}`;
+      }
+    },
+    [cleanPhoneNumber]
+  );
+
+  const handleSmsClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (cleanPhoneNumber) {
+        window.location.href = `sms:${cleanPhoneNumber}`;
+      }
+    },
+    [cleanPhoneNumber]
+  );
 
   return (
-    <div className="px-3 py-2.5 flex justify-between items-start gap-3 hover:bg-white/[0.03] transition-colors">
+    <div className="px-3 py-2.5 flex justify-between items-center gap-3 hover:bg-white/[0.03] transition-colors relative">
       <div
         role="button"
         tabIndex={0}
@@ -444,76 +594,41 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center gap-0.5 shrink-0 text-zinc-400">
-        {card.data.phoneRaw && (
+      {/* Quick Communication Actions + Kebab Dropdown Menu */}
+      <div className="flex items-center gap-1 shrink-0 text-zinc-400">
+        {cleanPhoneNumber ? (
           <>
-            <a
-              href={`tel:${card.data.phoneRaw}`}
-              className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10"
-              title="전화 걸기"
-              aria-label={`${displayName}에게 전화 걸기`}
+            <button
+              type="button"
+              onClick={handleCallClick}
+              className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              title={`전화 걸기 (${cleanPhoneNumber})`}
+              aria-label={`${displayName}에게 즉시 전화 걸기`}
             >
-              <Phone className="w-3.5 h-3.5 stroke-[1.5]" />
-            </a>
-            <a
-              href={`sms:${card.data.phoneRaw}`}
-              className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10"
-              title="문자 보내기"
-              aria-label={`${displayName}에게 문자 보내기`}
+              <Phone className="w-3.5 h-3.5 stroke-[1.75]" />
+            </button>
+            <button
+              type="button"
+              onClick={handleSmsClick}
+              className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              title={`문자 보내기 (${cleanPhoneNumber})`}
+              aria-label={`${displayName}에게 즉시 문자 보내기`}
             >
-              <MessageSquare className="w-3.5 h-3.5 stroke-[1.5]" />
-            </a>
+              <MessageSquare className="w-3.5 h-3.5 stroke-[1.75]" />
+            </button>
           </>
-        )}
-        <button
-          type="button"
-          onClick={() => downloadVCard(card.data)}
-          className="p-1.5 rounded-lg hover:text-white hover:bg-white/10 cursor-pointer"
-          title="주소록 저장 (.vcf)"
-          aria-label={`${displayName} 연락처 저장`}
-        >
-          <UserPlus className="w-3.5 h-3.5 stroke-[1.5]" />
-        </button>
-        {card.scannedImage && (
-          <button
-            type="button"
-            onClick={() => onOpenPhotoArchive(card)}
-            className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 cursor-pointer"
-            title="실물 명함 원본 사진 보기"
-            aria-label={`${displayName} 실물 사진 보기`}
-          >
-            <Camera className="w-3.5 h-3.5 stroke-[1.5]" />
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => onExportCard(card)}
-          className="p-1.5 rounded-lg hover:text-white hover:bg-white/10 cursor-pointer"
-          title="명함 다운로드"
-          aria-label={`${displayName} 명함 다운로드`}
-        >
-          <Download className="w-3.5 h-3.5 stroke-[1.5]" />
-        </button>
-        <button
-          type="button"
-          onClick={() => onEditCard(card)}
-          className="p-1.5 rounded-lg hover:text-white hover:bg-white/10 cursor-pointer"
-          title="명함 수정"
-          aria-label={`${displayName} 명함 수정`}
-        >
-          <Edit3 className="w-3.5 h-3.5 stroke-[1.5]" />
-        </button>
-        {!card.isMyCard && (
-          <button
-            type="button"
-            onClick={() => onDeleteCard(card.id)}
-            className="p-1.5 rounded-lg hover:text-rose-300 hover:bg-rose-500/15 cursor-pointer"
-            title="명함 삭제"
-            aria-label={`${displayName} 명함 삭제`}
-          >
-            <Trash2 className="w-3.5 h-3.5 stroke-[1.5]" />
-          </button>
-        )}
+        ) : null}
+
+        <VaultCardKebabMenu
+          card={card}
+          hasPhoto={Boolean(card.scannedImage)}
+          onEditCard={onEditCard}
+          onExportCard={onExportCard}
+          onDeleteCard={onDeleteCard}
+          onOpenPhotoArchive={onOpenPhotoArchive}
+          buttonClassName="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+          menuDirection="down"
+        />
       </div>
     </div>
   );
@@ -530,6 +645,32 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
   onExportCard,
   onOpenPhotoArchive,
 }) => {
+  const displayName = (card.data.name || card.data.nameKr || '명함').trim();
+  const cleanPhoneNumber = useMemo(
+    () => extractCleanPhoneNumber(card.data.phoneRaw, card.data.phone),
+    [card.data.phoneRaw, card.data.phone]
+  );
+
+  const handleCallClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (cleanPhoneNumber) {
+        window.location.href = `tel:${cleanPhoneNumber}`;
+      }
+    },
+    [cleanPhoneNumber]
+  );
+
+  const handleSmsClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (cleanPhoneNumber) {
+        window.location.href = `sms:${cleanPhoneNumber}`;
+      }
+    },
+    [cleanPhoneNumber]
+  );
+
   return (
     <tr
       className="hover:bg-white/[0.04] transition-colors cursor-pointer group"
@@ -538,7 +679,7 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
       <td className="py-2.5 px-3.5">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-white group-hover:underline underline-offset-2">
-            {card.data.name || card.data.nameKr}
+            {displayName}
           </span>
           {card.isMyCard && (
             <span className="text-[10px] text-zinc-400 font-medium">· 내 명함</span>
@@ -570,51 +711,41 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
       <td className="py-2.5 px-3.5 text-zinc-400 font-mono tabular-nums text-[11px]">
         {card.data.phone || card.data.email || '-'}
       </td>
-      <td className="py-2.5 px-3.5 text-right" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-end gap-0.5 text-zinc-400">
-          {card.data.phoneRaw && (
-            <a
-              href={`tel:${card.data.phoneRaw}`}
-              className="p-1.5 rounded-lg hover:text-white hover:bg-white/10 transition-colors"
-              title="전화 걸기"
-            >
-              <Phone className="w-3.5 h-3.5 stroke-[1.5]" />
-            </a>
-          )}
-          <button
-            type="button"
-            onClick={() => downloadVCard(card.data)}
-            className="p-1.5 rounded-lg hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            title="주소록 저장 (.vcf)"
-          >
-            <UserPlus className="w-3.5 h-3.5 stroke-[1.5]" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onExportCard(card)}
-            className="p-1.5 rounded-lg hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            title="독립형 HTML 코드 내보내기"
-          >
-            <Download className="w-3.5 h-3.5 stroke-[1.5]" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onEditCard(card)}
-            className="p-1.5 rounded-lg hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            title="수정"
-          >
-            <Edit3 className="w-3.5 h-3.5 stroke-[1.5]" />
-          </button>
-          {!card.isMyCard && (
-            <button
-              type="button"
-              onClick={() => onDeleteCard(card.id)}
-              className="p-1.5 rounded-lg hover:text-rose-300 hover:bg-rose-500/15 transition-colors cursor-pointer"
-              title="삭제"
-            >
-              <Trash2 className="w-3.5 h-3.5 stroke-[1.5]" />
-            </button>
-          )}
+      <td className="py-2.5 px-3.5 text-right relative" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-end gap-1 text-zinc-400">
+          {cleanPhoneNumber ? (
+            <>
+              <button
+                type="button"
+                onClick={handleCallClick}
+                className="p-1.5 rounded-lg hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                title={`전화 걸기 (${cleanPhoneNumber})`}
+                aria-label={`${displayName}에게 즉시 전화 걸기`}
+              >
+                <Phone className="w-3.5 h-3.5 stroke-[1.75]" />
+              </button>
+              <button
+                type="button"
+                onClick={handleSmsClick}
+                className="p-1.5 rounded-lg hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                title={`문자 보내기 (${cleanPhoneNumber})`}
+                aria-label={`${displayName}에게 즉시 문자 보내기`}
+              >
+                <MessageSquare className="w-3.5 h-3.5 stroke-[1.75]" />
+              </button>
+            </>
+          ) : null}
+
+          <VaultCardKebabMenu
+            card={card}
+            hasPhoto={Boolean(card.scannedImage)}
+            onEditCard={onEditCard}
+            onExportCard={onExportCard}
+            onDeleteCard={onDeleteCard}
+            onOpenPhotoArchive={onOpenPhotoArchive}
+            buttonClassName="p-1.5 rounded-lg hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            menuDirection="down"
+          />
         </div>
       </td>
     </tr>

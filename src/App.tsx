@@ -1213,6 +1213,7 @@ export default function App() {
                       handleDeleteCategory(deletedName, fallbackCategory);
                     });
                   }}
+                  onShowToast={showToast}
                 />
               </Suspense>
             </LazyErrorBoundary>
