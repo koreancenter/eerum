@@ -4,6 +4,7 @@ import { Plus, Eye } from 'lucide-react';
 export interface WelcomeCardProps {
   onCreateFirstCard: () => void;
   onExploreSample: () => void;
+  hasExistingCards?: boolean;
 }
 
 const STUDIO_FEATURES = [
@@ -24,6 +25,7 @@ const STUDIO_FEATURES = [
 export const WelcomeCard: React.FC<WelcomeCardProps> = ({
   onCreateFirstCard,
   onExploreSample,
+  hasExistingCards = false,
 }) => {
   return (
     <section
@@ -70,7 +72,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
           className="h-10 sm:h-11 px-5 sm:px-6 rounded-xl bg-white hover:bg-neutral-200 text-neutral-950 font-semibold text-xs sm:text-[13px] tracking-wide shadow-[0_8px_28px_rgba(255,255,255,0.10)] hover:shadow-[0_12px_34px_rgba(255,255,255,0.18)] inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
         >
           <Plus className="w-3.5 h-3.5 stroke-[2.25] shrink-0" />
-          <span>첫 명함 만들기</span>
+          <span>{hasExistingCards ? '새 명함 추가하기' : '첫 명함 만들기'}</span>
         </button>
 
         <button

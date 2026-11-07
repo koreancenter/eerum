@@ -657,9 +657,9 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header & Typographic Mode Tab Strip */}
-        <header className="px-6 sm:px-9 pt-6 border-b border-white/[0.06] bg-[#121214] shrink-0">
-          <div className="flex items-center justify-between gap-4 pb-5">
-            <h3 className="text-base sm:text-[17px] font-medium text-[#F2F2F5] tracking-tight">
+        <header className="px-4 sm:px-9 pt-3.5 sm:pt-6 border-b border-white/[0.06] bg-[#121214] shrink-0">
+          <div className="flex items-center justify-between gap-3 pb-3 sm:pb-5">
+            <h3 className="text-[15px] sm:text-[17px] font-medium text-[#F2F2F5] tracking-tight">
               {isCreating
                 ? isMyCardMode
                   ? '새 내 명함 만들기'
@@ -669,11 +669,11 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                   : '보관 명함 편집'}
             </h3>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
               <button
                 type="button"
                 onClick={handleResetSample}
-                className="p-2 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 title="초기화"
                 aria-label="초기화"
               >
@@ -682,7 +682,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 title="닫기"
                 aria-label="닫기"
               >
@@ -692,7 +692,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
           </div>
 
           {/* Minimal Border-Bottom Typographic Mode Switcher */}
-          <nav className="flex items-center gap-7 overflow-x-auto no-scrollbar" aria-label="생성 방식">
+          <nav className="flex items-center gap-4 sm:gap-7 overflow-x-auto no-scrollbar" aria-label="생성 방식">
             {CREATION_MODES.map((mode) => {
               const isActive =
                 creationMode === mode.id ||
@@ -702,7 +702,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                   key={mode.id}
                   type="button"
                   onClick={() => setCreationMode(mode.id)}
-                  className={`relative pb-3.5 text-[13px] tracking-wide whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none ${
+                  className={`relative pb-2 sm:pb-3.5 text-xs sm:text-[13px] tracking-wide whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none ${
                     isActive
                       ? 'text-[#F2F2F5] font-medium'
                       : 'text-zinc-400 hover:text-zinc-300 font-normal'
@@ -719,9 +719,9 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         </header>
 
         {/* Main Split Workspace */}
-        <div className="flex-1 grid grid-cols-12 overflow-y-auto lg:overflow-hidden editor-scrollbar">
+        <div className="flex-1 grid grid-cols-12 overflow-y-auto lg:overflow-hidden editor-scrollbar min-h-0">
           {/* Left Inspector Panel */}
-          <div className="order-2 lg:order-1 col-span-12 lg:col-span-5 h-auto lg:h-full lg:overflow-y-auto px-6 py-7 sm:px-9 sm:py-8 editor-scrollbar">
+          <div className="order-2 lg:order-1 col-span-12 lg:col-span-5 h-auto lg:h-full lg:overflow-y-auto px-4 py-4 sm:px-9 sm:py-8 editor-scrollbar">
             {creationMode === 'template' && (
               <TemplateModeEditor
                 theme={theme}
@@ -799,11 +799,11 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         </div>
 
         {/* Restrained Footer */}
-        <footer className="px-6 sm:px-9 py-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-white/[0.06] bg-[#121214] flex items-center justify-end gap-3 shrink-0">
+        <footer className="px-4 sm:px-9 py-2.5 sm:py-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-white/[0.06] bg-[#121214] flex items-center justify-end gap-2.5 sm:gap-3 shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] cursor-pointer text-[13px] font-normal whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+            className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] cursor-pointer text-xs sm:text-[13px] font-normal whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
           >
             취소
           </button>
@@ -811,7 +811,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
           <button
             type="button"
             onClick={handleSave}
-            className="px-6 py-2.5 rounded-lg bg-[#EAEAE6] hover:bg-[#F3F3F0] text-[#121214] font-medium text-[13px] tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+            className="px-5 py-2 sm:px-6 sm:py-2.5 rounded-lg bg-[#EAEAE6] hover:bg-[#F3F3F0] text-[#121214] font-medium text-xs sm:text-[13px] tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
           >
             {isCreating ? '등록' : '저장'}
           </button>

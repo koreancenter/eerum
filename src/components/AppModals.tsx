@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { StoredCard, PrintConfig } from '../types/card';
 import { ModalManager } from '../hooks/useModalState';
 import { loadUserCards } from '../utils/initialCards';
+import { loadVaultCategories } from '../utils/categories';
 import { getCardShareUrl } from '@/utils/cardSerializer';
 import { lazyWithRetry, LazyErrorBoundary } from '../utils/lazyWithRetry';
 
@@ -41,6 +42,9 @@ const LegalModal = lazyWithRetry(() =>
 const ResetDataModal = lazyWithRetry(() =>
   import('./ResetDataModal').then((m) => ({ default: m.ResetDataModal }))
 );
+const ImportContactsModal = lazyWithRetry(() =>
+  import('./ImportContactsModal').then((m) => ({ default: m.ImportContactsModal }))
+);
 
 export interface AppModalsProps {
   modals: ModalManager;
@@ -57,6 +61,9 @@ export interface AppModalsProps {
   setCards: React.Dispatch<React.SetStateAction<StoredCard[]>>;
   showToast: (msg: string) => void;
   onBiometricUnlock: () => void;
+  existingCards?: StoredCard[];
+  categories?: string[];
+  onImportCards?: (cards: StoredCard[]) => void;
 }
 
 /**
@@ -79,6 +86,9 @@ export const AppModals: React.FC<AppModalsProps> = ({
   setCards,
   showToast,
   onBiometricUnlock,
+  existingCards = [],
+  categories,
+  onImportCards,
 }) => {
   const isLockScreenActive = isLocked && isPinConfigured;
 
@@ -237,6 +247,24 @@ export const AppModals: React.FC<AppModalsProps> = ({
             isOpen={modals.isResetOpen}
             onClose={modals.closeReset}
             onConfirmReset={onConfirmReset}
+          />
+        )}
+
+        {/* Import Contacts Modal */}
+        {modals.isImportContactsOpen && (
+          <ImportContactsModal
+            isOpen={modals.isImportContactsOpen}
+            onClose={modals.closeImportContacts}
+            existingCards={existingCards}
+            onImportCards={(importedCards) => {
+              if (onImportCards) {
+                onImportCards(importedCards);
+              } else {
+                setCards((prev) => [...importedCards, ...prev]);
+              }
+            }}
+            categories={categories || loadVaultCategories(existingCards)}
+            showToast={showToast}
           />
         )}
 

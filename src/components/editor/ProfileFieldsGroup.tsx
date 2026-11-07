@@ -26,9 +26,9 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
 }) => {
   if (variant === 'compact') {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {/* Name & Phone */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
             <label className="text-xs text-zinc-400 block">성명</label>
             <input
@@ -55,7 +55,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
         </div>
 
         {/* Organization & Title */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
             <label className="text-xs text-zinc-400 block">소속</label>
             <input
@@ -80,7 +80,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
         </div>
 
         {/* Email & Slug / Website */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
             <label className="text-xs text-zinc-400 block">이메일</label>
             <input
@@ -97,7 +97,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
               <>
                 <label className="text-xs text-zinc-400 block">웹 주소</label>
                 <div className="flex items-center rounded-lg bg-[#161618] border border-white/[0.06] focus-within:border-white/25 overflow-hidden">
-                  <span className="px-3 py-2.5 text-zinc-400 font-mono text-xs shrink-0 border-r border-white/[0.06] select-none">
+                  <span className="px-3 py-2 sm:px-3.5 sm:py-2.5 text-zinc-400 font-mono text-xs shrink-0 border-r border-white/[0.06] select-none">
                     {APP_BASE_DOMAIN}/card/
                   </span>
                   <input
@@ -109,7 +109,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
                       )
                     }
                     placeholder="slug"
-                    className="w-full px-3 py-2.5 bg-transparent text-[#EDEDEF] placeholder:text-zinc-400 focus:outline-none font-mono text-[13px]"
+                    className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-transparent text-[#EDEDEF] placeholder:text-zinc-400 focus:outline-none font-mono text-[13px]"
                   />
                 </div>
               </>
@@ -134,10 +134,10 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
   return (
     <>
       {/* Name & Display Toggles */}
-      <section className="space-y-4">
+      <section className="space-y-3 sm:space-y-4">
         <h4 className="text-xs font-medium text-zinc-400 tracking-wide">성명</h4>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
             <label className="text-xs text-zinc-400 block">성명</label>
             <input
@@ -161,8 +161,8 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
         </div>
 
         {features && onChangeFeatures && (
-          <div className="flex flex-wrap items-center gap-6 pt-1">
-            <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-0.5 sm:pt-1">
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={features.show_en_name !== false}
@@ -176,7 +176,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
               />
               <span className="text-xs text-zinc-400">영문 · 보조 성명 표기</span>
             </label>
-            <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={features.show_sub_org !== false}
@@ -195,12 +195,12 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
       </section>
 
       {/* Affiliation & Title */}
-      <section className="border-t border-white/[0.06] pt-8 space-y-4">
+      <section className="border-t border-white/[0.06] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
         <h4 className="text-xs font-medium text-zinc-400 tracking-wide">
           소속 및 직함
         </h4>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
             <label className="text-xs text-zinc-400 block">소속</label>
             <input
@@ -223,7 +223,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
             <label className="text-xs text-zinc-400 block">직함</label>
             <input
@@ -248,12 +248,12 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
       </section>
 
       {/* Direct Contact & Address */}
-      <section className="border-t border-white/[0.06] pt-8 space-y-4">
+      <section className="border-t border-white/[0.06] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
         <h4 className="text-xs font-medium text-zinc-400 tracking-wide">
           연락처 및 주소
         </h4>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
             <label className="text-xs text-zinc-400 block">연락처</label>
             <input
@@ -276,7 +276,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
             <label className="text-xs text-zinc-400 block">주소</label>
             <input

@@ -132,10 +132,10 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
     <div
       className={`relative w-full h-full select-none flex flex-col justify-between ${
         isPortrait
-          ? 'p-5 sm:p-6'
+          ? 'p-4 sm:p-6'
           : isPrintPreview
             ? 'p-4'
-            : 'p-4 sm:p-6 md:p-8'
+            : 'p-3.5 sm:p-5 md:p-8'
       } ${themeStyles.cardBg} ${isPrintPreview || hideBorder ? 'border-0' : `border ${themeStyles.border} shadow-2xl`} transition-colors duration-300 font-sans`}
       style={{
         aspectRatio: isPortrait ? '5 / 8' : '9 / 5',

@@ -7,7 +7,7 @@ import {
 } from '../../utils/categories';
 
 export const EDITOR_INPUT_CLASS =
-  'w-full px-3.5 py-2.5 rounded-lg bg-[#161618] border border-white/[0.06] hover:border-white/[0.12] focus:outline-none focus:border-white/25 focus:bg-[#19191C] text-[#EDEDEF] placeholder:text-zinc-400 text-[13px]';
+  'w-full px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-lg bg-[#161618] border border-white/[0.06] hover:border-white/[0.12] focus:outline-none focus:border-white/25 focus:bg-[#19191C] text-[#EDEDEF] placeholder:text-zinc-400 text-xs sm:text-[13px]';
 
 export interface CategorySelectSectionProps {
   category?: string;

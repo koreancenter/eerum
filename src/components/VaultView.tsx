@@ -11,6 +11,7 @@ import {
   Check,
   SlidersHorizontal,
   Mic,
+  UserPlus,
 } from 'lucide-react';
 import { PhotoArchiveModal } from './PhotoArchiveModal';
 import {
@@ -50,6 +51,7 @@ interface VaultViewProps {
   onExportCard: (card: StoredCard) => void;
   onOpenScan: () => void;
   onOpenEditor: () => void;
+  onOpenImportContacts?: () => void;
   onOpenSync?: () => void;
   isLocked?: boolean;
   onUnlockRequest?: () => void;
@@ -66,6 +68,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
   onDeleteCard,
   onExportCard,
   onOpenScan,
+  onOpenImportContacts,
   isLocked = false,
   onUnlockRequest,
   onRenameCategory,
@@ -595,6 +598,18 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 </button>
               </div>
 
+              {onOpenImportContacts && (
+                <button
+                  type="button"
+                  onClick={onOpenImportContacts}
+                  aria-label="연락처 대량 가져오기"
+                  title="vCard(.vcf) 또는 주소록에서 명함 가져오기"
+                  className="h-8.5 px-2 rounded-xl bg-[#121214] hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white inline-flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 shrink-0"
+                >
+                  <UserPlus className="w-3.5 h-3.5 stroke-[1.5]" />
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={onOpenScan}
@@ -735,6 +750,21 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   <List className="w-3.5 h-3.5 stroke-[1.5]" />
                 </button>
               </div>
+
+              {/* Import Contacts Button */}
+              {onOpenImportContacts && (
+                <button
+                  type="button"
+                  onClick={onOpenImportContacts}
+                  aria-label="연락처 대량 가져오기"
+                  title="vCard (.vcf) 및 주소록에서 명함 일괄 가져오기"
+                  className="h-9 sm:h-9.5 px-2.5 sm:px-3 rounded-xl border border-white/10 bg-[#121214] hover:bg-white/10 text-zinc-300 hover:text-white inline-flex items-center gap-1.5 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 shrink-0 text-xs font-medium"
+                >
+                  <UserPlus className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
+                  <span className="hidden lg:inline">연락처 가져오기</span>
+                  <span className="lg:hidden">가져오기</span>
+                </button>
+              )}
 
               {/* 4. "+ Add Card" Button */}
               <button

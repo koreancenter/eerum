@@ -61,6 +61,7 @@ import {
   RotateCcw,
   BookmarkPlus,
   KeyRound,
+  Code2,
 } from 'lucide-react';
 
 type ActiveTab = 'my-card' | 'vault';
@@ -88,6 +89,7 @@ export default function App() {
   const [isSamplePreview, setIsSamplePreview] = useState<boolean>(false);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showWelcomeIntro, setShowWelcomeIntro] = useState<boolean>(false);
 
   // Centralized Lightweight Modal Manager Hook
   const modals = useModalState();
@@ -309,6 +311,8 @@ export default function App() {
    * - Switching to 'vault' requires unlock (when PIN is configured) and returns to the Vault list/grid.
    */
   const handleTabChange = (nextTab: ActiveTab, targetMyCardId?: string) => {
+    setShowWelcomeIntro(false);
+    setIsSamplePreview(false);
     if (nextTab === 'my-card') {
       cleanPublicUrlToRoot();
       setSelectedVaultCardId(null);
@@ -330,14 +334,14 @@ export default function App() {
     });
   };
 
-  // Resolved personal card strictly from `myCards` (`isMyCard === true`), or sample card ONLY when `myCards.length === 0 && isSamplePreview`
+  // Resolved personal card strictly from `myCards` (`isMyCard === true`), or sample card when `isSamplePreview` is active
   const currentMyCard: StoredCard | undefined =
-    myCards.length > 0
-      ? myCards.find((c) => c.id === selectedMyCardId) ||
-        myCards.find((c) => c.isDefault) ||
-        myCards[0]
-      : isSamplePreview
-        ? SAMPLE_CARDS[0]
+    isSamplePreview
+      ? SAMPLE_CARDS[0]
+      : myCards.length > 0
+        ? myCards.find((c) => c.id === selectedMyCardId) ||
+          myCards.find((c) => c.isDefault) ||
+          myCards[0]
         : undefined;
 
   // Resolved Vault detail card strictly restricted to third-party cards (`!c.isMyCard`)
@@ -387,6 +391,8 @@ export default function App() {
 
   // Create New Personal My Card (`isMyCard: true`)
   const handleOpenCreateModal = () => {
+    setShowWelcomeIntro(false);
+    setIsSamplePreview(false);
     requireUnlock(() => {
       const defaultSlug = `card-${String(Date.now()).slice(-4)}`;
       const newCardTemplate: StoredCard = {
@@ -525,6 +531,17 @@ export default function App() {
   const handleCreateMyOwnCard = () => {
     handleTabChange('my-card');
     handleOpenCreateModal();
+  };
+
+  // Bulk import contacts into the Vault
+  const handleImportCards = (newCards: StoredCard[]) => {
+    requireUnlock(() => {
+      setCards((prev) => {
+        const safeImported = newCards.map((nc) => sanitizeCardForVault(nc));
+        return [...safeImported, ...prev];
+      });
+      showToast(`${newCards.length}개의 연락처가 보관함에 등록되었습니다.`);
+    });
   };
 
   // Register an externally shared card (/card/:slug) directly into the internal Vault and show VaultDetailView
@@ -812,7 +829,8 @@ export default function App() {
   const isIntroLandingView =
     !isPublicExternalView &&
     activeTab === 'my-card' &&
-    ((myCards.length === 0 && !isSamplePreview) || !currentMyCard);
+    !isSamplePreview &&
+    (showWelcomeIntro || myCards.length === 0 || !currentMyCard);
 
   return (
     <>
@@ -986,6 +1004,21 @@ export default function App() {
                       >
                         <Smartphone className="w-3.5 h-3.5 text-white" />
                         <span>기기 연결 및 동기화</span>
+                      </button>
+
+                      <div className="my-1 border-t border-white/10" />
+
+                      <button
+                        onClick={() => {
+                          modals.closeSettings();
+                          setShowWelcomeIntro(true);
+                          setIsSamplePreview(false);
+                          setActiveTab('my-card');
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer text-left"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 text-white" />
+                        <span>시작 화면으로 돌아가기</span>
                       </button>
                     </div>
                   )}
@@ -1196,6 +1229,11 @@ export default function App() {
                       modals.openScan();
                     });
                   }}
+                  onOpenImportContacts={() => {
+                    requireUnlock(() => {
+                      modals.openImportContacts();
+                    });
+                  }}
                   onOpenSync={modals.openSync}
                   onOpenEditor={handleOpenCreateVaultCardModal}
                   onRenameCategory={(oldName, newName) => {
@@ -1220,14 +1258,16 @@ export default function App() {
           ) : (
             /* ================= MY CARDS STUDIO & CAROUSEL VIEW (`activeTab === 'my-card'`) ================= */
             <div className="w-full min-h-0 flex flex-col items-center justify-center">
-              {myCards.length === 0 && !isSamplePreview ? (
+              {!isSamplePreview && (showWelcomeIntro || myCards.length === 0) ? (
                 <WelcomeCard
                   onCreateFirstCard={handleOpenCreateModal}
                   onExploreSample={() => {
+                    setShowWelcomeIntro(false);
                     setIsSamplePreview(true);
                   }}
+                  hasExistingCards={myCards.length > 0}
                 />
-              ) : isSamplePreview && myCards.length === 0 && currentMyCard ? (
+              ) : isSamplePreview && currentMyCard ? (
                 <div className="w-full flex flex-col items-center space-y-2 sm:space-y-4">
                   <div className="w-full max-w-[540px] px-1 py-0.5 flex items-center justify-between text-xs animate-in fade-in duration-200">
                     <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-normal">
@@ -1248,7 +1288,10 @@ export default function App() {
                       </button>
 
                       <button
-                        onClick={() => setIsSamplePreview(false)}
+                        onClick={() => {
+                          setIsSamplePreview(false);
+                          setShowWelcomeIntro(true);
+                        }}
                         className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-all cursor-pointer active:scale-90 flex items-center justify-center"
                         title="시작 화면으로"
                         aria-label="시작 화면으로"
@@ -1356,6 +1399,16 @@ export default function App() {
                 <FileText className="w-3.5 h-3.5 stroke-[1.5]" />
               </button>
 
+              <button
+                type="button"
+                onClick={() => modals.openLegal('licenses')}
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/[0.02] hover:bg-white/[0.08] border border-white/10 hover:border-white/25 flex items-center justify-center text-white/60 hover:text-white cursor-pointer active:scale-95 group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                title="오픈소스 라이선스"
+                aria-label="오픈소스 라이선스"
+              >
+                <Code2 className="w-3.5 h-3.5 stroke-[1.5]" />
+              </button>
+
               {!isUnauthenticatedExternalVisitor && (
                 <button
                   type="button"
@@ -1390,6 +1443,7 @@ export default function App() {
           modals.isPrintOpen ||
           modals.isExportOpen ||
           modals.isScanOpen ||
+          modals.isImportContactsOpen ||
           modals.isEditorOpen ||
           modals.isSyncOpen ||
           modals.isPinConfigOpen ||
@@ -1400,6 +1454,8 @@ export default function App() {
           <AppModals
             modals={modals}
             activeCard={modalTargetCard}
+            existingCards={cards}
+            onImportCards={handleImportCards}
             isOwner={!isPublicExternalView}
             printConfig={printConfig}
             setPrintConfig={setPrintConfig}

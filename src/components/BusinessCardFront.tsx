@@ -195,7 +195,7 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
     return (
       <div
         className={`relative w-full h-full select-none flex flex-col justify-between ${
-          isPortrait ? 'p-5 sm:p-6' : isPrintPreview ? 'p-4' : 'p-5 sm:p-6 md:p-7'
+          isPortrait ? 'p-4 sm:p-6' : isPrintPreview ? 'p-4' : 'p-3.5 sm:p-5 md:p-7'
         } ${themeStyles.cardBg} ${
           isPrintPreview || hideBorder ? 'border-0' : `border ${themeStyles.border}`
         } transition-colors duration-300 font-sans`}
@@ -600,7 +600,7 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
     return (
       <div
         className={`relative w-full h-full select-none flex flex-col justify-between ${
-          isPortrait ? 'p-5 sm:p-6' : isPrintPreview ? 'p-4' : 'p-5 sm:p-6 md:p-7'
+          isPortrait ? 'p-4 sm:p-6' : isPrintPreview ? 'p-4' : 'p-3.5 sm:p-5 md:p-7'
         } ${themeStyles.cardBg} ${
           isPrintPreview || hideBorder ? 'border-0' : `border ${themeStyles.border}`
         } transition-colors duration-300 font-sans`}
@@ -752,7 +752,7 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
     return (
       <div
         className={`relative w-full h-full select-none flex flex-col justify-between ${
-          isPortrait ? 'p-5 sm:p-6' : isPrintPreview ? 'p-4' : 'p-5 sm:p-6 md:p-8'
+          isPortrait ? 'p-4 sm:p-6' : isPrintPreview ? 'p-4' : 'p-3.5 sm:p-5 md:p-8'
         } ${themeStyles.cardBg} ${
           isPrintPreview || hideBorder ? 'border-0' : `border ${themeStyles.border}`
         } transition-colors duration-300 font-sans`}
@@ -882,10 +882,10 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
     <div
       className={`relative w-full h-full select-none flex flex-col justify-between ${
         isPortrait
-          ? 'p-5 sm:p-6'
+          ? 'p-4 sm:p-6'
           : isPrintPreview
             ? 'p-4'
-            : 'p-4 sm:p-6 md:p-7'
+            : 'p-3.5 sm:p-5 md:p-7'
       } ${themeStyles.cardBg} ${
         isPrintPreview || hideBorder ? 'border-0' : `border ${themeStyles.border} shadow-2xl`
       } transition-colors duration-300 font-sans`}

@@ -127,40 +127,48 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-150">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8 animate-in fade-in duration-150">
       {/* Photo Upload Zone */}
-      <section className="space-y-3.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      <section className="space-y-2.5 sm:space-y-3.5">
+        <div className="flex flex-row items-center justify-between gap-2 whitespace-nowrap">
+          {/* 2-Segment Photo Side Switch */}
+          <div
+            className="inline-flex items-center p-0.5 rounded-lg bg-[#161618] border border-white/[0.08] shrink-0"
+            role="group"
+            aria-label="사진 면 선택"
+          >
             <button
               type="button"
               onClick={() => setActiveSide('front')}
-              className={`text-xs tracking-wide cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium tracking-wide transition-all whitespace-nowrap cursor-pointer ${
                 activeSide === 'front'
-                  ? 'text-[#F2F2F5] font-medium'
+                  ? 'bg-[#27272A] text-[#F2F2F5] shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-300'
               }`}
+              title="앞면 사진 (Front)"
+              aria-label="앞면 사진"
             >
-              앞면 사진
+              Front
             </button>
-            <span className="text-zinc-400 text-xs select-none" aria-hidden="true">/</span>
             <button
               type="button"
               onClick={() => setActiveSide('back')}
-              className={`text-xs tracking-wide cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium tracking-wide transition-all whitespace-nowrap cursor-pointer ${
                 activeSide === 'back'
-                  ? 'text-[#F2F2F5] font-medium'
+                  ? 'bg-[#27272A] text-[#F2F2F5] shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-300'
               }`}
+              title="뒷면 사진 (Back)"
+              aria-label="뒷면 사진"
             >
-              뒷면 사진
+              Back
             </button>
           </div>
 
           <button
             type="button"
             onClick={handleLoadSample}
-            className="text-xs text-zinc-400 hover:text-zinc-300 cursor-pointer"
+            className="text-xs text-zinc-400 hover:text-zinc-300 cursor-pointer whitespace-nowrap"
           >
             샘플 불러오기
           </button>
@@ -171,7 +179,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={() => !currentImageUrl && triggerCurrentInput()}
-          className={`relative w-full aspect-[900/540] rounded-xl border overflow-hidden flex flex-col items-center justify-center ${
+          className={`relative w-full aspect-[9/5] rounded-xl border overflow-hidden flex flex-col items-center justify-center ${
             isDragging
               ? 'border-white/30 bg-white/[0.04]'
               : currentImageUrl
@@ -185,7 +193,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
                 src={currentImageUrl}
                 alt="명함 이미지"
                 referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
               <div className="absolute inset-0 bg-[#0D0D0F]/70 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center justify-center gap-2.5">
                 <button
@@ -213,7 +221,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center p-6 text-center space-y-2.5 pointer-events-none">
+            <div className="flex flex-col items-center justify-center p-4 sm:p-6 text-center space-y-2 pointer-events-none">
               <Camera className="w-5 h-5 text-zinc-400 stroke-[1.5]" />
               <p className="text-xs text-zinc-400">
                 {isCompressing ? '이미지를 정리하는 중...' : '사진을 드래그하거나 클릭하여 업로드'}
@@ -241,7 +249,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
       </section>
 
       {/* Essential Contact Metadata */}
-      <section className="border-t border-white/[0.06] pt-8 space-y-4">
+      <section className="border-t border-white/[0.06] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
         <h4 className="text-xs font-medium text-zinc-400 tracking-wide">
           기본 정보
         </h4>
@@ -257,7 +265,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
 
         <div
           className={
-            onChangeCategory ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'space-y-1.5'
+            onChangeCategory ? 'grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4' : 'space-y-1.5'
           }
         >
           {onChangeCategory && (

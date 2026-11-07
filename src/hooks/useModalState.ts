@@ -23,6 +23,7 @@ export interface ModalManager {
   legalDocType: LegalDocType;
   isResetOpen: boolean;
   isFromShare: boolean;
+  isImportContactsOpen: boolean;
 
   // Settings dropdown ref
   settingsMenuRef: React.RefObject<HTMLDivElement | null>;
@@ -38,6 +39,8 @@ export interface ModalManager {
   closeExport: () => void;
   openScan: () => void;
   closeScan: () => void;
+  openImportContacts: () => void;
+  closeImportContacts: () => void;
   openEditor: (card?: StoredCard | null, isCreating?: boolean) => void;
   closeEditor: () => void;
   openSync: () => void;
@@ -81,6 +84,7 @@ export function useModalState(): ModalManager {
   const [legalDocType, setLegalDocType] = useState<LegalDocType>('privacy');
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [isFromShare, setIsFromShare] = useState(false);
+  const [isImportContactsOpen, setIsImportContactsOpen] = useState(false);
 
   const settingsMenuRef = useRef<HTMLDivElement | null>(null);
   const isShareOpenRef = useRef(false);
@@ -167,6 +171,8 @@ export function useModalState(): ModalManager {
 
   const openScan = useCallback(() => setIsScanOpen(true), []);
   const closeScan = useCallback(() => setIsScanOpen(false), []);
+  const openImportContacts = useCallback(() => setIsImportContactsOpen(true), []);
+  const closeImportContacts = useCallback(() => setIsImportContactsOpen(false), []);
 
   const openEditor = useCallback((cardToEdit?: StoredCard | null, creating = false) => {
     setEditingCard(cardToEdit || null);
@@ -183,7 +189,7 @@ export function useModalState(): ModalManager {
   const openSync = useCallback(() => setIsSyncOpen(true), []);
   const closeSync = useCallback(() => setIsSyncOpen(false), []);
 
-  const toggleSettings = useCallback(() => setIsSettingsOpen(prev => !prev), []);
+  const toggleSettings = useCallback(() => setIsSettingsOpen((prev) => !prev), []);
   const closeSettings = useCallback(() => setIsSettingsOpen(false), []);
 
   const openPinConfig = useCallback((mode: PinModalMode = 'setup') => {
@@ -215,6 +221,7 @@ export function useModalState(): ModalManager {
     setIsPrintOpen(false);
     setIsExportOpen(false);
     setIsScanOpen(false);
+    setIsImportContactsOpen(false);
     setIsEditorOpen(false);
     setIsSyncOpen(false);
     setIsSettingsOpen(false);
@@ -233,6 +240,7 @@ export function useModalState(): ModalManager {
     isPrintOpen,
     isExportOpen,
     isScanOpen,
+    isImportContactsOpen,
     isEditorOpen,
     isCreatingCard,
     editingCard,
@@ -257,6 +265,8 @@ export function useModalState(): ModalManager {
     closeExport,
     openScan,
     closeScan,
+    openImportContacts,
+    closeImportContacts,
     openEditor,
     closeEditor,
     openSync,

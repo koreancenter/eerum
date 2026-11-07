@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Copy, RotateCcw, Check } from 'lucide-react';
 import { CardData } from '../../types/card';
 import { sanitizeHtml, detectUnsafeHtmlPatterns } from '../../utils/sanitizeHtml';
 import {
@@ -152,67 +152,81 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
   const detectedUnsafe = useMemo(() => detectUnsafeHtmlPatterns(currentHtml), [currentHtml]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-150">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8 animate-in fade-in duration-150">
       {/* Code Editor Section */}
-      <section className="space-y-3.5">
-        <div className="flex items-center justify-between gap-4">
-          {/* Pure Typographic Face Switcher */}
-          <div className="flex items-center gap-4">
+      <section className="space-y-2.5 sm:space-y-3.5">
+        <div className="flex flex-row items-center justify-between gap-2 whitespace-nowrap">
+          {/* 2-Segment Face Toggle Switch */}
+          <div
+            className="inline-flex items-center p-0.5 rounded-lg bg-[#161618] border border-white/[0.08] shrink-0"
+            role="group"
+            aria-label="명함 면 선택"
+          >
             <button
               type="button"
               onClick={() => onChangeActiveFace('front')}
-              className={`text-xs tracking-wide cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium tracking-wide transition-all whitespace-nowrap cursor-pointer ${
                 activeFace === 'front'
-                  ? 'text-[#F2F2F5] font-medium'
+                  ? 'bg-[#27272A] text-[#F2F2F5] shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-300'
               }`}
+              title="앞면 코드 편집 (Front)"
+              aria-label="앞면 코드 편집"
             >
-              앞면 코드
+              Front
             </button>
-            <span className="text-zinc-400 text-xs select-none" aria-hidden="true">/</span>
             <button
               type="button"
               onClick={() => onChangeActiveFace('back')}
-              className={`text-xs tracking-wide cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium tracking-wide transition-all whitespace-nowrap cursor-pointer ${
                 activeFace === 'back'
-                  ? 'text-[#F2F2F5] font-medium'
+                  ? 'bg-[#27272A] text-[#F2F2F5] shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-300'
               }`}
+              title="뒷면 코드 편집 (Back)"
+              aria-label="뒷면 코드 편집"
             >
-              뒷면 코드
+              Back
             </button>
           </div>
 
-          {/* Quiet Utility Actions */}
-          <div className="flex items-center gap-3 text-xs shrink-0">
+          {/* Compact Icon Actions */}
+          <div className="flex flex-row items-center gap-1.5 shrink-0 whitespace-nowrap">
             <button
               type="button"
               onClick={handleCopyPrompt}
-              className="text-zinc-400 hover:text-zinc-200 cursor-pointer whitespace-nowrap"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/15 transition-all cursor-pointer relative"
+              title={copiedPrompt ? 'AI 프롬프트 복사됨' : 'AI 프롬프트 복사'}
+              aria-label={copiedPrompt ? 'AI 프롬프트 복사됨' : 'AI 프롬프트 복사'}
             >
-              {copiedPrompt ? '복사됨' : '프롬프트 복사'}
+              {copiedPrompt ? (
+                <Check className="w-4 h-4 text-emerald-400 stroke-[2]" />
+              ) : (
+                <Copy className="w-4 h-4 stroke-[1.75]" />
+              )}
             </button>
-            <span className="text-zinc-400 select-none" aria-hidden="true">·</span>
             <button
               type="button"
               onClick={handleApplyDefaultTemplate}
-              className="text-zinc-400 hover:text-[#F2F2F5] cursor-pointer whitespace-nowrap"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/15 transition-all cursor-pointer"
+              title="기본 프리셋 코드 적용"
+              aria-label="기본 프리셋 코드 적용"
             >
-              기본 코드 적용
+              <RotateCcw className="w-4 h-4 stroke-[1.75]" />
             </button>
           </div>
         </div>
 
         <textarea
-          rows={12}
+          rows={7}
           value={activeFace === 'front' ? htmlFront : htmlBack}
           onChange={(e) =>
             activeFace === 'front'
               ? onChangeFront(e.target.value)
               : onChangeBack(e.target.value)
           }
-          placeholder="<div class=&quot;w-full h-full aspect-[1.586/1] bg-[#121214] text-[#F2F2F5] p-7 ...&quot;>...</div>"
-          className="w-full p-4 rounded-xl bg-[#161618] border border-white/[0.06] hover:border-white/[0.12] focus:border-white/25 focus:bg-[#19191C] focus:outline-none text-zinc-200 text-xs font-mono leading-relaxed resize-y selection:bg-white/15 editor-scrollbar"
+          placeholder="<div class=&quot;w-full h-full aspect-[9/5] bg-[#121214] text-[#F2F2F5] p-7 ...&quot;>...</div>"
+          className="w-full p-3 sm:p-4 rounded-xl bg-[#161618] border border-white/[0.06] hover:border-white/[0.12] focus:border-white/25 focus:bg-[#19191C] focus:outline-none text-zinc-200 text-xs font-mono leading-relaxed resize-y selection:bg-white/15 editor-scrollbar min-h-[140px] sm:min-h-[220px]"
           spellCheck={false}
         />
 
@@ -228,12 +242,12 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
       </section>
 
       {/* Essential Contact Metadata */}
-      <section className="border-t border-white/[0.06] pt-8 space-y-4">
+      <section className="border-t border-white/[0.06] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
         <h4 className="text-xs font-medium text-zinc-400 tracking-wide">
           연결 정보
         </h4>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
             <label className="text-xs text-zinc-400 block">성명</label>
             <input
