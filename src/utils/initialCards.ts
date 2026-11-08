@@ -360,6 +360,7 @@ export function clearAllLocalData(): void {
     localStorage.removeItem('card_sync_id');
     localStorage.removeItem('lazy_pin_dismissed');
     localStorage.removeItem('vault_categories_v1');
+    localStorage.removeItem('eerum_first_launch_done');
     sessionStorage.clear();
   } catch (e) {
     console.warn('Notice resetting local data', e);

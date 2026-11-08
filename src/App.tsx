@@ -16,6 +16,7 @@ import {
 } from './utils/initialCards';
 import { WelcomeCard } from './components/WelcomeCard';
 import { AppModals } from './components/AppModals';
+import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { lazyWithRetry, LazyErrorBoundary } from './utils/lazyWithRetry';
 
 const CardContainer = lazyWithRetry(() =>
@@ -89,7 +90,33 @@ export default function App() {
   const [isSamplePreview, setIsSamplePreview] = useState<boolean>(false);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [showWelcomeIntro, setShowWelcomeIntro] = useState<boolean>(false);
+
+  // App opens to Start Screen (WelcomeCard) on first launch
+  const [showWelcomeIntro, setShowWelcomeIntro] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      const isFirstLaunchDone = localStorage.getItem('eerum_first_launch_done');
+      if (!isFirstLaunchDone) {
+        return true;
+      }
+    } catch {
+      return true;
+    }
+    return false;
+  });
+
+  const markFirstLaunchDone = useCallback(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('eerum_first_launch_done', 'true');
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Card targeted for deletion confirmation
+  const [cardPendingDelete, setCardPendingDelete] = useState<StoredCard | null>(null);
 
   // Centralized Lightweight Modal Manager Hook
   const modals = useModalState();
@@ -738,13 +765,15 @@ export default function App() {
     showToast('모든 로컬 데이터가 안전하게 초기화되었습니다.');
   };
 
+  const handleRequestDeleteCard = (card: StoredCard) => {
+    requireUnlock(() => {
+      setCardPendingDelete(card);
+    });
+  };
+
   const handleDeleteCard = (cardId: string) => {
     const target = cards.find((c) => c.id === cardId);
     if (!target) return;
-    if (target.isMyCard && myCards.length <= 1) {
-      showToast('최소 1개의 내 명함은 유지되어야 합니다.');
-      return;
-    }
 
     setCards((prev) => {
       const remaining = prev.filter((c) => c.id !== cardId);
@@ -759,10 +788,21 @@ export default function App() {
       return remaining;
     });
 
+    if (target.isMyCard) {
+      const remainingMyCards = myCards.filter((c) => c.id !== cardId);
+      if (remainingMyCards.length === 0) {
+        setSelectedMyCardId('');
+        setShowWelcomeIntro(true);
+      } else if (selectedMyCardId === cardId) {
+        const nextCard = remainingMyCards.find((c) => c.isDefault) || remainingMyCards[0];
+        setSelectedMyCardId(nextCard?.id || '');
+      }
+    }
+
     if (selectedVaultCardId === cardId) {
       setSelectedVaultCardId(null);
     }
-    showToast('명함이 삭제되었습니다.');
+    showToast(target.isMyCard ? '내 명함이 삭제되었습니다.' : '명함이 삭제되었습니다.');
   };
 
   const handleRenameCategory = (oldName: string, newName: string) => {
@@ -1217,7 +1257,12 @@ export default function App() {
                   }}
                   onDeleteCard={(id) => {
                     requireUnlock(() => {
-                      handleDeleteCard(id);
+                      const c = cards.find((x) => x.id === id);
+                      if (c) {
+                        handleRequestDeleteCard(c);
+                      } else {
+                        handleDeleteCard(id);
+                      }
                     });
                   }}
                   onExportCard={(cardToExport) => {
@@ -1260,11 +1305,19 @@ export default function App() {
             <div className="w-full min-h-0 flex flex-col items-center justify-center">
               {!isSamplePreview && (showWelcomeIntro || myCards.length === 0) ? (
                 <WelcomeCard
-                  onCreateFirstCard={handleOpenCreateModal}
+                  onCreateFirstCard={() => {
+                    markFirstLaunchDone();
+                    handleOpenCreateModal();
+                  }}
                   onExploreSample={() => {
+                    markFirstLaunchDone();
                     setShowWelcomeIntro(false);
                     setIsSamplePreview(true);
                   }}
+                  onViewMyCards={myCards.length > 0 ? () => {
+                    markFirstLaunchDone();
+                    setShowWelcomeIntro(false);
+                  } : undefined}
                   hasExistingCards={myCards.length > 0}
                 />
               ) : isSamplePreview && currentMyCard ? (
@@ -1326,6 +1379,7 @@ export default function App() {
                             modals.openShare();
                           }}
                           onOpenEdit={handleOpenCreateModal}
+                          onDelete={!isSamplePreview ? () => handleRequestDeleteCard(currentMyCard) : undefined}
                         />
                       </Suspense>
                     </LazyErrorBoundary>
@@ -1333,10 +1387,19 @@ export default function App() {
                 </div>
               ) : !currentMyCard ? (
                 <WelcomeCard
-                  onCreateFirstCard={handleOpenCreateModal}
+                  onCreateFirstCard={() => {
+                    markFirstLaunchDone();
+                    handleOpenCreateModal();
+                  }}
                   onExploreSample={() => {
+                    markFirstLaunchDone();
                     setIsSamplePreview(true);
                   }}
+                  onViewMyCards={myCards.length > 0 ? () => {
+                    markFirstLaunchDone();
+                    setShowWelcomeIntro(false);
+                  } : undefined}
+                  hasExistingCards={myCards.length > 0}
                 />
               ) : (
                 <LazyErrorBoundary resetKey={currentMyCard.id}>
@@ -1361,6 +1424,9 @@ export default function App() {
                       onOpenShare={(cardToShare) => {
                         setModalTargetCardId(cardToShare.id);
                         modals.openShare();
+                      }}
+                      onDeleteCard={(cardToDelete) => {
+                        handleRequestDeleteCard(cardToDelete);
                       }}
                       mode="carousel"
                     />
@@ -1460,6 +1526,12 @@ export default function App() {
             printConfig={printConfig}
             setPrintConfig={setPrintConfig}
             onSaveCard={handleSaveCard}
+            onDeleteCard={(cardId) => {
+              const c = cards.find((x) => x.id === cardId);
+              if (c) {
+                handleRequestDeleteCard(c);
+              }
+            }}
             onConfirmReset={handleConfirmReset}
             isLocked={isLocked}
             isPinConfigured={isPinConfigured}
@@ -1470,6 +1542,25 @@ export default function App() {
             onBiometricUnlock={handleBiometricUnlock}
           />
         )}
+
+        {/* Card Deletion Confirmation Modal */}
+        <DeleteConfirmModal
+          isOpen={Boolean(cardPendingDelete)}
+          onClose={() => setCardPendingDelete(null)}
+          onConfirm={() => {
+            if (cardPendingDelete) {
+              handleDeleteCard(cardPendingDelete.id);
+              setCardPendingDelete(null);
+            }
+          }}
+          title={cardPendingDelete?.isMyCard ? '내 명함 삭제' : '명함 삭제'}
+          cardName={cardPendingDelete?.data?.name || cardPendingDelete?.data?.nameKr}
+          description={
+            cardPendingDelete?.isMyCard
+              ? '내 명함을 삭제하시겠습니까? 삭제된 명함은 복구할 수 없습니다.'
+              : '보관된 명함을 삭제하시겠습니까? 삭제된 명함은 복구할 수 없습니다.'
+          }
+        />
       </div>
 
       {/* PRINT-ONLY VECTOR CONTAINER (Triggered on window.print()) */}

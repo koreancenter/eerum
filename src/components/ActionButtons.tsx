@@ -11,6 +11,7 @@ import {
   UserPlus,
   RectangleHorizontal,
   RectangleVertical,
+  Trash2,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -19,6 +20,7 @@ interface ActionButtonsProps {
   isOwner?: boolean;
   onOpenEdit?: () => void;
   onOpenShare: () => void;
+  onDelete?: () => void;
   isPhotoCard?: boolean;
   orientation?: CardOrientation;
   onToggleOrientation?: () => void;
@@ -40,6 +42,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   isOwner = true,
   onOpenEdit,
   onOpenShare,
+  onDelete,
   orientation = 'landscape',
   onToggleOrientation,
   cardUrl,
@@ -211,6 +214,18 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           >
             <Share2 className="w-4 h-4" />
           </button>
+
+          {/* Delete My Card */}
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              className={`${iconButtonClass} hover:text-rose-400 hover:bg-rose-500/10 text-white/50`}
+              title="내 명함 삭제"
+              aria-label="내 명함 삭제"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </>
       )}
     </div>

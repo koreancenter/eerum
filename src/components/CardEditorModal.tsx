@@ -7,7 +7,7 @@ import {
   CardFeatures,
   CardCreationMode
 } from '../types/card';
-import { X, RotateCcw } from 'lucide-react';
+import { X, RotateCcw, Trash2 } from 'lucide-react';
 import { APP_BASE_DOMAIN, normalizeDomain } from '@/utils/cardSerializer';
 import { TemplateModeEditor } from './editor/TemplateModeEditor';
 import {
@@ -27,6 +27,7 @@ export interface CardEditorModalProps {
   editingCard?: StoredCard | null;
   initialData?: StoredCard | CardData | null;
   onSave: (updatedCard: StoredCard) => void;
+  onDelete?: (cardId: string) => void;
   isMyCardMode?: boolean;
   isCreating?: boolean;
 }
@@ -173,6 +174,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
   editingCard,
   initialData,
   onSave,
+  onDelete,
   isMyCardMode = false,
   isCreating = false
 }) => {
@@ -799,22 +801,41 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         </div>
 
         {/* Restrained Footer */}
-        <footer className="px-4 sm:px-9 py-2.5 sm:py-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-white/[0.06] bg-[#121214] flex items-center justify-end gap-2.5 sm:gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] cursor-pointer text-xs sm:text-[13px] font-normal whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
-          >
-            취소
-          </button>
+        <footer className="px-4 sm:px-9 py-2.5 sm:py-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-white/[0.06] bg-[#121214] flex items-center justify-between gap-2.5 sm:gap-3 shrink-0">
+          <div>
+            {!isCreating && onDelete && activeCard?.id && (
+              <button
+                type="button"
+                onClick={() => {
+                  onDelete(activeCard.id);
+                  onClose();
+                }}
+                className="px-3 py-2 sm:px-3.5 sm:py-2 rounded-lg text-rose-400/90 hover:text-rose-300 hover:bg-rose-500/10 cursor-pointer text-xs sm:text-[13px] font-normal inline-flex items-center gap-1.5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-500/20"
+                title="명함 삭제"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>명함 삭제</span>
+              </button>
+            )}
+          </div>
 
-          <button
-            type="button"
-            onClick={handleSave}
-            className="px-5 py-2 sm:px-6 sm:py-2.5 rounded-lg bg-[#EAEAE6] hover:bg-[#F3F3F0] text-[#121214] font-medium text-xs sm:text-[13px] tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
-          >
-            {isCreating ? '등록' : '저장'}
-          </button>
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] cursor-pointer text-xs sm:text-[13px] font-normal whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+            >
+              취소
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSave}
+              className="px-5 py-2 sm:px-6 sm:py-2.5 rounded-lg bg-[#EAEAE6] hover:bg-[#F3F3F0] text-[#121214] font-medium text-xs sm:text-[13px] tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+            >
+              {isCreating ? '등록' : '저장'}
+            </button>
+          </div>
         </footer>
       </div>
     </div>

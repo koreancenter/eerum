@@ -23,6 +23,7 @@ export interface CardNavigatorProps {
   onCreateNewCard: () => void;
   onOpenEdit?: (card: StoredCard) => void;
   onOpenShare: (card: StoredCard) => void;
+  onDeleteCard?: (card: StoredCard) => void;
   mode?: CardNavigationMode;
   onModeChange?: (mode: CardNavigationMode) => void;
   allowModeToggle?: boolean;
@@ -40,6 +41,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
   onCreateNewCard,
   onOpenEdit,
   onOpenShare,
+  onDeleteCard,
   mode = 'carousel',
   onModeChange,
   allowModeToggle = false,
@@ -505,6 +507,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
             data={activeCard.data}
             onOpenEdit={() => onOpenEdit && onOpenEdit(activeCard)}
             onOpenShare={() => onOpenShare(activeCard)}
+            onDelete={onDeleteCard ? () => onDeleteCard(activeCard) : undefined}
             isPhotoCard={activeCard.isPhotoCard || activeCard.creation_mode === 'photo'}
             orientation={orientation}
             onToggleOrientation={() => setOrientation(prev => prev === 'portrait' ? 'landscape' : 'portrait')}

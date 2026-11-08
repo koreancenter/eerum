@@ -15,6 +15,7 @@ interface CardContainerProps {
   onFlip: () => void;
   onOpenEdit?: () => void;
   onOpenShare: () => void;
+  onDelete?: () => void;
   isPhotoCard?: boolean;
   photoUrl?: string;
   backPhotoUrl?: string;
@@ -34,6 +35,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
   onFlip,
   onOpenEdit,
   onOpenShare,
+  onDelete,
   isPhotoCard = false,
   photoUrl,
   backPhotoUrl,
@@ -184,6 +186,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
           isOwner={isOwner}
           onOpenEdit={onOpenEdit}
           onOpenShare={onOpenShare}
+          onDelete={isOwner ? onDelete : undefined}
           isPhotoCard={isPhotoCard}
           orientation={orientation}
           onToggleOrientation={isOwner ? () => setOrientation(prev => prev === 'portrait' ? 'landscape' : 'portrait') : undefined}

@@ -64,6 +64,7 @@ export interface AppModalsProps {
   existingCards?: StoredCard[];
   categories?: string[];
   onImportCards?: (cards: StoredCard[]) => void;
+  onDeleteCard?: (cardId: string) => void;
 }
 
 /**
@@ -89,6 +90,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
   existingCards = [],
   categories,
   onImportCards,
+  onDeleteCard,
 }) => {
   const isLockScreenActive = isLocked && isPinConfigured;
 
@@ -277,6 +279,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
             editingCard={modals.editingCard}
             initialData={modals.editingCard}
             onSave={onSaveCard}
+            onDelete={onDeleteCard}
             isMyCardMode={Boolean(modals.editingCard?.isMyCard)}
             isCreating={modals.isCreatingCard}
           />

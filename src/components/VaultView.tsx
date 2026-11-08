@@ -534,14 +534,11 @@ export const VaultView: React.FC<VaultViewProps> = ({
       >
         {/* Row 1: Section Title/Count on Left + Combined Action Controls (Search, Manage, View Toggle, Add) on Right */}
         <div className="w-full max-w-full min-w-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3">
-          {/* Left: Section Title & Count ("보관 명함 3") */}
+          {/* Left: Section Title */}
           <div className="flex items-center justify-between sm:justify-start gap-2 shrink-0">
             <div className="flex items-center gap-1.5 text-xs text-zinc-400">
               <span className="font-semibold text-white tracking-tight">
                 {selectedCategory === '전체' ? '보관 명함' : selectedCategory}
-              </span>
-              <span className="font-mono tabular-nums text-zinc-300 font-semibold px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[11px]">
-                {filteredCards.length}
               </span>
             </div>
 
@@ -551,16 +548,15 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 type="button"
                 onClick={() => openCategoryPanel(false)}
                 aria-expanded={isCategoryPanelOpen}
-                aria-label="카테고리 관리 패널 열기"
-                title="카테고리 이름 변경·병합·삭제 관리"
-                className={`h-8.5 px-2.5 rounded-xl border text-xs font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-1 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                aria-label="카테고리 관리"
+                title="카테고리 관리"
+                className={`w-8.5 h-8.5 rounded-xl border text-xs font-medium shrink-0 inline-flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
                   isCategoryPanelOpen
                     ? 'bg-white text-neutral-950 border-white font-semibold'
                     : 'bg-[#121214] hover:bg-white/10 border-white/10 text-zinc-300 hover:text-white'
                 }`}
               >
                 <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
-                <span>관리</span>
               </button>
 
               <div
@@ -670,22 +666,19 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   title={
                     isListening
                       ? '음성 인식 중 (클릭하여 중지)'
-                      : '음성 검색 (클릭하여 한국어 음성으로 검색 🎙️)'
+                      : '음성 검색 (클릭하여 한국어 음성으로 검색)'
                   }
-                  className={`h-6.5 px-1.5 rounded-lg inline-flex items-center justify-center gap-1 text-[11px] cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                  className={`h-6.5 ${isListening ? 'px-2' : 'w-6.5'} rounded-lg inline-flex items-center justify-center gap-1 text-[11px] cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
                     isListening
                       ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 ring-2 ring-rose-500/30 animate-pulse shadow-[0_0_12px_rgba(244,63,94,0.35)] font-medium'
                       : 'text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95'
                   }`}
                 >
                   <Mic
-                    className={`w-3 h-3 stroke-[1.75] ${
+                    className={`w-3.5 h-3.5 stroke-[1.75] ${
                       isListening ? 'text-rose-400 animate-bounce' : ''
                     }`}
                   />
-                  <span className="text-[11px] leading-none" aria-hidden="true">
-                    🎙️
-                  </span>
                   {isListening && (
                     <span className="text-[9px] font-semibold text-rose-300 pl-0.5 animate-pulse hidden sm:inline">
                       듣는 중
@@ -702,17 +695,15 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 type="button"
                 onClick={() => openCategoryPanel(false)}
                 aria-expanded={isCategoryPanelOpen}
-                aria-label="카테고리 관리 패널 열기"
-                title="카테고리 이름 변경·병합·삭제 관리"
-                className={`h-9 sm:h-9.5 px-2.5 sm:px-3 rounded-xl border text-xs font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                aria-label="카테고리 관리"
+                title="카테고리 관리"
+                className={`w-9 sm:w-9.5 h-9 sm:h-9.5 rounded-xl border text-xs font-medium shrink-0 inline-flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
                   isCategoryPanelOpen
                     ? 'bg-white text-neutral-950 border-white font-semibold'
                     : 'bg-[#121214] hover:bg-white/10 border-white/10 text-zinc-300 hover:text-white'
                 }`}
               >
                 <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
-                <span className="hidden md:inline">카테고리 관리</span>
-                <span className="md:hidden">관리</span>
               </button>
 
               {/* 3. Grid/List View Switcher Button */}
@@ -791,7 +782,6 @@ export const VaultView: React.FC<VaultViewProps> = ({
           >
             {filterCategories.map((cat) => {
               const isSelected = selectedCategory === cat;
-              const count = categoryCounts[cat] ?? 0;
 
               return (
                 <button
@@ -814,13 +804,6 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   }`}
                 >
                   <span>{cat}</span>
-                  <span
-                    className={`ml-1.5 text-[10px] font-mono tabular-nums ${
-                      isSelected ? 'text-neutral-900/80 font-bold' : 'text-zinc-400'
-                    }`}
-                  >
-                    {count}
-                  </span>
                 </button>
               );
             })}
