@@ -10,6 +10,7 @@ import {
   Link2,
   Check,
   Plus,
+  UserPlus,
 } from 'lucide-react';
 import { BusinessCardFront } from './BusinessCardFront';
 import { cropAndCompressCardImage } from '../utils/imageProcess';
@@ -26,12 +27,17 @@ import {
   loadVaultCategories,
   addVaultCategory,
 } from '../utils/categories';
+import { ImportContactsModal } from './ImportContactsModal';
 
 export interface PhotoArchiveModalProps {
   isOpen: boolean;
   onClose: () => void;
   card?: StoredCard | null;
   onSaveCard?: (newCard: StoredCard) => void;
+  existingCards?: StoredCard[];
+  onImportCards?: (cards: StoredCard[]) => void;
+  showToast?: (msg: string) => void;
+  onOpenImportContacts?: () => void;
 }
 
 const INPUT_CLASS =
@@ -42,6 +48,10 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
   onClose,
   card,
   onSaveCard,
+  existingCards,
+  onImportCards,
+  showToast,
+  onOpenImportContacts,
 }) => {
   // If card is provided and onSaveCard is not, we are in Viewer mode
   const isViewerMode = Boolean(card && !onSaveCard);
@@ -49,8 +59,8 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
   // Viewer State
   const [viewTab, setViewTab] = useState<'photo' | 'digital' | 'compare'>('photo');
 
-  // Registration Mode ('photo' scan vs 'link' shared URL)
-  const [registerMode, setRegisterMode] = useState<'photo' | 'link'>('photo');
+  // Registration Mode ('photo' scan vs 'link' shared URL vs 'contacts' batch import)
+  const [registerMode, setRegisterMode] = useState<'photo' | 'link' | 'contacts'>('photo');
 
   // Archive Capture State
   const [frontPhoto, setFrontPhoto] = useState<string | null>(null);
@@ -640,9 +650,9 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="실물 명함 등록"
+        aria-label="명함 추가"
         aria-busy={isProcessing}
-        className="relative w-full max-w-xl max-h-[90dvh] flex flex-col rounded-3xl bg-[#111113] border border-white/10 text-neutral-100 shadow-2xl overflow-hidden"
+        className="relative w-full max-w-xl sm:max-w-2xl min-h-[580px] sm:min-h-[620px] max-h-[90dvh] flex flex-col rounded-3xl bg-[#111113] border border-white/10 text-neutral-100 shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Loading Overlay: blocks duplicate touches while cropAndCompressCardImage runs */}
@@ -687,7 +697,7 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
         <div className="px-6 sm:px-7 pt-5 pb-4 border-b border-white/[0.07] space-y-4 shrink-0">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold text-white tracking-tight">
-              명함 보관함 등록
+              명함 추가
             </h3>
             <button
               type="button"
@@ -702,11 +712,11 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
           </div>
 
           {/* Registration Source Mode Switcher */}
-          <div className="inline-flex items-center gap-1 p-1 bg-white/[0.04] rounded-xl text-xs">
+          <div className="inline-flex items-center gap-1 p-1 bg-white/[0.04] rounded-xl text-xs flex-wrap sm:flex-nowrap">
             <button
               type="button"
               onClick={() => setRegisterMode('photo')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg cursor-pointer whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-lg cursor-pointer whitespace-nowrap transition-colors ${
                 registerMode === 'photo'
                   ? 'bg-white text-neutral-950 font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-white font-medium'
@@ -718,7 +728,7 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
             <button
               type="button"
               onClick={() => setRegisterMode('link')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg cursor-pointer whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-lg cursor-pointer whitespace-nowrap transition-colors ${
                 registerMode === 'link'
                   ? 'bg-white text-neutral-950 font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-white font-medium'
@@ -727,12 +737,44 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
               <Link2 className="w-3.5 h-3.5 stroke-[1.75]" />
               <span>공유 링크 등록</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setRegisterMode('contacts')}
+              className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-lg cursor-pointer whitespace-nowrap transition-colors ${
+                registerMode === 'contacts'
+                  ? 'bg-white text-neutral-950 font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-white font-medium'
+              }`}
+            >
+              <UserPlus className="w-3.5 h-3.5 stroke-[1.75]" />
+              <span>연락처에서 가져오기</span>
+            </button>
           </div>
         </div>
 
         {/* Whitespace-Driven Modal Body */}
-        <div className="px-6 sm:px-7 py-6 overflow-y-auto flex-1 space-y-7 text-xs">
-          {registerMode === 'photo' ? (
+        {registerMode === 'contacts' ? (
+          <div className="flex-1 flex flex-col min-h-[480px] overflow-hidden">
+            <ImportContactsModal
+              isOpen={true}
+              embedded={true}
+              onClose={handleSafeClose}
+              existingCards={existingCards}
+              onImportCards={(importedCards) => {
+                if (onImportCards) {
+                  onImportCards(importedCards);
+                } else {
+                  importedCards.forEach((c) => onSaveCard?.(c));
+                }
+                handleSafeClose();
+              }}
+              categories={categories}
+              showToast={showToast}
+            />
+          </div>
+        ) : (
+          <div className="px-6 sm:px-7 py-6 overflow-y-auto flex-1 space-y-7 text-xs min-h-[460px]">
+            {registerMode === 'photo' ? (
             <>
               {/* 1. Physical Card Photo Slots */}
               <section className="space-y-3">
@@ -971,6 +1013,25 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
                 )}
               </section>
 
+              {!resolvedLinkCard && (
+                <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-3">
+                  <div className="flex items-center gap-2.5 text-zinc-300">
+                    <div className="w-8 h-8 rounded-xl bg-white/[0.05] border border-white/10 flex items-center justify-center text-zinc-300 shrink-0">
+                      <Link2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-white">공유 링크를 통한 빠른 등록</p>
+                      <p className="text-[11px] text-zinc-400">상대방이 공유한 웹 명함 주소 또는 고유 슬러그를 입력하세요</p>
+                    </div>
+                  </div>
+                  <ul className="text-[11px] text-zinc-400 space-y-1.5 pl-2 border-l border-white/10">
+                    <li>• 전체 웹 주소 (예: https://card.goguma.app/card/minsu)</li>
+                    <li>• 공유 슬러그만 입력 (예: minsu)</li>
+                    <li>• 불러오기 완료 후 보관 메모와 카테고리를 지정할 수 있습니다</li>
+                  </ul>
+                </div>
+              )}
+
               {resolvedLinkCard && (
                 <section className="pt-5 border-t border-white/[0.07] space-y-5 animate-in fade-in duration-150">
                   <div className="flex items-center justify-between">
@@ -1013,9 +1074,11 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
             </div>
           )}
         </div>
+      )}
 
-        {/* Minimalist Pure-Text Modal Footer */}
-        <div className="px-6 sm:px-7 py-4 border-t border-white/[0.07] flex items-center justify-between shrink-0">
+      {/* Minimalist Pure-Text Modal Footer */}
+      {registerMode !== 'contacts' && (
+        <div className="px-6 sm:px-7 py-4 border-t border-white/[0.07] flex items-center justify-between shrink-0 bg-[#111113]">
           <button
             type="button"
             disabled={isProcessing || isResolvingLink}
@@ -1038,6 +1101,7 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
             보관함에 저장
           </button>
         </div>
+      )}
       </div>
     </div>
   );

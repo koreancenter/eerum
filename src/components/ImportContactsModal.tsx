@@ -6,11 +6,9 @@ import {
   CheckSquare,
   Square,
   AlertTriangle,
-  UserPlus,
   Check,
   FileText,
   RotateCcw,
-  Sparkles,
 } from 'lucide-react';
 import { StoredCard } from '../types/card';
 import {
@@ -23,10 +21,11 @@ import {
 export interface ImportContactsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  existingCards: StoredCard[];
+  existingCards?: StoredCard[];
   onImportCards: (cards: StoredCard[]) => void;
   categories: string[];
-  showToast: (msg: string) => void;
+  showToast?: (msg: string) => void;
+  embedded?: boolean;
 }
 
 // Sample vCard data for immediate testing
@@ -77,10 +76,11 @@ END:VCARD`;
 export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
   isOpen,
   onClose,
-  existingCards,
+  existingCards = [],
   onImportCards,
   categories,
-  showToast,
+  showToast = () => {},
+  embedded = false,
 }) => {
   const [contacts, setContacts] = useState<ParsedContact[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -296,43 +296,10 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="연락처 가져오기 모달"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="relative w-full max-w-2xl max-h-[92vh] flex flex-col rounded-2xl bg-[#121214] border border-white/10 shadow-2xl text-zinc-200 overflow-hidden">
-        {/* Modal Header */}
-        <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-white/10">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-white">
-              <UserPlus className="w-4 h-4 stroke-[2]" />
-            </div>
-            <div>
-              <h2 className="text-sm sm:text-base font-semibold text-white tracking-tight">
-                연락처 대량 가져오기
-              </h2>
-              <p className="text-[11px] text-zinc-400">
-                vCard 파일(.vcf), 기기 주소록에서 명함을 일괄 변환하여 보관함에 등록합니다.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            aria-label="닫기"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+  const bodyContent = (
+    <div className="flex-1 flex flex-col justify-between overflow-hidden min-h-[460px]">
+      {/* Modal Body */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
           {contacts.length === 0 ? (
             /* ================= SOURCE SELECTION VIEW ================= */
             <div className="space-y-4">
@@ -454,9 +421,8 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                 <button
                   type="button"
                   onClick={handleLoadSample}
-                  className="text-xs text-zinc-300 hover:text-white inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                  className="text-xs text-zinc-300 hover:text-white inline-flex items-center px-2.5 py-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                   <span>테스트용 샘플 vCard 불러오기</span>
                 </button>
               </div>
@@ -649,6 +615,39 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
             </button>
           )}
         </div>
+    </div>
+  );
+
+  if (embedded) {
+    return bodyContent;
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="연락처 가져오기 모달"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="relative w-full max-w-2xl max-h-[92vh] flex flex-col rounded-2xl bg-[#121214] border border-white/10 shadow-2xl text-zinc-200 overflow-hidden">
+        {/* Modal Header */}
+        <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-white/10">
+          <h2 className="text-sm sm:text-base font-semibold text-white tracking-tight">
+            연락처 대량 가져오기
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            aria-label="닫기"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {bodyContent}
       </div>
     </div>
   );

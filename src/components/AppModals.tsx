@@ -148,6 +148,19 @@ export const AppModals: React.FC<AppModalsProps> = ({
             isOpen={modals.isScanOpen}
             onClose={modals.closeScan}
             onSaveCard={onSaveCard}
+            existingCards={existingCards}
+            onImportCards={(importedCards) => {
+              if (onImportCards) {
+                onImportCards(importedCards);
+              } else {
+                setCards((prev) => [...importedCards, ...prev]);
+              }
+            }}
+            showToast={showToast}
+            onOpenImportContacts={() => {
+              modals.closeScan();
+              modals.openImportContacts();
+            }}
           />
         )}
 
