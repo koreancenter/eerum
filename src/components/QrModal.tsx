@@ -15,7 +15,7 @@ export const QrModal: React.FC<QrModalProps> = ({ isOpen, onClose, data }) => {
   const [dataUrl, setDataUrl] = useState<string>('');
   const [copied, setCopied] = useState(false);
 
-  const targetUrl = data.website || 'https://card.goguma.app/master';
+  const targetUrl = data.website || 'https://eerum.goguma.app/master';
 
   useEffect(() => {
     if (!isOpen) return;

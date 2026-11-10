@@ -20,6 +20,7 @@ interface EditorPreviewPanelProps {
   htmlBack: string;
   previewFace: 'front' | 'back';
   onFlipPreviewFace: () => void;
+  isMobileModal?: boolean;
 }
 
 export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
@@ -36,6 +37,7 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
   htmlBack,
   previewFace,
   onFlipPreviewFace,
+  isMobileModal = false,
 }) => {
   const isCompletelyEmpty =
     !formData.name.trim() &&
@@ -82,7 +84,13 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
   const sanitizedBack = useMemo(() => sanitizeHtml(htmlBack), [htmlBack]);
 
   return (
-    <div className="order-1 lg:order-2 col-span-12 lg:col-span-7 flex-shrink-0 min-h-0 flex flex-col items-center justify-center bg-[#161618] border-b lg:border-b-0 lg:border-l border-white/[0.06] px-4 py-3 sm:px-8 sm:py-6 lg:p-12 relative overflow-hidden select-none">
+    <div
+      className={
+        isMobileModal
+          ? 'w-full flex-1 flex flex-col items-center justify-center p-3 sm:p-5 relative select-none'
+          : 'hidden lg:flex order-1 lg:order-2 col-span-12 lg:col-span-7 flex-shrink-0 min-h-0 flex-col items-center justify-center bg-[#161618] border-b lg:border-b-0 lg:border-l border-white/[0.06] px-4 py-3 sm:px-8 sm:py-6 lg:p-12 relative overflow-hidden select-none'
+      }
+    >
       {/* Subtle Ambient Gallery Illumination */}
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/[0.025] via-transparent to-transparent" />
 
@@ -90,19 +98,23 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
       <div
         className={`${
           isVerticalCard
-            ? 'w-full max-w-[170px] sm:max-w-[220px] lg:max-w-[280px] max-h-[260px] sm:max-h-[350px] lg:max-h-none aspect-[5/8]'
-            : 'w-full max-w-[300px] sm:max-w-[400px] lg:max-w-[480px] max-h-[165px] sm:max-h-[220px] lg:max-h-none aspect-[9/5]'
+            ? isMobileModal
+              ? 'w-full max-w-[220px] sm:max-w-[260px] aspect-[5/8]'
+              : 'w-full max-w-[280px] aspect-[5/8]'
+            : isMobileModal
+              ? 'w-full max-w-[340px] sm:max-w-[420px] aspect-[9/5]'
+              : 'w-full max-w-[480px] aspect-[9/5]'
         } flex-shrink-0 min-h-0 transition-transform duration-300 relative [perspective:1200px] cursor-pointer group`}
         onClick={onFlipPreviewFace}
         title="클릭하여 면 전환"
       >
         <div
-          className={`w-full h-full relative rounded-xl sm:rounded-2xl transition-transform duration-500 ease-out [transform-style:preserve-3d] group-hover:scale-[1.01] shadow-[0_16px_40px_-12px_rgba(0,0,0,0.65)] ${
+          className={`w-full h-full relative rounded-xl sm:rounded-2xl transition-transform duration-500 ease-out [transform-style:preserve-3d] group-hover:scale-[1.01] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.12)] ${
             previewFace === 'back' ? '[transform:rotateY(180deg)]' : '[transform:rotateY(0deg)]'
           }`}
         >
           {/* Front Face */}
-          <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-xl sm:rounded-2xl overflow-hidden bg-[#121214] flex items-center justify-center">
+          <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-xl sm:rounded-2xl overflow-hidden bg-[#121214] ring-1 ring-white/10 flex items-center justify-center">
             {creationMode === 'template' && (
               <div className="w-full h-full flex items-center justify-center">
                 <BusinessCardFront
@@ -156,7 +168,7 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
           </div>
 
           {/* Back Face */}
-          <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-xl sm:rounded-2xl overflow-hidden bg-[#121214] flex items-center justify-center">
+          <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-xl sm:rounded-2xl overflow-hidden bg-[#121214] ring-1 ring-white/10 flex items-center justify-center">
             {creationMode === 'template' && (
               <div className="w-full h-full flex items-center justify-center">
                 <BusinessCardBack
@@ -213,28 +225,30 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
         </div>
       </div>
 
-      {/* Quiet Typographic Face Switcher */}
-      <div className="mt-2.5 sm:mt-5 flex items-center gap-3 text-xs shrink-0">
-        <button
-          type="button"
-          onClick={() => previewFace !== 'front' && onFlipPreviewFace()}
-          className={`cursor-pointer tracking-wide ${
-            previewFace === 'front' ? 'text-[#EDEDEF] font-medium' : 'text-zinc-400 hover:text-zinc-300'
-          }`}
-        >
-          앞면
-        </button>
-        <span className="text-zinc-400 select-none" aria-hidden="true">·</span>
-        <button
-          type="button"
-          onClick={() => previewFace !== 'back' && onFlipPreviewFace()}
-          className={`cursor-pointer tracking-wide ${
-            previewFace === 'back' ? 'text-[#EDEDEF] font-medium' : 'text-zinc-400 hover:text-zinc-300'
-          }`}
-        >
-          뒷면
-        </button>
-      </div>
+      {/* Quiet Typographic Face Switcher for Desktop Only */}
+      {!isMobileModal && (
+        <div className="mt-2.5 sm:mt-5 flex items-center gap-3 text-xs shrink-0">
+          <button
+            type="button"
+            onClick={() => previewFace !== 'front' && onFlipPreviewFace()}
+            className={`cursor-pointer tracking-wide ${
+              previewFace === 'front' ? 'text-[#EDEDEF] font-medium' : 'text-zinc-400 hover:text-zinc-300'
+            }`}
+          >
+            앞면
+          </button>
+          <span className="text-zinc-400 select-none" aria-hidden="true">·</span>
+          <button
+            type="button"
+            onClick={() => previewFace !== 'back' && onFlipPreviewFace()}
+            className={`cursor-pointer tracking-wide ${
+              previewFace === 'back' ? 'text-[#EDEDEF] font-medium' : 'text-zinc-400 hover:text-zinc-300'
+            }`}
+          >
+            뒷면
+          </button>
+        </div>
+      )}
     </div>
   );
 };

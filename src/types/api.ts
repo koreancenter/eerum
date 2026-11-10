@@ -84,12 +84,13 @@ export function normalizeQueryToken(value: unknown, maxLen = 255): string | null
   return cleaned;
 }
 
-export function isPlatformDomain(host: string, baseDomain = 'card.goguma.app'): boolean {
+export function isPlatformDomain(host: string, baseDomain = 'eerum.goguma.app'): boolean {
   const normalizedBase = baseDomain.toLowerCase().trim();
   const h = host.toLowerCase().trim();
   if (!h) return true;
   return (
     h === normalizedBase ||
+    h === 'card.goguma.app' ||
     h.includes('localhost') ||
     h.includes('127.0.0.1') ||
     h.endsWith('.run.app') ||

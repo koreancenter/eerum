@@ -249,9 +249,13 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
   // Preview Face
   const [previewFace, setPreviewFace] = useState<'front' | 'back'>('front');
 
+  // Mobile dedicated preview modal toggle
+  const [isMobilePreviewOpen, setIsMobilePreviewOpen] = useState(false);
+
   // Sync state whenever card, editingCard, initialData or isOpen changes
   useEffect(() => {
     if (isOpen) {
+      setIsMobilePreviewOpen(false);
       const currentTarget = editingCard || initialData || card;
       const safe = getSafeCard(currentTarget, isMyCardMode);
       const mode = resolveCardCreationMode(currentTarget);
@@ -819,7 +823,15 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
             )}
           </div>
 
-          <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => setIsMobilePreviewOpen(true)}
+              className="lg:hidden px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg border border-white/10 bg-white/[0.05] hover:bg-white/10 text-zinc-200 text-xs sm:text-[13px] font-medium inline-flex items-center justify-center transition-colors cursor-pointer active:scale-95"
+            >
+              미리보기
+            </button>
+
             <button
               type="button"
               onClick={onClose}
@@ -838,6 +850,76 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
           </div>
         </footer>
       </div>
+
+      {/* Dedicated Mobile Fullscreen Preview Modal */}
+      {isMobilePreviewOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="명함 전체 미리보기"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200 lg:hidden"
+          onClick={() => setIsMobilePreviewOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-sm sm:max-w-md max-h-[92vh] flex flex-col rounded-3xl bg-[#0E0E11] border border-white/10 text-[#E8E8EC] shadow-[0_30px_70px_-15px_rgba(0,0,0,0.9)] overflow-hidden animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Minimal Header */}
+            <div className="px-4 sm:px-5 py-2.5 sm:py-3 border-b border-white/[0.06] flex items-center justify-end shrink-0 bg-[#131317]/90 backdrop-blur-md">
+              <button
+                type="button"
+                onClick={() => setIsMobilePreviewOpen(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                title="닫기"
+                aria-label="닫기"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Preview Stage with atmospheric radial gallery glow */}
+            <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center p-4 sm:p-6 bg-[radial-gradient(circle_at_50%_35%,_rgba(255,255,255,0.06)_0%,_rgba(15,15,18,0.98)_55%,_#0B0B0E_100%)]">
+              <EditorPreviewPanel
+                isMobileModal={true}
+                creationMode={creationMode}
+                layoutType={layoutType}
+                theme={theme}
+                features={features}
+                formData={formData}
+                effectiveUrl={effectiveUrl}
+                effectiveDisplayUrl={effectiveDisplayUrl}
+                frontImageUrl={frontImageUrl}
+                backImageUrl={backImageUrl}
+                htmlFront={htmlFront}
+                htmlBack={htmlBack}
+                previewFace={previewFace}
+                onFlipPreviewFace={() => setPreviewFace((prev) => (prev === 'front' ? 'back' : 'front'))}
+              />
+            </div>
+
+            {/* Luxury Footer */}
+            <div className="px-5 sm:px-6 py-3.5 border-t border-white/[0.07] flex items-center justify-between gap-3 shrink-0 bg-[#131317]/95 backdrop-blur-md">
+              <button
+                type="button"
+                onClick={() => setIsMobilePreviewOpen(false)}
+                className="px-4 py-2.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <span>← 편집 계속하기</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobilePreviewOpen(false);
+                  handleSave();
+                }}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-b from-white to-[#EAEAE6] hover:from-white hover:to-white text-neutral-950 text-xs font-semibold tracking-wide transition-all cursor-pointer shadow-[0_4px_16px_rgba(255,255,255,0.2)] active:scale-95"
+              >
+                {isCreating ? '이 명함으로 등록' : '저장하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

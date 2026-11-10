@@ -1,4 +1,4 @@
-# Cloudflare Pages / Workers Configuration for card.goguma.app
+# Cloudflare Pages / Workers Configuration for eerum.goguma.app
 name = "card"
 main = "worker.ts"
 compatibility_date = "2024-09-23"
@@ -9,7 +9,7 @@ directory = "./dist"
 binding = "ASSETS"
 
 [vars]
-BASE_DOMAIN = "card.goguma.app"
+BASE_DOMAIN = "eerum.goguma.app"
 
 # 1. Cloudflare D1 (Global Edge SQLite DB)
 [[d1_databases]]

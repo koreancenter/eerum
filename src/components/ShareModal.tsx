@@ -33,7 +33,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const [qrType, setQrType] = useState<'url' | 'vcard'>('url');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
-  const resolvedUrl = cardUrl || data.website || 'https://card.goguma.app/master';
+  const resolvedUrl = cardUrl || data.website || 'https://eerum.goguma.app/master';
 
   useEffect(() => {
     if (!isOpen) return;

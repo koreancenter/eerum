@@ -712,42 +712,48 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
           </div>
 
           {/* Registration Source Mode Switcher */}
-          <div className="inline-flex items-center gap-1 p-1 bg-white/[0.04] rounded-xl text-xs flex-wrap sm:flex-nowrap">
+          <div className="inline-flex items-center gap-1 p-1 bg-white/[0.04] rounded-xl text-xs whitespace-nowrap">
             <button
               type="button"
               onClick={() => setRegisterMode('photo')}
-              className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-lg cursor-pointer whitespace-nowrap transition-colors ${
+              title="실물 사진 스캔"
+              aria-label="실물 사진 스캔"
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-1.5 rounded-lg cursor-pointer whitespace-nowrap transition-colors ${
                 registerMode === 'photo'
                   ? 'bg-white text-neutral-950 font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-white font-medium'
               }`}
             >
-              <Camera className="w-3.5 h-3.5 stroke-[1.75]" />
-              <span>실물 사진 스캔</span>
+              <Camera className="w-4 h-4 sm:w-3.5 sm:h-3.5 stroke-[1.75]" />
+              <span className="hidden sm:inline">실물 사진 스캔</span>
             </button>
             <button
               type="button"
               onClick={() => setRegisterMode('link')}
-              className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-lg cursor-pointer whitespace-nowrap transition-colors ${
+              title="공유 링크 등록"
+              aria-label="공유 링크 등록"
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-1.5 rounded-lg cursor-pointer whitespace-nowrap transition-colors ${
                 registerMode === 'link'
                   ? 'bg-white text-neutral-950 font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-white font-medium'
               }`}
             >
-              <Link2 className="w-3.5 h-3.5 stroke-[1.75]" />
-              <span>공유 링크 등록</span>
+              <Link2 className="w-4 h-4 sm:w-3.5 sm:h-3.5 stroke-[1.75]" />
+              <span className="hidden sm:inline">공유 링크 등록</span>
             </button>
             <button
               type="button"
               onClick={() => setRegisterMode('contacts')}
-              className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-lg cursor-pointer whitespace-nowrap transition-colors ${
+              title="연락처에서 가져오기"
+              aria-label="연락처에서 가져오기"
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-1.5 rounded-lg cursor-pointer whitespace-nowrap transition-colors ${
                 registerMode === 'contacts'
                   ? 'bg-white text-neutral-950 font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-white font-medium'
               }`}
             >
-              <UserPlus className="w-3.5 h-3.5 stroke-[1.75]" />
-              <span>연락처에서 가져오기</span>
+              <UserPlus className="w-4 h-4 sm:w-3.5 sm:h-3.5 stroke-[1.75]" />
+              <span className="hidden sm:inline">연락처에서 가져오기</span>
             </button>
           </div>
         </div>
@@ -996,7 +1002,7 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
                         void handleResolveSharedLink();
                       }
                     }}
-                    placeholder="https://card.goguma.app/card/elena 또는 슬러그 입력"
+                    placeholder="https://eerum.goguma.app/card/elena 또는 슬러그 입력"
                     className={`${INPUT_CLASS} font-mono`}
                   />
                   <button
@@ -1025,7 +1031,7 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
                     </div>
                   </div>
                   <ul className="text-[11px] text-zinc-400 space-y-1.5 pl-2 border-l border-white/10">
-                    <li>• 전체 웹 주소 (예: https://card.goguma.app/card/minsu)</li>
+                    <li>• 전체 웹 주소 (예: https://eerum.goguma.app/card/minsu)</li>
                     <li>• 공유 슬러그만 입력 (예: minsu)</li>
                     <li>• 불러오기 완료 후 보관 메모와 카테고리를 지정할 수 있습니다</li>
                   </ul>

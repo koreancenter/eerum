@@ -38,7 +38,7 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
   const isPortrait = isVerticalCard || orientation === 'portrait';
 
   useEffect(() => {
-    const targetUrl = data.website || 'https://card.goguma.app/master';
+    const targetUrl = data.website || 'https://eerum.goguma.app/master';
     QRCode.toString(targetUrl, {
       type: 'svg',
       margin: 0,

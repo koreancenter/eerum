@@ -11,7 +11,17 @@ import {
   Check,
   SlidersHorizontal,
   Mic,
+  ArrowUpDown,
+  ChevronDown,
 } from 'lucide-react';
+
+export type VaultSortOption = 'created' | 'name' | 'category';
+
+const SORT_OPTIONS: { id: VaultSortOption; label: string }[] = [
+  { id: 'created', label: '등록순' },
+  { id: 'name', label: '이름순' },
+  { id: 'category', label: '카테고리별' },
+];
 import { PhotoArchiveModal } from './PhotoArchiveModal';
 import {
   VaultCardItem,
@@ -87,6 +97,52 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   const [photoArchiveCardId, setPhotoArchiveCardId] = useState<string | null>(null);
+
+  // Sorting state persisted in localStorage
+  const [sortBy, setSortBy] = useState<VaultSortOption>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('eerum_vault_sort_by');
+      if (saved === 'created' || saved === 'name' || saved === 'category') {
+        return saved;
+      }
+    }
+    return 'created';
+  });
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState<boolean>(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Persist sort preference
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('eerum_vault_sort_by', sortBy);
+    }
+  }, [sortBy]);
+
+  // Outside click and Escape handler for Sort Dropdown
+  useEffect(() => {
+    if (!isSortDropdownOpen) return;
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      if (
+        sortDropdownRef.current &&
+        !sortDropdownRef.current.contains(e.target as Node)
+      ) {
+        setIsSortDropdownOpen(false);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsSortDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isSortDropdownOpen]);
 
   // Web Speech API Voice Search States
   const [isListening, setIsListening] = useState<boolean>(false);
@@ -364,6 +420,73 @@ export const VaultView: React.FC<VaultViewProps> = ({
     });
   }, [cards, selectedCategory, debouncedSearchQuery]);
 
+  // Memoized sorting by 'created' (등록순), 'name' (이름순), or 'category' (카테고리별)
+  const sortedCards = useMemo(() => {
+    const list = [...filteredCards];
+
+    if (sortBy === 'name') {
+      return list.sort((a, b) => {
+        const nameA = (a.data.name || a.data.nameKr || '').trim();
+        const nameB = (b.data.name || b.data.nameKr || '').trim();
+        const cmp = nameA.localeCompare(nameB, 'ko-KR', { numeric: true, sensitivity: 'base' });
+        if (cmp !== 0) return cmp;
+        const orgA = (a.data.organization || a.data.organizationKr || '').trim();
+        const orgB = (b.data.organization || b.data.organizationKr || '').trim();
+        return orgA.localeCompare(orgB, 'ko-KR');
+      });
+    }
+
+    if (sortBy === 'category') {
+      return list.sort((a, b) => {
+        const catA = (a.category || '기타').trim();
+        const catB = (b.category || '기타').trim();
+        const cmp = catA.localeCompare(catB, 'ko-KR', { sensitivity: 'base' });
+        if (cmp !== 0) return cmp;
+        const nameA = (a.data.name || a.data.nameKr || '').trim();
+        const nameB = (b.data.name || b.data.nameKr || '').trim();
+        return nameA.localeCompare(nameB, 'ko-KR', { numeric: true });
+      });
+    }
+
+    // Default 'created' (등록순): 최신 등록일자 우선
+    return list.sort((a, b) => {
+      const timeA = new Date(a.createdAt || a.created_at || 0).getTime();
+      const timeB = new Date(b.createdAt || b.created_at || 0).getTime();
+      if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) {
+        return timeB - timeA;
+      }
+      return 0;
+    });
+  }, [filteredCards, sortBy]);
+
+  // When sorting by category in '전체' view, group cards by category for structured visual display
+  const groupedByCategory = useMemo(() => {
+    if (sortBy !== 'category' || selectedCategory !== '전체') {
+      return null;
+    }
+    const groups: { category: string; cards: StoredCard[] }[] = [];
+    const map = new Map<string, StoredCard[]>();
+
+    for (const card of sortedCards) {
+      const cat = card.category || '기타';
+      if (!map.has(cat)) {
+        map.set(cat, []);
+      }
+      map.get(cat)!.push(card);
+    }
+
+    map.forEach((cardsInGroup, category) => {
+      groups.push({ category, cards: cardsInGroup });
+    });
+
+    return groups;
+  }, [sortedCards, sortBy, selectedCategory]);
+
+  const currentSortOption = useMemo(
+    () => SORT_OPTIONS.find((opt) => opt.id === sortBy) || SORT_OPTIONS[0],
+    [sortBy]
+  );
+
   // Inline `+` Pill Add Category Handlers
   const handleStartInlineAdd = useCallback(() => {
     setInlineAddError(null);
@@ -539,6 +662,9 @@ export const VaultView: React.FC<VaultViewProps> = ({
               <span className="font-semibold text-white tracking-tight">
                 {selectedCategory === '전체' ? '보관 명함' : selectedCategory}
               </span>
+              <span className="text-[11px] text-zinc-500 font-mono tabular-nums font-normal">
+                ({sortedCards.length})
+              </span>
             </div>
 
             {/* Mobile-Only Action Button Cluster (< sm) */}
@@ -606,72 +732,130 @@ export const VaultView: React.FC<VaultViewProps> = ({
             </div>
           </div>
 
-          {/* Right on Desktop / Responsive on Mobile: Search Bar + (Desktop Action Controls) */}
+          {/* Right on Desktop / Responsive on Mobile: Search Bar + Sort Dropdown + (Desktop Action Controls) */}
           <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-2.5 md:gap-3 w-full sm:w-auto">
-            {/* 1. Search Bar (Combines Input + Clear + Voice Search Mic Button 🎙️, max-width 320px on desktop) */}
-            <div className="relative w-full sm:w-60 md:w-72 lg:w-80 sm:max-w-[320px] shrink min-w-0">
-              <Search
-                className={`w-3.5 h-3.5 stroke-[1.75] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-200 ${
-                  isListening ? 'text-rose-400' : 'text-zinc-400'
-                }`}
-              />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={
-                  isListening
-                    ? (voiceFeedback || '말씀하세요... (음성 듣는 중)')
-                    : '이름, 회사, 직함, 메모 검색'
-                }
-                aria-label="명함 보관함 검색"
-                className={`w-full h-9 sm:h-9.5 pl-8.5 pr-20 rounded-xl bg-[#121214] border text-xs text-neutral-200 placeholder:text-zinc-400 focus:outline-none transition-all duration-200 ${
-                  isListening
-                    ? 'border-rose-500/50 ring-2 ring-rose-500/20 placeholder:text-rose-300/80 shadow-[0_0_16px_rgba(244,63,94,0.18)]'
-                    : 'border-white/10 focus:ring-1 focus:ring-white/20 focus:border-white/20'
-                }`}
-              />
+            {/* 1. Search Bar + Sort Dropdown Cluster */}
+            <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-52 md:w-64 lg:w-72 sm:max-w-[300px] min-w-0">
+                <Search
+                  className={`w-3.5 h-3.5 stroke-[1.75] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-200 ${
+                    isListening ? 'text-rose-400' : 'text-zinc-400'
+                  }`}
+                />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={
+                    isListening
+                      ? (voiceFeedback || '말씀하세요... (음성 듣는 중)')
+                      : '이름, 회사, 직함, 메모 검색'
+                  }
+                  aria-label="명함 보관함 검색"
+                  className={`w-full h-9 sm:h-9.5 pl-8.5 pr-20 rounded-xl bg-[#121214] border text-xs text-neutral-200 placeholder:text-zinc-400 focus:outline-none transition-all duration-200 ${
+                    isListening
+                      ? 'border-rose-500/50 ring-2 ring-rose-500/20 placeholder:text-rose-300/80 shadow-[0_0_16px_rgba(244,63,94,0.18)]'
+                      : 'border-white/10 focus:ring-1 focus:ring-white/20 focus:border-white/20'
+                  }`}
+                />
 
-              {/* Right Controls: Clear Query + Web Speech Voice Search Button (🎙️) */}
-              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                {searchQuery && (
+                {/* Right Controls: Clear Query + Web Speech Voice Search Button (🎙️) */}
+                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={handleClearSearch}
+                      className="w-5 h-5 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
+                      aria-label="검색어 지우기"
+                      title="검색어 지우기"
+                    >
+                      <X className="w-3.5 h-3.5 stroke-[1.5]" />
+                    </button>
+                  )}
+
                   <button
                     type="button"
-                    onClick={handleClearSearch}
-                    className="w-5 h-5 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
-                    aria-label="검색어 지우기"
-                    title="검색어 지우기"
+                    onClick={toggleVoiceSearch}
+                    aria-label={isListening ? '음성 검색 중지' : '음성으로 검색'}
+                    title={
+                      isListening
+                        ? '음성 인식 중 (클릭하여 중지)'
+                        : '음성 검색 (클릭하여 한국어 음성으로 검색)'
+                    }
+                    className={`h-6.5 ${isListening ? 'px-2' : 'w-6.5'} rounded-lg inline-flex items-center justify-center gap-1 text-[11px] cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                      isListening
+                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 ring-2 ring-rose-500/30 animate-pulse shadow-[0_0_12px_rgba(244,63,94,0.35)] font-medium'
+                        : 'text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95'
+                    }`}
                   >
-                    <X className="w-3.5 h-3.5 stroke-[1.5]" />
+                    <Mic
+                      className={`w-3.5 h-3.5 stroke-[1.75] ${
+                        isListening ? 'text-rose-400 animate-bounce' : ''
+                      }`}
+                    />
+                    {isListening && (
+                      <span className="text-[9px] font-semibold text-rose-300 pl-0.5 animate-pulse hidden sm:inline">
+                        듣는 중
+                      </span>
+                    )}
                   </button>
-                )}
+                </div>
+              </div>
 
+              {/* Sort Dropdown Menu (등록순 / 이름순 / 카테고리별) */}
+              <div className="relative shrink-0" ref={sortDropdownRef}>
                 <button
                   type="button"
-                  onClick={toggleVoiceSearch}
-                  aria-label={isListening ? '음성 검색 중지' : '음성으로 검색'}
-                  title={
-                    isListening
-                      ? '음성 인식 중 (클릭하여 중지)'
-                      : '음성 검색 (클릭하여 한국어 음성으로 검색)'
-                  }
-                  className={`h-6.5 ${isListening ? 'px-2' : 'w-6.5'} rounded-lg inline-flex items-center justify-center gap-1 text-[11px] cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
-                    isListening
-                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 ring-2 ring-rose-500/30 animate-pulse shadow-[0_0_12px_rgba(244,63,94,0.35)] font-medium'
-                      : 'text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95'
-                  }`}
+                  onClick={() => setIsSortDropdownOpen((prev) => !prev)}
+                  aria-expanded={isSortDropdownOpen}
+                  aria-haspopup="listbox"
+                  aria-label={`명함 정렬: ${currentSortOption.label}`}
+                  title="명함 정렬 기준 변경"
+                  className="h-9 sm:h-9.5 px-2.5 sm:px-3 rounded-xl bg-[#121214] hover:bg-white/10 border border-white/10 text-neutral-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 transition-colors text-xs font-medium cursor-pointer inline-flex items-center gap-1.5 active:scale-95 whitespace-nowrap"
                 >
-                  <Mic
-                    className={`w-3.5 h-3.5 stroke-[1.75] ${
-                      isListening ? 'text-rose-400 animate-bounce' : ''
+                  <ArrowUpDown className="w-3.5 h-3.5 stroke-[1.75] text-zinc-400 shrink-0" />
+                  <span className="text-zinc-200">{currentSortOption.label}</span>
+                  <ChevronDown
+                    className={`w-3 h-3 stroke-[2] text-zinc-400 transition-transform duration-200 shrink-0 ${
+                      isSortDropdownOpen ? 'rotate-180' : ''
                     }`}
                   />
-                  {isListening && (
-                    <span className="text-[9px] font-semibold text-rose-300 pl-0.5 animate-pulse hidden sm:inline">
-                      듣는 중
-                    </span>
-                  )}
                 </button>
+
+                {isSortDropdownOpen && (
+                  <div
+                    role="listbox"
+                    aria-label="정렬 옵션"
+                    className="absolute right-0 mt-1.5 w-36 py-1.5 rounded-2xl bg-[#121214]/95 backdrop-blur-xl border border-white/10 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150"
+                  >
+                    <div className="px-3 py-1 mb-1 border-b border-white/[0.06]">
+                      <p className="text-[10px] font-sans font-medium text-zinc-400">정렬 기준</p>
+                    </div>
+                    {SORT_OPTIONS.map((opt) => {
+                      const isSelected = sortBy === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          role="option"
+                          aria-selected={isSelected}
+                          type="button"
+                          onClick={() => {
+                            setSortBy(opt.id);
+                            setIsSortDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-xs transition-colors cursor-pointer text-left ${
+                            isSelected
+                              ? 'bg-white/10 text-white font-medium'
+                              : 'text-zinc-400 hover:text-white hover:bg-white/[0.06]'
+                          }`}
+                        >
+                          <span>{opt.label}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 stroke-[2] text-white shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -850,7 +1034,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
       </header>
 
       {/* Content Rendering: Cards Grid or List Table */}
-      {filteredCards.length === 0 ? (
+      {sortedCards.length === 0 ? (
         <div className="py-20 text-center space-y-3 p-8 rounded-3xl bg-neutral-900/40 border border-neutral-800/60">
           <p className="text-sm font-semibold text-neutral-300">
             {selectedCategory !== '전체' && !debouncedSearchQuery
@@ -869,26 +1053,36 @@ export const VaultView: React.FC<VaultViewProps> = ({
         </div>
       ) : viewMode === 'cards' ? (
         /* ================= CARDS GALLERY VIEW (2-Column Mobile Grid, 3-Column Desktop) ================= */
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3.5 min-w-0">
-          {filteredCards.map((card) => (
-            <VaultCardItem
-              key={card.id}
-              card={card}
-              onSelectCard={handleSelectCard}
-              onEditCard={handleEditCard}
-              onDeleteCard={handleDeleteCard}
-              onExportCard={handleExportCard}
-              onOpenPhotoArchive={handleOpenPhotoArchive}
-            />
-          ))}
-        </div>
-      ) : (
-        /* ================= EDITORIAL LIST VIEW (Compact Mobile Rows + Desktop Table) ================= */
-        <div className="rounded-xl sm:rounded-2xl border border-zinc-800/80 bg-[#121214] overflow-hidden shadow-xl">
-          {/* Mobile Compact Horizontal List Items (< md) */}
-          <div className="md:hidden divide-y divide-zinc-800/80">
-            {filteredCards.map((card) => (
-              <VaultCardMobileListItem
+        groupedByCategory ? (
+          <div className="space-y-6">
+            {groupedByCategory.map((group) => (
+              <section key={group.category} className="space-y-2.5">
+                <div className="flex items-center gap-2 pb-1.5 border-b border-white/[0.08]">
+                  <h4 className="text-xs font-semibold text-white tracking-tight">{group.category}</h4>
+                  <span className="text-[11px] text-zinc-500 font-mono tabular-nums">
+                    {group.cards.length}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3.5 min-w-0">
+                  {group.cards.map((card) => (
+                    <VaultCardItem
+                      key={card.id}
+                      card={card}
+                      onSelectCard={handleSelectCard}
+                      onEditCard={handleEditCard}
+                      onDeleteCard={handleDeleteCard}
+                      onExportCard={handleExportCard}
+                      onOpenPhotoArchive={handleOpenPhotoArchive}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3.5 min-w-0">
+            {sortedCards.map((card) => (
+              <VaultCardItem
                 key={card.id}
                 card={card}
                 onSelectCard={handleSelectCard}
@@ -898,6 +1092,46 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 onOpenPhotoArchive={handleOpenPhotoArchive}
               />
             ))}
+          </div>
+        )
+      ) : (
+        /* ================= EDITORIAL LIST VIEW (Compact Mobile Rows + Desktop Table) ================= */
+        <div className="rounded-xl sm:rounded-2xl border border-zinc-800/80 bg-[#121214] overflow-hidden shadow-xl">
+          {/* Mobile Compact Horizontal List Items (< md) */}
+          <div className="md:hidden divide-y divide-zinc-800/80">
+            {groupedByCategory ? (
+              groupedByCategory.map((group) => (
+                <div key={group.category} className="divide-y divide-zinc-800/80">
+                  <div className="px-3.5 py-1.5 bg-white/[0.03] border-b border-zinc-800/80 flex items-center justify-between text-[11px]">
+                    <span className="font-semibold text-white tracking-tight">{group.category}</span>
+                    <span className="text-zinc-500 font-mono tabular-nums text-[10px]">{group.cards.length}명</span>
+                  </div>
+                  {group.cards.map((card) => (
+                    <VaultCardMobileListItem
+                      key={card.id}
+                      card={card}
+                      onSelectCard={handleSelectCard}
+                      onEditCard={handleEditCard}
+                      onDeleteCard={handleDeleteCard}
+                      onExportCard={handleExportCard}
+                      onOpenPhotoArchive={handleOpenPhotoArchive}
+                    />
+                  ))}
+                </div>
+              ))
+            ) : (
+              sortedCards.map((card) => (
+                <VaultCardMobileListItem
+                  key={card.id}
+                  card={card}
+                  onSelectCard={handleSelectCard}
+                  onEditCard={handleEditCard}
+                  onDeleteCard={handleDeleteCard}
+                  onExportCard={handleExportCard}
+                  onOpenPhotoArchive={handleOpenPhotoArchive}
+                />
+              ))
+            )}
           </div>
 
           {/* Desktop Editorial Table (md+) */}
@@ -915,17 +1149,45 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/80 text-neutral-300">
-                {filteredCards.map((card) => (
-                  <VaultCardListRow
-                    key={card.id}
-                    card={card}
-                    onSelectCard={handleSelectCard}
-                    onEditCard={handleEditCard}
-                    onDeleteCard={handleDeleteCard}
-                    onExportCard={handleExportCard}
-                    onOpenPhotoArchive={handleOpenPhotoArchive}
-                  />
-                ))}
+                {groupedByCategory ? (
+                  groupedByCategory.map((group) => (
+                    <React.Fragment key={group.category}>
+                      <tr className="bg-white/[0.03] border-b border-zinc-800/80">
+                        <td colSpan={7} className="py-2 px-3.5 text-[11px] font-semibold text-white">
+                          <span className="inline-flex items-center gap-2">
+                            <span>{group.category}</span>
+                            <span className="text-[10px] text-zinc-500 font-mono tabular-nums font-normal">
+                              ({group.cards.length})
+                            </span>
+                          </span>
+                        </td>
+                      </tr>
+                      {group.cards.map((card) => (
+                        <VaultCardListRow
+                          key={card.id}
+                          card={card}
+                          onSelectCard={handleSelectCard}
+                          onEditCard={handleEditCard}
+                          onDeleteCard={handleDeleteCard}
+                          onExportCard={handleExportCard}
+                          onOpenPhotoArchive={handleOpenPhotoArchive}
+                        />
+                      ))}
+                    </React.Fragment>
+                  ))
+                ) : (
+                  sortedCards.map((card) => (
+                    <VaultCardListRow
+                      key={card.id}
+                      card={card}
+                      onSelectCard={handleSelectCard}
+                      onEditCard={handleEditCard}
+                      onDeleteCard={handleDeleteCard}
+                      onExportCard={handleExportCard}
+                      onOpenPhotoArchive={handleOpenPhotoArchive}
+                    />
+                  ))
+                )}
               </tbody>
             </table>
           </div>

@@ -74,7 +74,7 @@ export const DEFAULT_LUXURY_HTML_BACK = `<div class="w-full h-full aspect-[1.586
   <h3 class="text-xs font-medium tracking-[0.2em] text-[#F2F2F5] uppercase font-sans">GOGUMA KNOWLEDGE OFFICE</h3>
   <p class="text-[10px] tracking-[0.22em] uppercase text-zinc-400 mt-1.5 max-w-[260px] leading-relaxed">KOREAN CENTER GLOBAL NETWORK</p>
   <span class="mt-4 text-[10px] font-mono text-zinc-400 tracking-wider">
-    card.goguma.app/master
+    eerum.goguma.app/master
   </span>
 </div>`;
 
@@ -132,7 +132,7 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
     if (cardData.name || cardData.organizationKr) {
       promptText = promptText.replace(
         '[명함 정보]\n- 회사/조직명: (예: 고구마 스튜디오)\n- 이름 및 직함: (예: 홍길동 / 수석 디자이너)\n- 연락처: (예: 010-1234-5678 / contact@example.com)\n- 슬로건 또는 웹사이트: (예: goguma.app)',
-        `[명함 정보]\n- 회사/조직명: ${cardData.organizationKr || cardData.organization || '고구마 스튜디오'}\n- 이름 및 직함: ${cardData.name || '홍길동'} / ${cardData.titleKr || cardData.title || '수석 디자이너'}\n- 연락처: ${cardData.phone || '010-1234-5678'} / ${cardData.email || 'contact@goguma.app'}\n- 슬로건 또는 웹사이트: ${cardData.website || 'card.goguma.app'}`
+        `[명함 정보]\n- 회사/조직명: ${cardData.organizationKr || cardData.organization || '고구마 스튜디오'}\n- 이름 및 직함: ${cardData.name || '홍길동'} / ${cardData.titleKr || cardData.title || '수석 디자이너'}\n- 연락처: ${cardData.phone || '010-1234-5678'} / ${cardData.email || 'contact@goguma.app'}\n- 슬로건 또는 웹사이트: ${cardData.website || 'eerum.goguma.app'}`
       );
     }
 

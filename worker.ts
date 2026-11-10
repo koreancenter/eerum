@@ -151,7 +151,7 @@ export default {
         normalizeQueryToken(url.searchParams.get('domain'), 255) ||
         normalizeQueryToken(url.searchParams.get('host'), 255);
       const headerHost = normalizeQueryToken(request.headers.get('host'), 255);
-      const baseDomain = (env.BASE_DOMAIN || 'card.goguma.app').toLowerCase();
+      const baseDomain = (env.BASE_DOMAIN || 'eerum.goguma.app').toLowerCase();
 
       try {
         let card: D1CardRow | null = null;

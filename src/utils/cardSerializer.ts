@@ -4,7 +4,7 @@ import { CARD_DATA } from '../constants/sampleCards';
 
 export { CARD_DATA };
 
-export const APP_BASE_DOMAIN = 'card.goguma.app';
+export const APP_BASE_DOMAIN = 'eerum.goguma.app';
 export const APP_BASE_URL = `https://${APP_BASE_DOMAIN}`;
 
 export interface VCardOptions {
@@ -47,6 +47,7 @@ export class CardSerializer {
     const host = (hostname ?? window.location.hostname).toLowerCase();
     return (
       host === APP_BASE_DOMAIN ||
+      host === 'card.goguma.app' ||
       host === 'localhost' ||
       host.includes('127.0.0.1') ||
       host.includes('.run.app') ||
@@ -420,8 +421,8 @@ export class CardSerializer {
         .filter(Boolean)
         .join(' ')
     )}의 디지털 명함입니다.`;
-    const rawUrl = (data.website || 'https://card.goguma.app/master').trim();
-    const officialUrl = /^https?:\/\//i.test(rawUrl) ? escapeHtmlText(rawUrl) : 'https://card.goguma.app/master';
+    const rawUrl = (data.website || 'https://eerum.goguma.app/master').trim();
+    const officialUrl = /^https?:\/\//i.test(rawUrl) ? escapeHtmlText(rawUrl) : 'https://eerum.goguma.app/master';
     const safePhoneHref = escapeHtmlText((data.phoneRaw || '').replace(/[^0-9+]/g, ''));
     const safeEmailHref = escapeHtmlText((data.email || '').trim());
     const safeWhatsappUrl = /^https?:\/\//i.test(data.whatsappUrl || '') ? escapeHtmlText(data.whatsappUrl!) : '';
@@ -625,7 +626,7 @@ export class CardSerializer {
     window.addEventListener('DOMContentLoaded', () => {
       if (window.QRCode) {
         new QRCode(document.getElementById("qrcode-container"), {
-          text: ${JSON.stringify(/^https?:\/\//i.test(rawUrl) ? rawUrl : 'https://card.goguma.app/master').replace(/</g, '\\u003c')},
+          text: ${JSON.stringify(/^https?:\/\//i.test(rawUrl) ? rawUrl : 'https://eerum.goguma.app/master').replace(/</g, '\\u003c')},
           width: 72,
           height: 72,
           colorDark : "#0a0a0c",

@@ -77,16 +77,36 @@ function enrichCard(c: StoredCard): StoredCard {
       id: 'sample-card-goguma-master',
       slug: 'master',
       owner_key: c.owner_key || 'owner_master_sample',
-      customDomain: 'card.goguma.app/master',
+      customDomain: 'eerum.goguma.app/master',
       category: c.category || '글로벌 네트워크',
       theme: c.theme || 'pure_white',
       data: {
         ...CARD_DATA,
-        website: 'https://card.goguma.app/master',
-        websiteDisplay: 'card.goguma.app/master'
+        website: 'https://eerum.goguma.app/master',
+        websiteDisplay: 'eerum.goguma.app/master'
       }
     };
   }
+
+  // Auto-migrate legacy card.goguma.app domain references in saved user cards
+  if (
+    enriched.customDomain?.includes('card.goguma.app') ||
+    enriched.data?.website?.includes('card.goguma.app') ||
+    enriched.data?.websiteDisplay?.includes('card.goguma.app')
+  ) {
+    return {
+      ...enriched,
+      customDomain: enriched.customDomain?.replace(/card\.goguma\.app/g, 'eerum.goguma.app'),
+      data: enriched.data
+        ? {
+            ...enriched.data,
+            website: enriched.data.website?.replace(/card\.goguma\.app/g, 'eerum.goguma.app') || '',
+            websiteDisplay: enriched.data.websiteDisplay?.replace(/card\.goguma\.app/g, 'eerum.goguma.app') || '',
+          }
+        : enriched.data,
+    };
+  }
+
   return enriched;
 }
 

@@ -1,5 +1,5 @@
 -- ========================================================
--- Cloudflare D1 Database Schema for card.goguma.app
+-- Cloudflare D1 Database Schema for eerum.goguma.app
 -- Edge SQLite Database for Multi-User Digital Business Cards
 -- ========================================================
 

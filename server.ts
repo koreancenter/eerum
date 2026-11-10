@@ -108,7 +108,7 @@ app.get('/api/resolve', (req, res) => {
     normalizeQueryToken(req.query.domain, 255) ||
     normalizeQueryToken(req.query.host, 255);
   const headerHost = normalizeQueryToken(req.headers.host, 255);
-  const baseDomain = (process.env.BASE_DOMAIN || 'card.goguma.app').toLowerCase();
+  const baseDomain = (process.env.BASE_DOMAIN || 'eerum.goguma.app').toLowerCase();
 
   if (slug) {
     const card = findCardBySlug(slug);
