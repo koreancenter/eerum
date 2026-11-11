@@ -654,82 +654,70 @@ export const VaultView: React.FC<VaultViewProps> = ({
         aria-label="명함 보관함 검색 및 필터 도구 모음"
         className="w-full max-w-full min-w-0 flex flex-col gap-2.5 sm:gap-3 pb-3 border-b border-white/10"
       >
-        {/* Row 1: Section Title/Count on Left + Combined Action Controls (Search, Manage, View Toggle, Add) on Right */}
+        {/* Row 1: Action Toolbar (Desktop: Search+Sort on Left, Actions on Right; Mobile: Actions on Top, Search+Sort Below) */}
         <div className="w-full max-w-full min-w-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3">
-          {/* Left: Section Title */}
-          <div className="flex items-center justify-between sm:justify-start gap-2 shrink-0">
-            <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-              <span className="font-semibold text-white tracking-tight">
-                {selectedCategory === '전체' ? '보관 명함' : selectedCategory}
-              </span>
-              <span className="text-[11px] text-zinc-500 font-mono tabular-nums font-normal">
-                ({sortedCards.length})
-              </span>
-            </div>
+          {/* Mobile-Only Action Button Cluster (< sm) */}
+          <div className="flex sm:hidden items-center justify-end gap-1.5 shrink-0 w-full">
+            <button
+              type="button"
+              onClick={() => openCategoryPanel(false)}
+              aria-expanded={isCategoryPanelOpen}
+              aria-label="카테고리 관리"
+              title="카테고리 관리"
+              className={`w-8.5 h-8.5 rounded-xl border text-xs font-medium shrink-0 inline-flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                isCategoryPanelOpen
+                  ? 'bg-white text-neutral-950 border-white font-semibold'
+                  : 'bg-[#121214] hover:bg-white/10 border-white/10 text-zinc-300 hover:text-white'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
+            </button>
 
-            {/* Mobile-Only Action Button Cluster (< sm) */}
-            <div className="flex sm:hidden items-center justify-end gap-1.5 shrink-0">
+            <div
+              role="group"
+              aria-label="보관함 보기 방식"
+              className="grid grid-cols-2 p-0.5 h-8.5 bg-[#121214] rounded-xl border border-white/10 shrink-0"
+            >
               <button
                 type="button"
-                onClick={() => openCategoryPanel(false)}
-                aria-expanded={isCategoryPanelOpen}
-                aria-label="카테고리 관리"
-                title="카테고리 관리"
-                className={`w-8.5 h-8.5 rounded-xl border text-xs font-medium shrink-0 inline-flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
-                  isCategoryPanelOpen
-                    ? 'bg-white text-neutral-950 border-white font-semibold'
-                    : 'bg-[#121214] hover:bg-white/10 border-white/10 text-zinc-300 hover:text-white'
+                onClick={() => setViewMode('cards')}
+                aria-pressed={viewMode === 'cards'}
+                aria-label="카드 뷰"
+                title="카드 뷰"
+                className={`w-7.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                  viewMode === 'cards'
+                    ? 'bg-white/12 text-white'
+                    : 'text-zinc-400 hover:text-white'
                 }`}
               >
-                <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
+                <LayoutGrid className="w-3.5 h-3.5 stroke-[1.5]" />
               </button>
-
-              <div
-                role="group"
-                aria-label="보관함 보기 방식"
-                className="grid grid-cols-2 p-0.5 h-8.5 bg-[#121214] rounded-xl border border-white/10 shrink-0"
-              >
-                <button
-                  type="button"
-                  onClick={() => setViewMode('cards')}
-                  aria-pressed={viewMode === 'cards'}
-                  aria-label="카드 뷰"
-                  title="카드 뷰"
-                  className={`w-7.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
-                    viewMode === 'cards'
-                      ? 'bg-white/12 text-white'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  <LayoutGrid className="w-3.5 h-3.5 stroke-[1.5]" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('list')}
-                  aria-pressed={viewMode === 'list'}
-                  aria-label="리스트 뷰"
-                  title="리스트 뷰"
-                  className={`w-7.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
-                    viewMode === 'list'
-                      ? 'bg-white/12 text-white'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  <List className="w-3.5 h-3.5 stroke-[1.5]" />
-                </button>
-              </div>
-
               <button
                 type="button"
-                onClick={onOpenScan}
-                aria-label="실물 명함 사진 등록"
-                title="실물 명함 사진 등록"
-                className="h-8.5 px-2.5 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 inline-flex items-center justify-center gap-1 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+                onClick={() => setViewMode('list')}
+                aria-pressed={viewMode === 'list'}
+                aria-label="리스트 뷰"
+                title="리스트 뷰"
+                className={`w-7.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                  viewMode === 'list'
+                    ? 'bg-white/12 text-white'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
               >
-                <Plus className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
-                <span className="whitespace-nowrap">추가</span>
+                <List className="w-3.5 h-3.5 stroke-[1.5]" />
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={onOpenScan}
+              aria-label="실물 명함 사진 등록"
+              title="실물 명함 사진 등록"
+              className="h-8.5 px-2.5 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 inline-flex items-center justify-center gap-1 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
+              <span className="whitespace-nowrap">추가</span>
+            </button>
           </div>
 
           {/* Right on Desktop / Responsive on Mobile: Search Bar + Sort Dropdown + (Desktop Action Controls) */}

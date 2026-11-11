@@ -7,7 +7,7 @@ import {
   CardFeatures,
   CardCreationMode
 } from '../types/card';
-import { X, RotateCcw, Trash2 } from 'lucide-react';
+import { X, RotateCcw } from 'lucide-react';
 import { APP_BASE_DOMAIN, normalizeDomain } from '@/utils/cardSerializer';
 import { TemplateModeEditor } from './editor/TemplateModeEditor';
 import {
@@ -806,22 +806,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
 
         {/* Restrained Footer */}
         <footer className="px-4 sm:px-9 py-2.5 sm:py-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-white/[0.06] bg-[#121214] flex items-center justify-between gap-2.5 sm:gap-3 shrink-0">
-          <div>
-            {!isCreating && onDelete && activeCard?.id && (
-              <button
-                type="button"
-                onClick={() => {
-                  onDelete(activeCard.id);
-                  onClose();
-                }}
-                className="px-3 py-2 sm:px-3.5 sm:py-2 rounded-lg text-rose-400/90 hover:text-rose-300 hover:bg-rose-500/10 cursor-pointer text-xs sm:text-[13px] font-normal inline-flex items-center gap-1.5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-500/20"
-                title="명함 삭제"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>명함 삭제</span>
-              </button>
-            )}
-          </div>
+          <div />
 
           <div className="flex items-center gap-2 sm:gap-3">
             <button

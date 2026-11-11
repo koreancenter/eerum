@@ -225,30 +225,6 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
         </div>
       </div>
 
-      {/* Quiet Typographic Face Switcher for Desktop Only */}
-      {!isMobileModal && (
-        <div className="mt-2.5 sm:mt-5 flex items-center gap-3 text-xs shrink-0">
-          <button
-            type="button"
-            onClick={() => previewFace !== 'front' && onFlipPreviewFace()}
-            className={`cursor-pointer tracking-wide ${
-              previewFace === 'front' ? 'text-[#EDEDEF] font-medium' : 'text-zinc-400 hover:text-zinc-300'
-            }`}
-          >
-            앞면
-          </button>
-          <span className="text-zinc-400 select-none" aria-hidden="true">·</span>
-          <button
-            type="button"
-            onClick={() => previewFace !== 'back' && onFlipPreviewFace()}
-            className={`cursor-pointer tracking-wide ${
-              previewFace === 'back' ? 'text-[#EDEDEF] font-medium' : 'text-zinc-400 hover:text-zinc-300'
-            }`}
-          >
-            뒷면
-          </button>
-        </div>
-      )}
     </div>
   );
 };
