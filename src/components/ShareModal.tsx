@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import { CardData } from '../types/card';
-import { downloadVCard, generateVCard } from '@/utils/cardSerializer';
+import { downloadVCard, generateVCard } from '@/utils/cardExporter';
 import {
   X,
   Copy,

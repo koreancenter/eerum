@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { CardData } from '../types/card';
-import { generateVCard } from '@/utils/cardSerializer';
+import { generateVCard } from '@/utils/cardExporter';
 import { X, Copy, Check, Download, ExternalLink } from 'lucide-react';
 
 interface QrModalProps {

@@ -51,6 +51,31 @@ function findCardByDomain(domain: string): StoredCard | undefined {
   );
 }
 
+// SEO Crawler Endpoints for Lighthouse & Search Engines
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain; charset=utf-8');
+  res.send(`User-agent: *\nAllow: /\n\nSitemap: https://${process.env.BASE_DOMAIN || 'eerum.goguma.app'}/sitemap.xml\n`);
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  res.type('application/xml; charset=utf-8');
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://${process.env.BASE_DOMAIN || 'eerum.goguma.app'}/</loc>
+    <lastmod>2026-11-11</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://${process.env.BASE_DOMAIN || 'eerum.goguma.app'}/card/master</loc>
+    <lastmod>2026-11-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>`);
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({

@@ -14,7 +14,7 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import { resolveThemeStyles } from '../constants/templates';
-import { downloadVCard } from '@/utils/cardSerializer';
+import { downloadVCard } from '@/utils/cardExporter';
 
 export const extractCleanPhoneNumber = (phoneRaw?: string, phone?: string): string => {
   const raw = (phoneRaw || phone || '').trim();

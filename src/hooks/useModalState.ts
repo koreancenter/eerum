@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { StoredCard } from '../types/card';
-import { PinModalMode } from '../components/PinLockModal';
-import { LegalDocType } from '../components/LegalModal';
+import type { PinModalMode } from '../components/PinLockModal';
+import type { LegalDocType } from '../components/LegalModal';
 
 export interface ModalManager {
   // Modal visibility flags

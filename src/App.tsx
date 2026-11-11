@@ -17,9 +17,14 @@ import {
   hasLocalWalletInitialized,
 } from './utils/initialCards';
 import { WelcomeCard } from './components/WelcomeCard';
-import { AppModals } from './components/AppModals';
-import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { lazyWithRetry, LazyErrorBoundary } from './utils/lazyWithRetry';
+
+const AppModals = lazyWithRetry(() =>
+  import('./components/AppModals').then((m) => ({ default: m.AppModals }))
+);
+const DeleteConfirmModal = lazyWithRetry(() =>
+  import('./components/DeleteConfirmModal').then((m) => ({ default: m.DeleteConfirmModal }))
+);
 
 const CardContainer = lazyWithRetry(() =>
   import('./components/CardContainer').then((m) => ({ default: m.CardContainer }))
@@ -49,7 +54,9 @@ import { useAutoLock } from './hooks/useAutoLock';
 import { useModalState } from './hooks/useModalState';
 import { verifyBiometric } from './utils/biometrics';
 import { usePWAInstall } from './hooks/usePWAInstall';
-import { PWAInstallModal } from './components/PWAInstallModal';
+const PWAInstallModal = lazyWithRetry(() =>
+  import('./components/PWAInstallModal').then((m) => ({ default: m.PWAInstallModal }))
+);
 import {
   Check,
   CreditCard,
@@ -1555,60 +1562,70 @@ export default function App() {
           modals.isLazyPinOpen ||
           modals.isLegalOpen ||
           modals.isResetOpen) && (
-          <AppModals
-            modals={modals}
-            activeCard={modalTargetCard}
-            existingCards={cards}
-            onImportCards={handleImportCards}
-            isOwner={!isPublicExternalView}
-            printConfig={printConfig}
-            setPrintConfig={setPrintConfig}
-            onSaveCard={handleSaveCard}
-            onDeleteCard={(cardId) => {
-              const c = cards.find((x) => x.id === cardId);
-              if (c) {
-                handleRequestDeleteCard(c);
-              }
-            }}
-            onConfirmReset={handleConfirmReset}
-            isLocked={isLocked}
-            isPinConfigured={isPinConfigured}
-            unlockApp={unlockApp}
-            refreshPinStatus={refreshPinStatus}
-            setCards={setCards}
-            showToast={showToast}
-            onBiometricUnlock={handleBiometricUnlock}
-          />
+          <Suspense fallback={null}>
+            <AppModals
+              modals={modals}
+              activeCard={modalTargetCard}
+              existingCards={cards}
+              onImportCards={handleImportCards}
+              isOwner={!isPublicExternalView}
+              printConfig={printConfig}
+              setPrintConfig={setPrintConfig}
+              onSaveCard={handleSaveCard}
+              onDeleteCard={(cardId) => {
+                const c = cards.find((x) => x.id === cardId);
+                if (c) {
+                  handleRequestDeleteCard(c);
+                }
+              }}
+              onConfirmReset={handleConfirmReset}
+              isLocked={isLocked}
+              isPinConfigured={isPinConfigured}
+              unlockApp={unlockApp}
+              refreshPinStatus={refreshPinStatus}
+              setCards={setCards}
+              showToast={showToast}
+              onBiometricUnlock={handleBiometricUnlock}
+            />
+          </Suspense>
         )}
 
         {/* Card Deletion Confirmation Modal */}
-        <DeleteConfirmModal
-          isOpen={Boolean(cardPendingDelete)}
-          onClose={() => setCardPendingDelete(null)}
-          onConfirm={() => {
-            if (cardPendingDelete) {
-              handleDeleteCard(cardPendingDelete.id);
-              setCardPendingDelete(null);
-            }
-          }}
-          title={cardPendingDelete?.isMyCard ? '내 명함 삭제' : '명함 삭제'}
-          cardName={cardPendingDelete?.data?.name || cardPendingDelete?.data?.nameKr}
-          description={
-            cardPendingDelete?.isMyCard
-              ? '내 명함을 삭제하시겠습니까? 삭제된 명함은 복구할 수 없습니다.'
-              : '보관된 명함을 삭제하시겠습니까? 삭제된 명함은 복구할 수 없습니다.'
-          }
-        />
+        {cardPendingDelete && (
+          <Suspense fallback={null}>
+            <DeleteConfirmModal
+              isOpen={Boolean(cardPendingDelete)}
+              onClose={() => setCardPendingDelete(null)}
+              onConfirm={() => {
+                if (cardPendingDelete) {
+                  handleDeleteCard(cardPendingDelete.id);
+                  setCardPendingDelete(null);
+                }
+              }}
+              title={cardPendingDelete?.isMyCard ? '내 명함 삭제' : '명함 삭제'}
+              cardName={cardPendingDelete?.data?.name || cardPendingDelete?.data?.nameKr}
+              description={
+                cardPendingDelete?.isMyCard
+                  ? '내 명함을 삭제하시겠습니까? 삭제된 명함은 복구할 수 없습니다.'
+                  : '보관된 명함을 삭제하시겠습니까? 삭제된 명함은 복구할 수 없습니다.'
+              }
+            />
+          </Suspense>
+        )}
 
         {/* PWA Installation & Step-by-Step Guide Modal */}
-        <PWAInstallModal
-          isOpen={isPWAInstallOpen}
-          onClose={() => setIsPWAInstallOpen(false)}
-          isInstallable={pwa.isInstallable}
-          isInstalled={pwa.isInstalled}
-          isIOS={pwa.isIOS}
-          onInstall={pwa.install}
-        />
+        {isPWAInstallOpen && (
+          <Suspense fallback={null}>
+            <PWAInstallModal
+              isOpen={isPWAInstallOpen}
+              onClose={() => setIsPWAInstallOpen(false)}
+              isInstallable={pwa.isInstallable}
+              isInstalled={pwa.isInstalled}
+              isIOS={pwa.isIOS}
+              onInstall={pwa.install}
+            />
+          </Suspense>
+        )}
       </div>
 
       {/* PRINT-ONLY VECTOR CONTAINER (Triggered on window.print()) */}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { CardData, CardOrientation } from '../types/card';
-import { downloadVCard } from '@/utils/cardSerializer';
+import { downloadVCard } from '@/utils/cardExporter';
 import {
   Phone,
   MessageSquare,

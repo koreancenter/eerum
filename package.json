@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build",
+    "build": "NODE_ENV=production vite build --mode production",
     "start": "node server.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",

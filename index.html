@@ -21,23 +21,61 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="이룸 (eerum)" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://eerum.goguma.app/" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Korean Center Global Network - Digital Business Card</title>
     <meta name="description" content="Interactive local-first digital business card studio with privacy-first on-device encryption and print-ready PDF generator." />
+    
+    <!-- OpenGraph Social Metadata -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="이룸 (eerum) - Digital Business Card Studio" />
     <meta property="og:title" content="Korean Center Global Network - Digital Business Card" />
     <meta property="og:description" content="Interactive local-first digital business card studio with privacy-first on-device encryption and print-ready PDF generator." />
-    <meta property="og:type" content="profile" />
+    <meta property="og:url" content="https://eerum.goguma.app/" />
+    <meta property="og:image" content="https://eerum.goguma.app/pwa-512x512.png" />
+    <meta property="og:image:alt" content="Korean Center Global Network Digital Business Card" />
+    <meta property="og:locale" content="ko_KR" />
+
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary" />
-    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
-    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+    <meta name="twitter:title" content="Korean Center Global Network - Digital Business Card" />
+    <meta name="twitter:description" content="Interactive local-first digital business card studio with privacy-first on-device encryption and print-ready PDF generator." />
+    <meta name="twitter:image" content="https://eerum.goguma.app/pwa-512x512.png" />
+
+    <!-- Google Fonts with immediate preconnect usage and display=swap -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Cinzel:wght@500;700&display=swap" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Cinzel:wght@500;700&display=swap" media="print" onload="this.media='all'" />
-    <noscript>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Cinzel:wght@500;700&display=swap" />
-    </noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Cinzel:wght@500;700&display=swap" />
+
+    <!-- Schema.org Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Korean Center Global Network - Digital Business Card",
+      "alternateName": "이룸 (eerum)",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "All",
+      "url": "https://eerum.goguma.app/",
+      "description": "Interactive local-first digital business card studio with privacy-first on-device encryption and print-ready PDF generator.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
+    <!-- Critical render styling for instant first paint without FOUC -->
+    <style>
+      html, body {
+        background-color: #0A0A0B;
+        color: #F5F5F7;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
   </head>
   <body class="bg-[#0A0A0B] text-neutral-100 antialiased selection:bg-neutral-200 selection:text-neutral-900">
     <div id="root"></div>
