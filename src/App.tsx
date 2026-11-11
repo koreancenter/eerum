@@ -48,6 +48,8 @@ import { pullWalletFromEdge, pushWalletToEdge } from './utils/syncWallet';
 import { useAutoLock } from './hooks/useAutoLock';
 import { useModalState } from './hooks/useModalState';
 import { verifyBiometric } from './utils/biometrics';
+import { usePWAInstall } from './hooks/usePWAInstall';
+import { PWAInstallModal } from './components/PWAInstallModal';
 import {
   Check,
   CreditCard,
@@ -65,6 +67,7 @@ import {
   BookmarkPlus,
   KeyRound,
   Code2,
+  Download,
 } from 'lucide-react';
 
 type ActiveTab = 'my-card' | 'vault';
@@ -92,6 +95,8 @@ export default function App() {
   const [isSamplePreview, setIsSamplePreview] = useState<boolean>(false);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const pwa = usePWAInstall();
+  const [isPWAInstallOpen, setIsPWAInstallOpen] = useState<boolean>(false);
 
   // App opens to Start Screen (WelcomeCard) on first launch
   const [showWelcomeIntro, setShowWelcomeIntro] = useState<boolean>(() => {
@@ -1048,6 +1053,37 @@ export default function App() {
                         <span>기기 연결 및 동기화</span>
                       </button>
 
+                      <button
+                        onClick={() => {
+                          modals.closeSettings();
+                          if (pwa.isInstalled) {
+                            showToast('이미 독립형 PWA 앱으로 설치되어 실행 중입니다.');
+                            setIsPWAInstallOpen(true);
+                          } else if (pwa.isInstallable) {
+                            pwa.install().then((installed) => {
+                              if (installed) {
+                                showToast('앱이 성공적으로 설치되었습니다.');
+                              } else {
+                                setIsPWAInstallOpen(true);
+                              }
+                            });
+                          } else {
+                            setIsPWAInstallOpen(true);
+                          }
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer text-left"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Download className="w-3.5 h-3.5 text-white" />
+                          <span>홈 화면에 앱 설치 (PWA)</span>
+                        </div>
+                        {pwa.isInstalled && (
+                          <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded font-medium border border-emerald-500/20">
+                            설치됨
+                          </span>
+                        )}
+                      </button>
+
                       <div className="my-1 border-t border-white/10" />
 
                       <button
@@ -1562,6 +1598,16 @@ export default function App() {
               ? '내 명함을 삭제하시겠습니까? 삭제된 명함은 복구할 수 없습니다.'
               : '보관된 명함을 삭제하시겠습니까? 삭제된 명함은 복구할 수 없습니다.'
           }
+        />
+
+        {/* PWA Installation & Step-by-Step Guide Modal */}
+        <PWAInstallModal
+          isOpen={isPWAInstallOpen}
+          onClose={() => setIsPWAInstallOpen(false)}
+          isInstallable={pwa.isInstallable}
+          isInstalled={pwa.isInstalled}
+          isIOS={pwa.isIOS}
+          onInstall={pwa.install}
         />
       </div>
 

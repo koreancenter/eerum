@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Eye, CreditCard } from 'lucide-react';
+import { Plus, Eye } from 'lucide-react';
 
 export interface WelcomeCardProps {
   onCreateFirstCard: () => void;
@@ -68,36 +68,14 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
 
       {/* 2. Compact Luxury Conversion CTAs */}
       <div className="relative z-10 w-full max-w-lg h-[64px] mt-5 sm:mt-6 flex flex-row items-center justify-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
-        {hasExistingCards && onViewMyCards ? (
-          <button
-            type="button"
-            onClick={onViewMyCards}
-            className="h-10 sm:h-11 px-5 sm:px-6 rounded-xl bg-white hover:bg-neutral-200 text-neutral-950 font-semibold text-xs sm:text-[13px] tracking-wide shadow-[0_8px_28px_rgba(255,255,255,0.10)] hover:shadow-[0_12px_34px_rgba(255,255,255,0.18)] inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-          >
-            <CreditCard className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
-            <span>내 명함 보기</span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onCreateFirstCard}
-            className="h-10 sm:h-11 px-5 sm:px-6 rounded-xl bg-white hover:bg-neutral-200 text-neutral-950 font-semibold text-xs sm:text-[13px] tracking-wide shadow-[0_8px_28px_rgba(255,255,255,0.10)] hover:shadow-[0_12px_34px_rgba(255,255,255,0.18)] inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[2.25] shrink-0" />
-            <span>첫 명함 만들기</span>
-          </button>
-        )}
-
-        {hasExistingCards && (
-          <button
-            type="button"
-            onClick={onCreateFirstCard}
-            className="h-10 sm:h-11 px-4 sm:px-5 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 hover:border-white/25 text-white/80 hover:text-white font-medium text-xs sm:text-[13px] tracking-wide backdrop-blur-md inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[2.25] shrink-0" />
-            <span>새 명함 추가</span>
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onCreateFirstCard}
+          className="h-10 sm:h-11 px-5 sm:px-6 rounded-xl bg-white hover:bg-neutral-200 text-neutral-950 font-semibold text-xs sm:text-[13px] tracking-wide shadow-[0_8px_28px_rgba(255,255,255,0.10)] hover:shadow-[0_12px_34px_rgba(255,255,255,0.18)] inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+        >
+          <Plus className="w-3.5 h-3.5 stroke-[2.25] shrink-0" />
+          <span>내 명함 만들기</span>
+        </button>
 
         <button
           type="button"

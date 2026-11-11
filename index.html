@@ -3,10 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <script>
+      // Gracefully silence harmless WebSocket / HMR disconnect events in Cloud Run preview
+      window.addEventListener('error', function (e) {
+        if (e.message && (e.message.indexOf('WebSocket') !== -1 || e.message.indexOf('vite') !== -1)) {
+          e.stopImmediatePropagation();
+        }
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        if (e.reason && typeof e.reason.message === 'string' && (e.reason.message.indexOf('WebSocket') !== -1 || e.reason.message.indexOf('vite') !== -1)) {
+          e.stopImmediatePropagation();
+        }
+      });
+    </script>
     <meta name="theme-color" content="#0A0A0B" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="이룸 (eerum)" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Korean Center Global Network - Digital Business Card</title>
     <meta name="description" content="Interactive local-first digital business card studio with privacy-first on-device encryption and print-ready PDF generator." />
     <meta property="og:title" content="Korean Center Global Network - Digital Business Card" />
