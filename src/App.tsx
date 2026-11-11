@@ -1,6 +1,8 @@
 /**
  * @license
- * SPDX-License-Identifier: Apache-2.0
+ * EERUM Personal & Non-Profit Use License
+ * Copyright (c) 2026 Korean Center. All rights reserved.
+ * Permitted for personal and non-profit use. Redistribution, modification, sale, and commercial use prohibited.
  */
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';

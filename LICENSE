@@ -1,0 +1,60 @@
+EERUM SOFTWARE LICENSE
+(Personal & Non-Profit Use License / 개인 및 비영리 단체 사용 라이선스)
+
+Copyright (c) 2026 Korean Center. All rights reserved.
+
+================================================================================
+[한국어 요약 및 법적 조건]
+================================================================================
+
+본 소프트웨어("이룸(EERUM) 디지털 명함 스튜디오")는 다음 조건에 따라 사용이 허가됩니다.
+
+1. 허용되는 사용 (Permitted Uses):
+   - 개인적 사용: 개인은 비영리적 목적에 한하여 본 소프트웨어를 자유롭게 설치, 실행, 개인 명함 생성 및 보관 용도로 사용할 수 있습니다.
+   - 비영리 단체 사용: 비영리 공익 법인, 사회적 단체, 학술/교육 기관 등 공인된 비영리 단체는 고유의 비영리 목적 사업 및 활동을 위하여 본 소프트웨어를 내부적으로 무료 사용할 수 있습니다.
+
+2. 엄격히 금지되는 행위 (Strictly Prohibited Uses):
+   - 재배포 금지 (No Redistribution): 저작권자의 명시적인 사전 서면 승인 없이 본 소프트웨어의 소스 코드, 빌드 산출물, 또는 그 일부를 제3자에게 배포, 공개 호스팅, 전송, 대여, 미러링하거나 서브라이선스를 부여할 수 없습니다.
+   - 가공 및 2차 저작물 제작 금지 (No Modification / No Derivative Works): 본 소프트웨어의 소스 코드를 임의로 변형, 수정, 분기(fork), 리브랜딩하거나 2차적 저작물을 제작하여 외부에 공개 또는 배포할 수 없습니다.
+   - 상업적 판매 및 영리 목적 사용 금지 (No Commercial Use & No Resale): 본 소프트웨어를 유료로 판매, 재판매, 유료 서비스의 번들로 제공하거나, 상업적 이익을 목적으로 운영되는 비즈니스/솔루션의 일부로 사용하는 일체의 행위는 엄격히 금지됩니다.
+
+3. 보증의 부인 (Disclaimer of Warranty):
+   본 소프트웨어는 상품성, 특정 목적에의 적합성, 비침해성에 대한 보증을 포함하되 이에 국한되지 않고 어떠한 명시적 또는 묵시적 보증 없이 "있는 그대로(AS IS)" 제공됩니다. 저작권자는 본 소프트웨어의 사용 또는 사용 불가로 인해 발생하는 어떠한 손해나 법적 책임에 대해서도 책임을 지지 않습니다.
+
+================================================================================
+[TERMS AND CONDITIONS (ENGLISH)]
+================================================================================
+
+Permission is hereby granted, free of charge, to any individual or non-profit
+organization to use this software and associated documentation files (the "Software")
+for personal or non-profit internal organizational purposes only, subject to the
+following conditions:
+
+1. PERSONAL & NON-PROFIT USE:
+   You may run and utilize the Software solely for personal, non-commercial purposes
+   or within non-profit, educational, or charitable organizations for their direct
+   non-profit activities.
+
+2. PROHIBITION OF REDISTRIBUTION:
+   You may NOT redistribute, sublicense, lease, lend, host as a public service,
+   or mirror the Software or any portion thereof, whether in source code or binary form,
+   to any third party without prior written consent from the copyright holder.
+
+3. PROHIBITION OF MODIFICATION & DERIVATIVE WORKS:
+   You may NOT modify, adapt, alter, translate, reverse engineer, decompile,
+   create derivative works of, or rebrand the Software for public dissemination
+   or external distribution without prior written consent.
+
+4. PROHIBITION OF COMMERCIAL USE & SALE:
+   Any commercial exploitation, commercial hosting, charging for access,
+   or bundling of the Software into paid products, services, or offerings is
+   strictly prohibited.
+
+5. DISCLAIMER OF WARRANTY:
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+   THE SOFTWARE.

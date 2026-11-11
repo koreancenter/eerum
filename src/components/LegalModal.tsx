@@ -146,8 +146,8 @@ export const LegalModal: React.FC<LegalModalProps> = ({
               role="tab"
               aria-selected={activeDoc === 'licenses'}
               onClick={() => handleSelectDoc('licenses')}
-              title="오픈소스 라이선스 고지"
-              aria-label="오픈소스 라이선스"
+              title="라이선스 및 오픈소스 고지"
+              aria-label="라이선스 정책"
               className={`h-8 sm:h-auto px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer whitespace-nowrap shrink-0 border transition-colors inline-flex items-center justify-center gap-1.5 ${
                 activeDoc === 'licenses'
                   ? 'bg-white text-neutral-950 border-white shadow-sm'
@@ -155,7 +155,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({
               }`}
             >
               <Code2 className="w-4 h-4 stroke-[1.8] shrink-0" />
-              <span className="hidden sm:inline">오픈소스 라이선스</span>
+              <span className="hidden sm:inline">라이선스 정책</span>
             </button>
           </div>
 
@@ -273,44 +273,101 @@ export const LegalModal: React.FC<LegalModalProps> = ({
               </div>
             </article>
           ) : (
-            <article className="space-y-4">
-              <div>
-                <h3 id="legal-modal-title" className="text-base sm:text-lg font-bold text-white tracking-tight">
-                  오픈소스 라이선스 고지
-                </h3>
-                <p className="text-zinc-400 text-[11px] sm:text-xs mt-0.5">
-                  본 디지털 명함 스튜디오는 안정적이고 풍부한 경험을 제공하기 위해 다음 오픈소스 소프트웨어를 포함하고 있습니다.
+            <article className="space-y-6">
+              {/* EERUM App Custom License Section */}
+              <div className="space-y-3 pb-5 border-b border-white/10">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 id="legal-modal-title" className="text-base sm:text-lg font-bold text-white tracking-tight">
+                    이룸(EERUM) 소프트웨어 라이선스
+                  </h3>
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-[11px] font-medium">
+                    Personal &amp; Non-Profit Only
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-400 font-mono">
+                  Copyright (c) 2026 Korean Center. All rights reserved.
                 </p>
-              </div>
+                <p className="text-neutral-300 text-xs leading-relaxed">
+                  본 소프트웨어는 개인 및 공익·비영리 단체의 가치 있는 활동을 지원하기 위해 개발되었으며, 아래의 명시된 조건 하에서만 사용이 허가됩니다.
+                </p>
 
-              {/* Streamlined Open Source List without chunky box-in-box wrappers */}
-              <div className="divide-y divide-white/[0.08] pt-1">
-                {OPEN_SOURCE_LICENSES.map((pkg) => (
-                  <div
-                    key={pkg.name}
-                    className="py-3 first:pt-0 last:pb-1 space-y-1"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-white text-xs sm:text-sm">
-                        {pkg.name}
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded bg-white/10 border border-white/15 text-white font-mono text-[10px] font-medium shrink-0">
-                        {pkg.license}
-                      </span>
+                {/* Permitted vs Prohibited Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {/* Permitted */}
+                  <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      허용 범위 (Permitted)
                     </div>
-                    <p className="text-[11px] text-zinc-400 font-mono">
-                      {pkg.copyright}
-                    </p>
-                    <p className="text-[11px] text-zinc-300 leading-relaxed">
-                      {pkg.description}
-                    </p>
+                    <ul className="text-[11px] text-zinc-300 space-y-1 list-disc list-inside leading-relaxed">
+                      <li>
+                        <strong className="text-white">개인적 사용:</strong> 개인의 비영리 목적 명함 생성, 보관 및 단말기 내 자유로운 활용
+                      </li>
+                      <li>
+                        <strong className="text-white">비영리 단체 사용:</strong> 공익 법인, 사회적 단체, 학술·교육 기관 등의 고유 공익 활동 내부 무료 사용
+                      </li>
+                    </ul>
                   </div>
-                ))}
+
+                  {/* Strictly Prohibited */}
+                  <div className="p-3 rounded-xl bg-white/[0.03] border border-rose-500/20 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                      엄격 금지 행위 (Strictly Prohibited)
+                    </div>
+                    <ul className="text-[11px] text-zinc-300 space-y-1 list-disc list-inside leading-relaxed">
+                      <li>
+                        <strong className="text-white">재배포 금지:</strong> 소스 코드 또는 빌드 산출물의 무단 제3자 배포, 대여, 미러링 금지
+                      </li>
+                      <li>
+                        <strong className="text-white">가공 및 변형 금지:</strong> 소스 임의 수정, 리브랜딩, 파생 및 2차 저작물 배포 금지
+                      </li>
+                      <li>
+                        <strong className="text-white">판매 및 영리 목적 금지:</strong> 유료 판매, 상업용 솔루션 번들링, 일체의 상업적 영업 행위 금지
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-black/40 border border-white/5 text-[10.5px] text-zinc-400 font-mono leading-relaxed">
+                  보증의 부인 (Disclaimer of Warranty): 본 소프트웨어는 상품성 및 특정 목적 적합성을 포함하여 어떠한 명시적·묵시적 보증 없이 "있는 그대로(AS IS)" 제공되며, 저작권자는 사용으로 인한 손해에 대해 책임을 지지 않습니다. (상세 라이선스 전문은 루트 LICENSE 파일 참조)
+                </div>
               </div>
 
-              {/* Minimal flat permission notice */}
-              <div className="pt-3 border-t border-white/10 text-[10.5px] text-zinc-400 leading-relaxed font-mono">
-                Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, subject to the conditions of their respective licenses.
+              {/* Third-Party Open Source Components */}
+              <div className="space-y-3">
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold text-white tracking-tight">
+                    타사 오픈소스 컴포넌트 라이선스 고지
+                  </h4>
+                  <p className="text-zinc-400 text-[11px] mt-0.5">
+                    본 디지털 명함 스튜디오는 다음 오픈소스 라이브러리를 포함하고 있으며, 각 저작권자의 라이선스 조항을 준수합니다.
+                  </p>
+                </div>
+
+                <div className="divide-y divide-white/[0.08] pt-1">
+                  {OPEN_SOURCE_LICENSES.map((pkg) => (
+                    <div
+                      key={pkg.name}
+                      className="py-2.5 first:pt-0 last:pb-1 space-y-1"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-white text-xs sm:text-sm">
+                          {pkg.name}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-white/10 border border-white/15 text-white font-mono text-[10px] font-medium shrink-0">
+                          {pkg.license}
+                        </span>
+                      </div>
+                      <p className="text-[10.5px] text-zinc-400 font-mono">
+                        {pkg.copyright}
+                      </p>
+                      <p className="text-[11px] text-zinc-300 leading-relaxed">
+                        {pkg.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </article>
           )}
