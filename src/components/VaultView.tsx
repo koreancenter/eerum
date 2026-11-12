@@ -71,7 +71,7 @@ interface VaultViewProps {
 }
 
 export const VaultView: React.FC<VaultViewProps> = ({
-  cards,
+  cards: rawCards,
   onSelectCard,
   onEditCard,
   onDeleteCard,
@@ -85,6 +85,8 @@ export const VaultView: React.FC<VaultViewProps> = ({
   onDeleteCategory,
   onShowToast,
 }) => {
+  // Defensive filter: strictly isolate Vault cards from personal cards (`isMyCard: true` belongs exclusively to '내 명함')
+  const cards = useMemo(() => rawCards.filter((c) => !c.isMyCard), [rawCards]);
   const cardsRef = useRef<StoredCard[]>(cards);
   cardsRef.current = cards;
 

@@ -440,8 +440,18 @@ export default {
         !url.pathname.startsWith('/api/')
       ) {
         const spaRequest = new Request(new URL('/index.html', request.url), request);
-        return env.ASSETS.fetch(spaRequest);
+        const spaRes = await env.ASSETS.fetch(spaRequest);
+        const headers = new Headers(spaRes.headers);
+        headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
+        return new Response(spaRes.body, { status: 200, headers });
       }
+
+      if (assetRes.ok && url.pathname.startsWith('/assets/')) {
+        const headers = new Headers(assetRes.headers);
+        headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+        return new Response(assetRes.body, { status: assetRes.status, headers });
+      }
+
       return assetRes;
     }
 

@@ -262,10 +262,32 @@ async function startServer() {
       appType: 'spa',
     });
     app.use(vite.middlewares);
+
+    httpServer.on('upgrade', (req, socket) => {
+      socket.destroy();
+    });
   } else {
     const distPath = path.resolve(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    app.use(
+      express.static(distPath, {
+        maxAge: '1y',
+        immutable: true,
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+          } else if (
+            filePath.endsWith('.json') ||
+            filePath.endsWith('.webmanifest') ||
+            filePath.endsWith('robots.txt') ||
+            filePath.endsWith('sitemap.xml')
+          ) {
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+          }
+        },
+      })
+    );
     app.get('*', (req, res) => {
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

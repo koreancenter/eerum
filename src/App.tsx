@@ -170,6 +170,8 @@ export default function App() {
 
   // Strictly isolated personal cards collection (`isMyCard === true`)
   const myCards = cards.filter((c) => c.isMyCard);
+  // Strictly isolated third-party Vault cards collection (`isMyCard === false`)
+  const vaultCards = cards.filter((c) => !c.isMyCard);
 
   // Synchronize selectedMyCardId strictly with myCards (`isMyCard === true`)
   useEffect(() => {
@@ -987,7 +989,7 @@ export default function App() {
                   <span>명함 보관함</span>
                   {isPinConfigured && isLocked && <Lock className="w-3 h-3 text-white" />}
                   <span className="text-[10px] font-mono tabular-nums text-zinc-400">
-                    {cards.length}
+                    {vaultCards.length}
                   </span>
                 </button>
               </nav>
@@ -1283,7 +1285,7 @@ export default function App() {
                 fallback={<div className="w-full max-w-6xl min-h-[320px]" aria-hidden="true" />}
               >
                 <VaultView
-                  cards={cards}
+                  cards={vaultCards}
                   isLocked={isPinConfigured && isLocked}
                   onUnlockRequest={lockApp}
                   onSelectCard={(selected) => {

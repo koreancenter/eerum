@@ -26,6 +26,9 @@ export default defineConfig(({ mode }) => {
           orientation: 'portrait-primary',
           start_url: '/',
           scope: '/',
+          lang: 'ko',
+          categories: ['business', 'productivity', 'utilities'],
+          prefer_related_applications: false,
           icons: [
             {
               src: '/pwa-192x192.png',

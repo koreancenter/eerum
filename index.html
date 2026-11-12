@@ -4,17 +4,130 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <script>
-      // Gracefully silence harmless WebSocket / HMR disconnect events in Cloud Run preview
-      window.addEventListener('error', function (e) {
-        if (e.message && (e.message.indexOf('WebSocket') !== -1 || e.message.indexOf('vite') !== -1)) {
-          e.stopImmediatePropagation();
+      (function () {
+        // Intercept Vite HMR WebSocket so it never fails or throws in environments with disabled HMR
+        if (typeof window !== 'undefined' && window.WebSocket) {
+          var OrigWebSocket = window.WebSocket;
+          var DummyWebSocket = function (url, protocols) {
+            var isHmr = false;
+            if (
+              protocols === 'vite-hmr' ||
+              (Array.isArray(protocols) && protocols.indexOf('vite-hmr') !== -1)
+            ) {
+              isHmr = true;
+            } else if (
+              typeof url === 'string' &&
+              (url.indexOf('vite') !== -1 || url.indexOf('hmr') !== -1)
+            ) {
+              isHmr = true;
+            }
+
+            if (isHmr) {
+              var target = new EventTarget();
+              target.binaryType = 'blob';
+              target.readyState = 1; // WebSocket.OPEN
+              target.url = url;
+              target.protocol = 'vite-hmr';
+              target.extensions = '';
+              target.bufferedAmount = 0;
+              target.send = function () {};
+              target.close = function () {};
+              target.onopen = null;
+              target.onclose = null;
+              target.onerror = null;
+              target.onmessage = null;
+              target.CONNECTING = 0;
+              target.OPEN = 1;
+              target.CLOSING = 2;
+              target.CLOSED = 3;
+
+              setTimeout(function () {
+                var openEvt = new Event('open');
+                if (typeof target.onopen === 'function') target.onopen(openEvt);
+                target.dispatchEvent(openEvt);
+              }, 10);
+
+              return target;
+            }
+
+            return new OrigWebSocket(url, protocols);
+          };
+
+          DummyWebSocket.CONNECTING = 0;
+          DummyWebSocket.OPEN = 1;
+          DummyWebSocket.CLOSING = 2;
+          DummyWebSocket.CLOSED = 3;
+          DummyWebSocket.prototype = OrigWebSocket.prototype;
+          window.WebSocket = DummyWebSocket;
         }
-      });
-      window.addEventListener('unhandledrejection', function (e) {
-        if (e.reason && typeof e.reason.message === 'string' && (e.reason.message.indexOf('WebSocket') !== -1 || e.reason.message.indexOf('vite') !== -1)) {
-          e.stopImmediatePropagation();
+
+        // Gracefully silence harmless WebSocket / HMR disconnect events in Cloud Run preview
+        function isViteWsError(str) {
+          if (!str || typeof str !== 'string') return false;
+          return (
+            str.indexOf('WebSocket') !== -1 ||
+            str.indexOf('websocket') !== -1 ||
+            str.indexOf('[vite]') !== -1 ||
+            str.indexOf('vite') !== -1
+          );
         }
-      });
+
+        window.onerror = function (msg, source, lineno, colno, error) {
+          var text =
+            (msg || '') +
+            ' ' +
+            (source || '') +
+            ' ' +
+            (error && error.message ? error.message : '');
+          if (isViteWsError(text)) {
+            return true;
+          }
+        };
+
+        window.addEventListener(
+          'error',
+          function (e) {
+            var msg = (e && (e.message || (e.error && e.error.message))) || '';
+            if (isViteWsError(msg)) {
+              if (e.preventDefault) e.preventDefault();
+              if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+              return true;
+            }
+          },
+          true
+        );
+
+        window.addEventListener(
+          'unhandledrejection',
+          function (e) {
+            var reason = e && e.reason;
+            var msg =
+              typeof reason === 'string'
+                ? reason
+                : (reason && (reason.message || String(reason))) || '';
+            if (isViteWsError(msg)) {
+              if (e.preventDefault) e.preventDefault();
+              if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+            }
+          },
+          true
+        );
+
+        var origError = console.error;
+        console.error = function () {
+          for (var i = 0; i < arguments.length; i++) {
+            var arg = arguments[i];
+            var str =
+              typeof arg === 'string'
+                ? arg
+                : (arg && (arg.message || String(arg))) || '';
+            if (isViteWsError(str)) {
+              return;
+            }
+          }
+          return origError.apply(console, arguments);
+        };
+      })();
     </script>
     <meta name="theme-color" content="#0A0A0B" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -78,7 +191,29 @@
     </style>
   </head>
   <body class="bg-[#0A0A0B] text-neutral-100 antialiased selection:bg-neutral-200 selection:text-neutral-900">
-    <div id="root"></div>
+    <div id="root">
+      <!-- Instant Pre-rendered Shell for sub-second FCP & LCP without layout shift -->
+      <div id="app-prerender-skeleton" style="min-height:100vh;background-color:#0A0A0B;color:#F5F5F7;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:1.5rem 1rem;text-align:center;box-sizing:border-box;font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+        <div style="width:48px;height:28px;margin-bottom:1rem;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:linear-gradient(135deg,rgba(255,255,255,0.1),transparent);display:flex;align-items:flex-end;padding:6px;box-sizing:border-box;">
+          <span style="width:12px;height:1px;background-color:rgba(255,255,255,0.55);"></span>
+        </div>
+        <p style="font-size:11px;letter-spacing:0.28em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin:0 0 8px;font-weight:300;">Private Digital Identity Studio</p>
+        <h1 style="font-size:40px;font-weight:500;letter-spacing:0.02em;color:#FFFFFF;margin:0 0 12px;line-height:1.2;">
+          eerum <span style="font-weight:200;color:rgba(255,255,255,0.5);font-size:24px;letter-spacing:0.15em;">이룸</span>
+        </h1>
+        <p style="font-size:13px;color:rgba(255,255,255,0.6);font-weight:300;max-width:440px;margin:0 auto 24px;line-height:1.6;">
+          서버에 남지 않는 온디바이스 암호화로 당신만의 디지털 명함과 프라이빗 보관함을 완성하세요.
+        </p>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;max-width:320px;width:100%;">
+          <div style="height:42px;padding:0 24px;border-radius:12px;background-color:#FFFFFF;color:#0A0A0B;font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:center;flex:1;min-width:130px;">
+            내 명함 만들기
+          </div>
+          <div style="height:42px;padding:0 20px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background-color:rgba(255,255,255,0.03);color:rgba(255,255,255,0.75);font-size:13px;display:flex;align-items:center;justify-content:center;flex:1;min-width:130px;">
+            샘플 둘러보기
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

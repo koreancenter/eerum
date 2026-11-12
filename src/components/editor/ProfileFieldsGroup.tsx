@@ -139,7 +139,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs text-zinc-400 block">성명</label>
+            <label className="text-xs text-zinc-400 block">한글</label>
             <input
               type="text"
               value={formData.name}
