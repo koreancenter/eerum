@@ -14,6 +14,7 @@ import {
   normalizeStoredCards,
   clearAllLocalData,
   hasLocalWalletInitialized,
+  clearMemoryDecryptedCards,
 } from './utils/initialCards';
 import { WelcomeCard } from './components/WelcomeCard';
 import { lazyWithRetry, LazyErrorBoundary } from './utils/lazyWithRetry';
@@ -138,7 +139,33 @@ export default function App() {
   const modals = useModalState();
 
   // Local-First 4-Digit PIN App Lock with Auto-Lock (Manual, Visibility, Idle 5m)
-  const { isLocked, lockApp, unlockApp, isPinConfigured, refreshPinStatus } = useAutoLock();
+  const {
+    isLocked,
+    lockApp: rawLockApp,
+    unlockApp,
+    isPinConfigured,
+    refreshPinStatus,
+  } = useAutoLock();
+
+  const lockApp = useCallback(() => {
+    clearMemoryDecryptedCards();
+    setCards([]);
+    setSelectedMyCardId('');
+    setModalTargetCardId(null);
+    modals.closeAll();
+    rawLockApp();
+  }, [rawLockApp, modals.closeAll]);
+
+  // Ensure any lock transition (manual, visibilitychange, or 5m idle) wipes plaintext cards from memory
+  useEffect(() => {
+    if (isPinConfigured && isLocked) {
+      clearMemoryDecryptedCards();
+      setCards((prev) => (prev.length > 0 ? [] : prev));
+      setSelectedMyCardId('');
+      setModalTargetCardId(null);
+      modals.closeAll();
+    }
+  }, [isPinConfigured, isLocked, modals.closeAll]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -161,10 +188,7 @@ export default function App() {
     const res = await verifyBiometric();
     if (res.success) {
       unlockApp();
-      const decrypted = loadUserCards();
-      if (decrypted && decrypted.length > 0) {
-        setCards(decrypted);
-      }
+      setCards(loadUserCards());
       showToast('생체 인증(Biometrics)으로 잠금이 해제되었습니다.');
     } else if (res.error && !res.error.includes('취소')) {
       showToast(res.error);

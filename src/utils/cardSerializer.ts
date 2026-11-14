@@ -1,4 +1,5 @@
 import { CardData, CardTheme, StoredCard } from '../types/card';
+import { sanitizeExternalUrl } from './sanitizeUrl';
 
 export const APP_BASE_DOMAIN = 'eerum.goguma.app';
 export const APP_BASE_URL = `https://${APP_BASE_DOMAIN}`;
@@ -52,9 +53,9 @@ export class CardSerializer {
    */
   static getShareUrl(card: StoredCard): string {
     if (!card.isMyCard) {
-      const extUrl = (card.data?.website || '').trim();
+      const extUrl = sanitizeExternalUrl(card.data?.website);
       if (extUrl) {
-        return /^https?:\/\//i.test(extUrl) ? extUrl : `https://${extUrl}`;
+        return extUrl;
       }
     }
 

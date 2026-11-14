@@ -180,10 +180,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
             allowCancel={false}
             onUnlock={() => {
               unlockApp();
-              const decrypted = loadUserCards();
-              if (decrypted && decrypted.length > 0) {
-                setCards(decrypted);
-              }
+              setCards(loadUserCards());
               showToast('보안 잠금이 해제되었습니다.');
             }}
             onBiometricUnlock={onBiometricUnlock}

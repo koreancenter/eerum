@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { isPinSet, getSessionLocked, setSessionLocked } from '../utils/pinLock';
+import { clearMemoryDecryptedCards } from '../utils/initialCards';
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 const BIOMETRIC_CREDENTIAL_KEY = 'app_biometric_credential_id';
@@ -16,8 +17,11 @@ export function useAutoLock() {
   const [isPinConfigured, setIsPinConfigured] = useState<boolean>(() => isSecurityActive());
   const idleTimerRef = useRef<number | null>(null);
 
-  // Synchronize state with sessionStorage
+  // Synchronize state with sessionStorage and wipe plaintext memory cache on lock
   const setIsLocked = useCallback((locked: boolean) => {
+    if (locked) {
+      clearMemoryDecryptedCards();
+    }
     setIsLockedState(locked);
     setSessionLocked(locked);
   }, []);
