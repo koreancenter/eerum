@@ -276,13 +276,10 @@ export const LegalModal: React.FC<LegalModalProps> = ({
             <article className="space-y-6">
               {/* EERUM App Custom License Section */}
               <div className="space-y-3 pb-5 border-b border-white/10">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
                   <h3 id="legal-modal-title" className="text-base sm:text-lg font-bold text-white tracking-tight">
                     이룸(EERUM) 소프트웨어 라이선스
                   </h3>
-                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-[11px] font-medium">
-                    Personal &amp; Non-Profit Only
-                  </span>
                 </div>
                 <p className="text-[11px] text-zinc-400 font-mono">
                   Copyright (c) 2026 Korean Center. All rights reserved.
@@ -295,9 +292,9 @@ export const LegalModal: React.FC<LegalModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   {/* Permitted */}
                   <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-1.5">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      허용 범위 (Permitted)
+                      허용 범위
                     </div>
                     <ul className="text-[11px] text-zinc-300 space-y-1 list-disc list-inside leading-relaxed">
                       <li>
@@ -311,9 +308,9 @@ export const LegalModal: React.FC<LegalModalProps> = ({
 
                   {/* Strictly Prohibited */}
                   <div className="p-3 rounded-xl bg-white/[0.03] border border-rose-500/20 space-y-1.5">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-400">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
                       <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-                      엄격 금지 행위 (Strictly Prohibited)
+                      비허용 범위
                     </div>
                     <ul className="text-[11px] text-zinc-300 space-y-1 list-disc list-inside leading-relaxed">
                       <li>

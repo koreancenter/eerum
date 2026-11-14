@@ -513,16 +513,6 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
                 )}
               </div>
             )}
-
-            {card.notes && (
-              <div
-                className={`pt-1 flex items-center gap-1.5 text-[10.5px] sm:text-[11px] leading-tight min-w-0 truncate ${themeStyles.textMuted}`}
-                title={`개인 메모: ${card.notes}`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 shrink-0" />
-                <span className="truncate italic opacity-85">{card.notes}</span>
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -680,12 +670,6 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
             </span>
           )}
         </div>
-        {card.notes && (
-          <div className="flex items-center gap-1 text-[10.5px] text-zinc-400 leading-tight min-w-0 truncate italic">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 shrink-0" />
-            <span className="truncate opacity-85">{card.notes}</span>
-          </div>
-        )}
       </div>
 
       {/* Quick Communication Actions + Kebab Dropdown Menu */}
@@ -777,14 +761,6 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
           </span>
           {card.isMyCard && (
             <span className="text-[10px] text-zinc-400 font-medium">· 내 명함</span>
-          )}
-          {card.notes && (
-            <span
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-sans"
-              title={`개인 메모: ${card.notes}`}
-            >
-              메모
-            </span>
           )}
         </div>
       </td>
