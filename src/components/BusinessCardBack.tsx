@@ -166,11 +166,11 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
       <div className={`relative z-10 flex items-end justify-between gap-3 w-full pt-3 sm:pt-3.5 border-t ${themeStyles.accentHairline} mt-auto`}>
         {/* Bottom-Left: QR Code Block */}
         <a
-          href={data.website}
+          href={data.website || 'https://eerum.goguma.app/master'}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-end gap-2.5 group/qr hover:opacity-85 transition-opacity min-w-0 shrink-0 cursor-pointer"
-          title={`${data.websiteDisplay} 바로가기`}
+          title={data.websiteDisplay ? `${data.websiteDisplay} 바로가기` : '디지털 명함 바로가기'}
           onClick={(e) => e.stopPropagation()}
         >
           {qrSvg && (

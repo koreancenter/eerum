@@ -127,6 +127,30 @@ def draw_icon(x, y, w, h, is_maskable=False):
 
     return bg_r, bg_g, bg_b, 255
 
+def create_ico(sizes, render_func):
+    """Creates a valid multi-size ICO container embedding PNG-encoded icon frames."""
+    images = []
+    for size in sizes:
+        png_data = create_png(size, size, lambda x, y, w, h: render_func(x, y, w, h, False))
+        images.append((size, png_data))
+
+    count = len(images)
+    # ICONDIR: reserved (2B=0), type (2B=1 for ICO), count (2B)
+    header = struct.pack("<HHH", 0, 1, count)
+    offset = 6 + count * 16
+    entries = bytearray()
+    payloads = bytearray()
+
+    for size, png_data in images:
+        dim = 0 if size >= 256 else size
+        # ICONDIRENTRY: width, height, color_count, reserved, planes, bit_count, bytes_in_res, image_offset
+        entries.extend(struct.pack("<BBBBHHII", dim, dim, 0, 0, 1, 32, len(png_data), offset))
+        payloads.extend(png_data)
+        offset += len(png_data)
+
+    return header + bytes(entries) + bytes(payloads)
+
+
 def main():
     import os
     os.makedirs("public", exist_ok=True)
@@ -151,10 +175,10 @@ def main():
     with open("public/apple-touch-icon.png", "wb") as f:
         f.write(png_apple)
         
-    print("Generating favicon (48x48 PNG)...")
-    png_fav = create_png(48, 48, lambda x, y, w, h: draw_icon(x, y, w, h, False))
+    print("Generating multi-size favicon.ico (16x16, 32x32, 48x48)...")
+    ico_fav = create_ico([16, 32, 48], draw_icon)
     with open("public/favicon.ico", "wb") as f:
-        f.write(png_fav)
+        f.write(ico_fav)
 
     print("All PWA assets created successfully.")
 
