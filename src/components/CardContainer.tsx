@@ -24,6 +24,9 @@ interface CardContainerProps {
   isOwner?: boolean;
   cardUrl?: string;
   onShowToast?: (msg: string) => void;
+  onToggleMemo?: () => void;
+  isMemoOpen?: boolean;
+  hasMemo?: boolean;
 }
 
 export const CardContainer: React.FC<CardContainerProps> = ({
@@ -44,6 +47,9 @@ export const CardContainer: React.FC<CardContainerProps> = ({
   isOwner = true,
   cardUrl,
   onShowToast,
+  onToggleMemo,
+  isMemoOpen = false,
+  hasMemo = false,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [orientation, setOrientation] = useState<CardOrientation>(() => 
@@ -190,6 +196,9 @@ export const CardContainer: React.FC<CardContainerProps> = ({
           isPhotoCard={isPhotoCard}
           orientation={orientation}
           onToggleOrientation={isOwner ? () => setOrientation(prev => prev === 'portrait' ? 'landscape' : 'portrait') : undefined}
+          onToggleMemo={onToggleMemo}
+          isMemoOpen={isMemoOpen}
+          hasMemo={hasMemo}
           cardUrl={cardUrl}
           onShowToast={onShowToast}
         />

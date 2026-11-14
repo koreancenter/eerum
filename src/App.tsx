@@ -102,6 +102,7 @@ export default function App() {
 
   const [isSamplePreview, setIsSamplePreview] = useState<boolean>(false);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
+  const [isMemoOpen, setIsMemoOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const pwa = usePWAInstall();
   const [isPWAInstallOpen, setIsPWAInstallOpen] = useState<boolean>(false);
@@ -1205,6 +1206,7 @@ export default function App() {
                     type="button"
                     onClick={() => {
                       setIsFlipped(false);
+                      setIsMemoOpen(false);
                       setSelectedVaultCardId(null);
                     }}
                     className="flex items-center gap-1.5 text-zinc-300 hover:text-white transition-colors cursor-pointer py-1.5 px-2 -ml-2 rounded-lg hover:bg-white/[0.05]"
@@ -1279,16 +1281,20 @@ export default function App() {
                         isOwner={true}
                         cardUrl={getCardShareUrl(selectedVaultCard)}
                         onShowToast={showToast}
+                        onToggleMemo={() => setIsMemoOpen((prev) => !prev)}
+                        isMemoOpen={isMemoOpen}
+                        hasMemo={Boolean(selectedVaultCard.notes?.trim())}
                       />
                     </Suspense>
                   </LazyErrorBoundary>
 
-                  {/* Personal Memo Section underneath the card detail view */}
-                  <CardPersonalMemo
-                    card={selectedVaultCard}
-                    onSaveMemo={(newNotes) => handleUpdateCardNotes(selectedVaultCard.id, newNotes)}
-                    onShowToast={showToast}
-                  />
+                  {/* Personal Memo Section underneath the card detail view (toggled via main card icon button) */}
+                  {isMemoOpen && (
+                    <CardPersonalMemo
+                      card={selectedVaultCard}
+                      onSaveMemo={(newNotes) => handleUpdateCardNotes(selectedVaultCard.id, newNotes)}
+                    />
+                  )}
                 </div>
               ) : null}
             </div>
@@ -1307,6 +1313,7 @@ export default function App() {
                       handleTabChange('my-card', selected.id);
                     } else {
                       setIsFlipped(false);
+                      setIsMemoOpen(false);
                       setSelectedVaultCardId(selected.id);
                       setActiveTab('vault');
                     }

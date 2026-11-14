@@ -12,6 +12,7 @@ import {
   RectangleHorizontal,
   RectangleVertical,
   Trash2,
+  StickyNote,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -24,6 +25,9 @@ interface ActionButtonsProps {
   isPhotoCard?: boolean;
   orientation?: CardOrientation;
   onToggleOrientation?: () => void;
+  onToggleMemo?: () => void;
+  isMemoOpen?: boolean;
+  hasMemo?: boolean;
   cardUrl?: string;
   onShowToast?: (msg: string) => void;
 }
@@ -45,6 +49,9 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   onDelete,
   orientation = 'landscape',
   onToggleOrientation,
+  onToggleMemo,
+  isMemoOpen = false,
+  hasMemo = false,
   cardUrl,
   onShowToast,
 }) => {
@@ -189,6 +196,30 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
                 <RectangleHorizontal className="w-4 h-4" />
               ) : (
                 <RectangleVertical className="w-4 h-4" />
+              )}
+            </button>
+          )}
+
+          {/* Personal Memo Toggle */}
+          {onToggleMemo && (
+            <button
+              type="button"
+              onClick={onToggleMemo}
+              aria-pressed={isMemoOpen}
+              className={`relative ${
+                isMemoOpen
+                  ? 'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center bg-white/15 text-white ring-1 ring-white/25 active:scale-95 transition-all duration-200 cursor-pointer'
+                  : iconButtonClass
+              }`}
+              title={isMemoOpen ? '개인 메모 닫기' : '개인 메모 열기'}
+              aria-label={isMemoOpen ? '개인 메모 닫기' : '개인 메모 열기'}
+            >
+              <StickyNote className="w-4 h-4" />
+              {!isMemoOpen && hasMemo && (
+                <span
+                  aria-hidden="true"
+                  className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-400"
+                />
               )}
             </button>
           )}
