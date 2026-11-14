@@ -38,6 +38,7 @@ const PrintSheet = lazyWithRetry(() =>
 const VaultView = lazyWithRetry(() =>
   import('./components/VaultView').then((m) => ({ default: m.VaultView }))
 );
+import { CardPersonalMemo } from './components/CardPersonalMemo';
 
 import {
   APP_BASE_DOMAIN,
@@ -859,6 +860,12 @@ export default function App() {
     );
   };
 
+  const handleUpdateCardNotes = useCallback((cardId: string, updatedNotes: string) => {
+    setCards((prev) =>
+      prev.map((c) => (c.id === cardId ? { ...c, notes: updatedNotes } : c))
+    );
+  }, []);
+
   // Keyboard shortcut: Space to flip card in active single-card views
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1234,7 +1241,7 @@ export default function App() {
                   </button>
                 </div>
               ) : selectedVaultCard && !selectedVaultCard.isMyCard ? (
-                <div className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] flex justify-center">
+                <div className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] flex flex-col items-center gap-3 sm:gap-4 pb-6">
                   <LazyErrorBoundary resetKey={selectedVaultCard.id}>
                     <Suspense
                       fallback={
@@ -1275,6 +1282,13 @@ export default function App() {
                       />
                     </Suspense>
                   </LazyErrorBoundary>
+
+                  {/* Personal Memo Section underneath the card detail view */}
+                  <CardPersonalMemo
+                    card={selectedVaultCard}
+                    onSaveMemo={(newNotes) => handleUpdateCardNotes(selectedVaultCard.id, newNotes)}
+                    onShowToast={showToast}
+                  />
                 </div>
               ) : null}
             </div>

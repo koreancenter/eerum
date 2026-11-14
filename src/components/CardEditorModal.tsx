@@ -749,6 +749,8 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                 isMyCardMode={isMyCardMode}
                 subTab={templateSubTab}
                 onChangeSubTab={setTemplateSubTab}
+                notes={notes}
+                onChangeNotes={setNotes}
               />
             )}
 

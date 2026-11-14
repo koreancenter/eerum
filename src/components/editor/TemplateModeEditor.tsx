@@ -28,6 +28,8 @@ interface TemplateModeEditorProps {
   isMyCardMode: boolean;
   subTab: 'visual_atelier' | 'identity_profile';
   onChangeSubTab: (tab: 'visual_atelier' | 'identity_profile') => void;
+  notes?: string;
+  onChangeNotes?: (notes: string) => void;
 }
 
 export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
@@ -50,6 +52,8 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
   isMyCardMode,
   subTab,
   onChangeSubTab,
+  notes,
+  onChangeNotes,
 }) => {
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -324,6 +328,21 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                   category={category}
                   onChangeCategory={onChangeCategory}
                 />
+                <div className="sm:col-span-2 space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-zinc-400 block">개인 메모 (비공개)</label>
+                    <span className="text-[10px] text-zinc-500 font-mono">
+                      {(notes || '').length}자
+                    </span>
+                  </div>
+                  <textarea
+                    value={notes || ''}
+                    onChange={(e) => onChangeNotes?.(e.target.value)}
+                    placeholder="해당 명함에 대한 연락처 특징, 만난 날짜 등을 기록하세요 (보관함 검색 시 활용됨)"
+                    rows={2}
+                    className={`${EDITOR_INPUT_CLASS} resize-y text-xs`}
+                  />
+                </div>
               </div>
             )}
           </section>
