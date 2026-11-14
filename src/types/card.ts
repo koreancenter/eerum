@@ -140,6 +140,7 @@ export interface StoredCard {
   customDomain?: string;
   ownerEmail?: string;
   createdAt: string;
+  updatedAt?: string;
   notes?: string;
   scannedImage?: string; // Physical card photo archive (High-Res base64 or URL)
   scannedImageBack?: string; // Optional physical card back photo (WebP base64 or URL)
@@ -153,6 +154,7 @@ export interface StoredCard {
   back_photo_url?: string;
   owner_key?: string;
   created_at?: string;
+  updated_at?: string;
   html_front?: string;
   html_back?: string;
   front_image_url?: string;

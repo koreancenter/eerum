@@ -732,10 +732,13 @@ export default function App() {
             ? savedCard.id
             : `vault-card-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
+      const nowIso = new Date().toISOString();
       const sanitizedVaultCard = sanitizeCardForVault(savedCard, {
         id: safeVaultId,
         category: savedCard.category,
         notes: savedCard.notes,
+        createdAt: existingVaultEntry?.createdAt || savedCard.createdAt,
+        updatedAt: nowIso,
       });
 
       // 2. Update/insert ONLY as a non-MyCard entry; never mutate myCards or selectedMyCardId
@@ -868,8 +871,9 @@ export default function App() {
   };
 
   const handleUpdateCardNotes = useCallback((cardId: string, updatedNotes: string) => {
+    const nowIso = new Date().toISOString();
     setCards((prev) =>
-      prev.map((c) => (c.id === cardId ? { ...c, notes: updatedNotes } : c))
+      prev.map((c) => (c.id === cardId ? { ...c, notes: updatedNotes, updatedAt: nowIso } : c))
     );
   }, []);
 

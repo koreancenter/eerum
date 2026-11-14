@@ -253,6 +253,7 @@ export class CardSerializer {
         ? sourceCard.id
         : `vault-card-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`);
 
+    const nowIso = new Date().toISOString();
     return {
       ...sourceCard,
       ...overrides,
@@ -264,7 +265,8 @@ export class CardSerializer {
       customDomain: undefined,
       category: overrides?.category || sourceCard.category || 'VIP 파트너',
       createdAt: overrides?.createdAt || sourceCard.createdAt || nowDate,
-      created_at: sourceCard.created_at || new Date().toISOString(),
+      created_at: sourceCard.created_at || nowIso,
+      updatedAt: overrides?.updatedAt || nowIso,
       data: {
         ...sourceCard.data,
         ...(overrides?.data || {}),

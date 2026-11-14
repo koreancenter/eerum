@@ -18,10 +18,8 @@
 
 /
   Cache-Control: public, max-age=0, s-maxage=300, stale-while-revalidate=86400
-  Link: <https://fonts.googleapis.com>; rel=preconnect, <https://fonts.gstatic.com>; rel=preconnect; crossorigin
   X-Content-Type-Options: nosniff
 
 /index.html
   Cache-Control: public, max-age=0, s-maxage=300, stale-while-revalidate=86400
-  Link: <https://fonts.googleapis.com>; rel=preconnect, <https://fonts.gstatic.com>; rel=preconnect; crossorigin
   X-Content-Type-Options: nosniff

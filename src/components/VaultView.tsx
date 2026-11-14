@@ -15,12 +15,13 @@ import {
   ChevronDown,
 } from 'lucide-react';
 
-export type VaultSortOption = 'created' | 'name' | 'category';
+export type VaultSortOption = 'newest' | 'oldest' | 'name' | 'company';
 
 const SORT_OPTIONS: { id: VaultSortOption; label: string }[] = [
-  { id: 'created', label: '등록순' },
+  { id: 'newest', label: '최신순' },
+  { id: 'oldest', label: '오래된순' },
   { id: 'name', label: '이름순' },
-  { id: 'category', label: '카테고리별' },
+  { id: 'company', label: '회사명순' },
 ];
 import { PhotoArchiveModal } from './PhotoArchiveModal';
 import {
@@ -38,8 +39,19 @@ import {
   deleteVaultCategory,
   resetVaultCategories,
 } from '../utils/categories';
+import { matchesAnySearchField } from '../utils/koreanSearch';
 
-const SEARCH_DEBOUNCE_MS = 180;
+const parseTimestampMs = (val?: string): number => {
+  if (!val) return 0;
+  const ms = new Date(val).getTime();
+  return Number.isNaN(ms) ? 0 : ms;
+};
+
+const getCardSortTimestamp = (card: StoredCard): number => {
+  const createdMs = Math.max(parseTimestampMs(card.created_at), parseTimestampMs(card.createdAt));
+  const updatedMs = Math.max(parseTimestampMs(card.updated_at), parseTimestampMs(card.updatedAt));
+  return Math.max(createdMs, updatedMs);
+};
 
 interface IWindowSpeechRecognition extends Window {
   SpeechRecognition?: any;
@@ -96,7 +108,6 @@ export const VaultView: React.FC<VaultViewProps> = ({
   );
   const [selectedCategory, setSelectedCategory] = useState<string>('전체');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   const [photoArchiveCardId, setPhotoArchiveCardId] = useState<string | null>(null);
 
@@ -104,11 +115,16 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const [sortBy, setSortBy] = useState<VaultSortOption>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('eerum_vault_sort_by');
-      if (saved === 'created' || saved === 'name' || saved === 'category') {
+      if (
+        saved === 'newest' ||
+        saved === 'oldest' ||
+        saved === 'name' ||
+        saved === 'company'
+      ) {
         return saved;
       }
     }
-    return 'created';
+    return 'newest';
   });
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState<boolean>(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
@@ -181,20 +197,6 @@ export const VaultView: React.FC<VaultViewProps> = ({
     }
   }, [selectedCategory, categories]);
 
-  // Debounce searchQuery updates to prevent full list re-filtering & item re-renders on every keystroke
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setDebouncedSearchQuery('');
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-    }, SEARCH_DEBOUNCE_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [searchQuery]);
-
   // Keep latest prop callbacks in a ref so memoized item handlers maintain permanently stable identities
   const latestHandlersRef = useRef({
     onSelectCard,
@@ -235,7 +237,6 @@ export const VaultView: React.FC<VaultViewProps> = ({
 
   const handleClearSearch = useCallback(() => {
     setSearchQuery('');
-    setDebouncedSearchQuery('');
   }, []);
 
   // Graceful Toast notification (invokes parent prop and displays local fallback alert)
@@ -328,7 +329,6 @@ export const VaultView: React.FC<VaultViewProps> = ({
         if (activeText) {
           // Automatically populate search state (`searchQuery`) upon `onresult` event to filter the card list instantaneously
           setSearchQuery(activeText);
-          setDebouncedSearchQuery(activeText);
           setVoiceFeedback(`인식됨: "${activeText}"`);
         }
       };
@@ -391,9 +391,9 @@ export const VaultView: React.FC<VaultViewProps> = ({
     return counts;
   }, [cards, categories]);
 
-  // Memoized search + category filter using debounced search query
+  // Instant multi-field + Korean choseong search & category filter
   const filteredCards = useMemo(() => {
-    const q = debouncedSearchQuery.toLowerCase().trim();
+    const q = searchQuery.trim();
     const isAllCategories = selectedCategory === '전체';
 
     if (isAllCategories && !q) {
@@ -409,20 +409,33 @@ export const VaultView: React.FC<VaultViewProps> = ({
       }
 
       const d = c.data;
-      return (
-        d.name.toLowerCase().includes(q) ||
-        Boolean(d.nameEn && d.nameEn.toLowerCase().includes(q)) ||
-        d.nameKr.toLowerCase().includes(q) ||
-        d.organization.toLowerCase().includes(q) ||
-        d.organizationKr.toLowerCase().includes(q) ||
-        d.title.toLowerCase().includes(q) ||
-        d.titleKr.toLowerCase().includes(q) ||
-        Boolean(c.notes && c.notes.toLowerCase().includes(q))
+      return matchesAnySearchField(
+        [
+          d.name,
+          d.nameKr,
+          d.nameEn,
+          d.details?.en_name,
+          c.details?.en_name,
+          d.organization,
+          d.organizationKr,
+          d.subOrg,
+          d.details?.sub_org,
+          c.details?.sub_org,
+          d.title,
+          d.titleKr,
+          d.phone,
+          d.phoneRaw,
+          d.email,
+          c.category,
+          c.notes,
+        ],
+        q,
+        [d.phone, d.phoneRaw]
       );
     });
-  }, [cards, selectedCategory, debouncedSearchQuery]);
+  }, [cards, selectedCategory, searchQuery]);
 
-  // Memoized sorting by 'created' (등록순), 'name' (이름순), or 'category' (카테고리별)
+  // Multi-criteria sorting: 'newest' (최신순), 'oldest' (오래된순), 'name' (이름순), 'company' (회사명순)
   const sortedCards = useMemo(() => {
     const list = [...filteredCards];
 
@@ -430,59 +443,61 @@ export const VaultView: React.FC<VaultViewProps> = ({
       return list.sort((a, b) => {
         const nameA = (a.data.name || a.data.nameKr || '').trim();
         const nameB = (b.data.name || b.data.nameKr || '').trim();
-        const cmp = nameA.localeCompare(nameB, 'ko-KR', { numeric: true, sensitivity: 'base' });
+        const cmp = nameA.localeCompare(nameB, 'ko', { numeric: true, sensitivity: 'base' });
         if (cmp !== 0) return cmp;
-        const orgA = (a.data.organization || a.data.organizationKr || '').trim();
-        const orgB = (b.data.organization || b.data.organizationKr || '').trim();
-        return orgA.localeCompare(orgB, 'ko-KR');
+        const orgA = (a.data.organizationKr || a.data.organization || '').trim();
+        const orgB = (b.data.organizationKr || b.data.organization || '').trim();
+        return orgA.localeCompare(orgB, 'ko', { numeric: true, sensitivity: 'base' });
       });
     }
 
-    if (sortBy === 'category') {
+    if (sortBy === 'company') {
       return list.sort((a, b) => {
-        const catA = (a.category || '기타').trim();
-        const catB = (b.category || '기타').trim();
-        const cmp = catA.localeCompare(catB, 'ko-KR', { sensitivity: 'base' });
+        const orgA = (
+          a.data.organizationKr ||
+          a.data.organization ||
+          a.data.subOrg ||
+          a.data.details?.sub_org ||
+          ''
+        ).trim();
+        const orgB = (
+          b.data.organizationKr ||
+          b.data.organization ||
+          b.data.subOrg ||
+          b.data.details?.sub_org ||
+          ''
+        ).trim();
+        if (!orgA && orgB) return 1;
+        if (orgA && !orgB) return -1;
+        const cmp = orgA.localeCompare(orgB, 'ko', { numeric: true, sensitivity: 'base' });
         if (cmp !== 0) return cmp;
         const nameA = (a.data.name || a.data.nameKr || '').trim();
         const nameB = (b.data.name || b.data.nameKr || '').trim();
-        return nameA.localeCompare(nameB, 'ko-KR', { numeric: true });
+        return nameA.localeCompare(nameB, 'ko', { numeric: true, sensitivity: 'base' });
       });
     }
 
-    // Default 'created' (등록순): 최신 등록일자 우선
+    if (sortBy === 'oldest') {
+      return list.sort((a, b) => {
+        const timeA = getCardSortTimestamp(a);
+        const timeB = getCardSortTimestamp(b);
+        if (timeA !== timeB) {
+          return timeA - timeB;
+        }
+        return 0;
+      });
+    }
+
+    // Default 'newest' (최신순, by createdAt / updatedAt)
     return list.sort((a, b) => {
-      const timeA = new Date(a.createdAt || a.created_at || 0).getTime();
-      const timeB = new Date(b.createdAt || b.created_at || 0).getTime();
-      if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) {
+      const timeA = getCardSortTimestamp(a);
+      const timeB = getCardSortTimestamp(b);
+      if (timeA !== timeB) {
         return timeB - timeA;
       }
       return 0;
     });
   }, [filteredCards, sortBy]);
-
-  // When sorting by category in '전체' view, group cards by category for structured visual display
-  const groupedByCategory = useMemo(() => {
-    if (sortBy !== 'category' || selectedCategory !== '전체') {
-      return null;
-    }
-    const groups: { category: string; cards: StoredCard[] }[] = [];
-    const map = new Map<string, StoredCard[]>();
-
-    for (const card of sortedCards) {
-      const cat = card.category || '기타';
-      if (!map.has(cat)) {
-        map.set(cat, []);
-      }
-      map.get(cat)!.push(card);
-    }
-
-    map.forEach((cardsInGroup, category) => {
-      groups.push({ category, cards: cardsInGroup });
-    });
-
-    return groups;
-  }, [sortedCards, sortBy, selectedCategory]);
 
   const currentSortOption = useMemo(
     () => SORT_OPTIONS.find((opt) => opt.id === sortBy) || SORT_OPTIONS[0],
@@ -739,7 +754,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   placeholder={
                     isListening
                       ? (voiceFeedback || '말씀하세요... (음성 듣는 중)')
-                      : '이름, 회사, 직함, 메모 검색'
+                      : '이름·초성, 회사, 연락처, 메모 검색'
                   }
                   aria-label="명함 보관함 검색"
                   className={`w-full h-9 sm:h-9.5 pl-8.5 pr-20 rounded-xl bg-[#121214] border text-xs text-neutral-200 placeholder:text-zinc-400 focus:outline-none transition-all duration-200 ${
@@ -1027,7 +1042,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
       {sortedCards.length === 0 ? (
         <div className="py-20 text-center space-y-3 p-8 rounded-3xl bg-neutral-900/40 border border-neutral-800/60">
           <p className="text-sm font-semibold text-neutral-300">
-            {selectedCategory !== '전체' && !debouncedSearchQuery
+            {selectedCategory !== '전체' && !searchQuery.trim()
               ? `'${selectedCategory}' 카테고리에 등록된 명함이 없습니다.`
               : '검색 조건에 일치하는 명함이 없습니다.'}
           </p>
@@ -1043,36 +1058,26 @@ export const VaultView: React.FC<VaultViewProps> = ({
         </div>
       ) : viewMode === 'cards' ? (
         /* ================= CARDS GALLERY VIEW (2-Column Mobile Grid, 3-Column Desktop) ================= */
-        groupedByCategory ? (
-          <div className="space-y-6">
-            {groupedByCategory.map((group) => (
-              <section key={group.category} className="space-y-2.5">
-                <div className="flex items-center gap-2 pb-1.5 border-b border-white/[0.08]">
-                  <h4 className="text-xs font-semibold text-white tracking-tight">{group.category}</h4>
-                  <span className="text-[11px] text-zinc-500 font-mono tabular-nums">
-                    {group.cards.length}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3.5 min-w-0">
-                  {group.cards.map((card) => (
-                    <VaultCardItem
-                      key={card.id}
-                      card={card}
-                      onSelectCard={handleSelectCard}
-                      onEditCard={handleEditCard}
-                      onDeleteCard={handleDeleteCard}
-                      onExportCard={handleExportCard}
-                      onOpenPhotoArchive={handleOpenPhotoArchive}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3.5 min-w-0">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3.5 min-w-0">
+          {sortedCards.map((card) => (
+            <VaultCardItem
+              key={card.id}
+              card={card}
+              onSelectCard={handleSelectCard}
+              onEditCard={handleEditCard}
+              onDeleteCard={handleDeleteCard}
+              onExportCard={handleExportCard}
+              onOpenPhotoArchive={handleOpenPhotoArchive}
+            />
+          ))}
+        </div>
+      ) : (
+        /* ================= EDITORIAL LIST VIEW (Compact Mobile Rows + Desktop Table) ================= */
+        <div className="rounded-xl sm:rounded-2xl border border-zinc-800/80 bg-[#121214] overflow-hidden shadow-xl">
+          {/* Mobile Compact Horizontal List Items (< md) */}
+          <div className="md:hidden divide-y divide-zinc-800/80">
             {sortedCards.map((card) => (
-              <VaultCardItem
+              <VaultCardMobileListItem
                 key={card.id}
                 card={card}
                 onSelectCard={handleSelectCard}
@@ -1082,46 +1087,6 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 onOpenPhotoArchive={handleOpenPhotoArchive}
               />
             ))}
-          </div>
-        )
-      ) : (
-        /* ================= EDITORIAL LIST VIEW (Compact Mobile Rows + Desktop Table) ================= */
-        <div className="rounded-xl sm:rounded-2xl border border-zinc-800/80 bg-[#121214] overflow-hidden shadow-xl">
-          {/* Mobile Compact Horizontal List Items (< md) */}
-          <div className="md:hidden divide-y divide-zinc-800/80">
-            {groupedByCategory ? (
-              groupedByCategory.map((group) => (
-                <div key={group.category} className="divide-y divide-zinc-800/80">
-                  <div className="px-3.5 py-1.5 bg-white/[0.03] border-b border-zinc-800/80 flex items-center justify-between text-[11px]">
-                    <span className="font-semibold text-white tracking-tight">{group.category}</span>
-                    <span className="text-zinc-500 font-mono tabular-nums text-[10px]">{group.cards.length}명</span>
-                  </div>
-                  {group.cards.map((card) => (
-                    <VaultCardMobileListItem
-                      key={card.id}
-                      card={card}
-                      onSelectCard={handleSelectCard}
-                      onEditCard={handleEditCard}
-                      onDeleteCard={handleDeleteCard}
-                      onExportCard={handleExportCard}
-                      onOpenPhotoArchive={handleOpenPhotoArchive}
-                    />
-                  ))}
-                </div>
-              ))
-            ) : (
-              sortedCards.map((card) => (
-                <VaultCardMobileListItem
-                  key={card.id}
-                  card={card}
-                  onSelectCard={handleSelectCard}
-                  onEditCard={handleEditCard}
-                  onDeleteCard={handleDeleteCard}
-                  onExportCard={handleExportCard}
-                  onOpenPhotoArchive={handleOpenPhotoArchive}
-                />
-              ))
-            )}
           </div>
 
           {/* Desktop Editorial Table (md+) */}
@@ -1139,45 +1104,17 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/80 text-neutral-300">
-                {groupedByCategory ? (
-                  groupedByCategory.map((group) => (
-                    <React.Fragment key={group.category}>
-                      <tr className="bg-white/[0.03] border-b border-zinc-800/80">
-                        <td colSpan={7} className="py-2 px-3.5 text-[11px] font-semibold text-white">
-                          <span className="inline-flex items-center gap-2">
-                            <span>{group.category}</span>
-                            <span className="text-[10px] text-zinc-500 font-mono tabular-nums font-normal">
-                              ({group.cards.length})
-                            </span>
-                          </span>
-                        </td>
-                      </tr>
-                      {group.cards.map((card) => (
-                        <VaultCardListRow
-                          key={card.id}
-                          card={card}
-                          onSelectCard={handleSelectCard}
-                          onEditCard={handleEditCard}
-                          onDeleteCard={handleDeleteCard}
-                          onExportCard={handleExportCard}
-                          onOpenPhotoArchive={handleOpenPhotoArchive}
-                        />
-                      ))}
-                    </React.Fragment>
-                  ))
-                ) : (
-                  sortedCards.map((card) => (
-                    <VaultCardListRow
-                      key={card.id}
-                      card={card}
-                      onSelectCard={handleSelectCard}
-                      onEditCard={handleEditCard}
-                      onDeleteCard={handleDeleteCard}
-                      onExportCard={handleExportCard}
-                      onOpenPhotoArchive={handleOpenPhotoArchive}
-                    />
-                  ))
-                )}
+                {sortedCards.map((card) => (
+                  <VaultCardListRow
+                    key={card.id}
+                    card={card}
+                    onSelectCard={handleSelectCard}
+                    onEditCard={handleEditCard}
+                    onDeleteCard={handleDeleteCard}
+                    onExportCard={handleExportCard}
+                    onOpenPhotoArchive={handleOpenPhotoArchive}
+                  />
+                ))}
               </tbody>
             </table>
           </div>
