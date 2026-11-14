@@ -1,12 +1,4 @@
-import {
-  createPinVerificationToken,
-  verifyPinWithToken,
-  setActiveSessionKey,
-  clearActiveSessionKey,
-  linkBiometricsToVault,
-  clearBiometricVault,
-  getActiveSessionPin,
-} from './cryptoVault';
+import { setActiveSessionKey, clearActiveSessionKey } from './vaultSession';
 
 // SHA-256 legacy hash helper using browser Web Crypto API
 export async function hashPin(pin: string): Promise<string> {
@@ -68,6 +60,8 @@ export function isPinSet(): boolean {
 export async function setAppPin(pin: string): Promise<void> {
   if (typeof window === 'undefined') return;
 
+  const { createPinVerificationToken, linkBiometricsToVault } = await import('./cryptoVault');
+
   // 1. Create PBKDF2-SHA256 authenticated AES-GCM verification envelope
   const vaultToken = await createPinVerificationToken(pin);
   localStorage.setItem(PIN_VAULT_TOKEN_KEY, vaultToken);
@@ -107,6 +101,9 @@ export async function verifyPin(pin: string): Promise<boolean> {
   if (!token && !legacyHash) return true; // No PIN configured
 
   let matched = false;
+
+  const { verifyPinWithToken, createPinVerificationToken, linkBiometricsToVault } =
+    await import('./cryptoVault');
 
   // 1. Primary: Verify with PBKDF2 + AES-GCM token
   if (token) {
@@ -159,6 +156,8 @@ export async function clearAppPin(): Promise<void> {
   } catch (err) {
     console.warn('Notice decrypting cards on PIN clear:', err);
   }
+
+  const { clearBiometricVault } = await import('./cryptoVault');
 
   // 2. Remove all PIN and vault keys
   localStorage.removeItem(PIN_STORAGE_KEY);

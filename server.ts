@@ -281,7 +281,12 @@ async function startServer() {
             filePath.endsWith('robots.txt') ||
             filePath.endsWith('sitemap.xml')
           ) {
-            res.setHeader('Cache-Control', 'public, max-age=86400');
+            res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=86400');
+          } else if (
+            !filePath.includes(`${path.sep}assets${path.sep}`) &&
+            (filePath.endsWith('.png') || filePath.endsWith('.svg') || filePath.endsWith('.ico'))
+          ) {
+            res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
           }
         },
       })

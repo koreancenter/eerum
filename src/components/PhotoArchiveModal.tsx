@@ -21,7 +21,8 @@ import {
   isPlatformHost,
   normalizeDomain,
 } from '@/utils/cardSerializer';
-import { SAMPLE_CARDS, loadUserCards } from '../utils/initialCards';
+import { INITIAL_CARDS as SAMPLE_CARDS } from '../constants/sampleCards';
+import { loadUserCards } from '../utils/initialCards';
 import {
   CATEGORIES_UPDATED_EVENT,
   loadVaultCategories,

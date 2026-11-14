@@ -12,6 +12,21 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
+      {
+        name: 'optimize-html-build',
+        apply: 'build',
+        transformIndexHtml: {
+          order: 'post',
+          handler(html) {
+            return html
+              .replace(/<script data-dev-hmr-shim>[\s\S]*?<\/script>\s*/i, '')
+              .replace(
+                /<link rel="stylesheet"([^>]*href="\/assets\/[^"]+\.css"[^>]*)>/gi,
+                '<link rel="preload" as="style"$1><link rel="stylesheet"$1 media="print" onload="this.media=\'all\'" data-app-css><noscript><link rel="stylesheet"$1></noscript>'
+              );
+          },
+        },
+      },
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
@@ -52,6 +67,7 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          globIgnores: ['assets/aistudio/**'],
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -105,14 +121,11 @@ export default defineConfig(({ mode }) => {
           manualChunks(id) {
             if (id.includes('node_modules')) {
               if (
-                id.includes('react/') ||
-                id.includes('react-dom/') ||
-                id.includes('scheduler/')
+                id.includes('/node_modules/react/') ||
+                id.includes('/node_modules/react-dom/') ||
+                id.includes('/node_modules/scheduler/')
               ) {
                 return 'vendor-react';
-              }
-              if (id.includes('lucide-react')) {
-                return 'vendor-icons';
               }
             }
           },

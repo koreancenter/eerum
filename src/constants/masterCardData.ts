@@ -1,0 +1,26 @@
+import type { CardData } from '../types/card.ts';
+
+export const CARD_DATA: CardData = {
+  organization: 'GOGUMA KNOWLEDGE OFFICE',
+  organizationKr: '고구마 지식 관리실',
+  name: 'PARK, GIHONG',
+  nameKr: '박기홍',
+  title: 'Principal Master',
+  titleKr: '대표 마스터',
+  phone: '+82 10-1234-5678',
+  phoneRaw: '+821012345678',
+  whatsappUrl: 'https://wa.me/821012345678',
+  email: 'master@goguma.app',
+  website: 'https://eerum.goguma.app/master',
+  websiteDisplay: 'eerum.goguma.app/master',
+  addressLines: ['152 Teheran-ro, Gangnam-gu, Seoul'],
+  address_en: '152 Teheran-ro, Gangnam-gu, Seoul',
+  addressEn: '152 Teheran-ro, Gangnam-gu, Seoul',
+  addressKr: '서울특별시 강남구 테헤란로 152',
+  googleMapsUrl: 'https://maps.google.com/?q=152+Teheran-ro+Gangnam-gu+Seoul',
+  naverMapsUrl: 'https://map.naver.com',
+  backTitle: 'GOGUMA KNOWLEDGE OFFICE',
+  backSubtitle: 'KOREAN CENTER GLOBAL NETWORK',
+  backTagline: 'KOREAN CENTER GLOBAL NETWORK',
+  backHqAddress: '152 Teheran-ro, Gangnam-gu, Seoul',
+};

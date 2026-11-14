@@ -12,7 +12,6 @@ import {
   saveUserCards,
   saveStoredCards,
   normalizeStoredCards,
-  SAMPLE_CARDS,
   clearAllLocalData,
   hasLocalWalletInitialized,
 } from './utils/initialCards';
@@ -38,7 +37,9 @@ const PrintSheet = lazyWithRetry(() =>
 const VaultView = lazyWithRetry(() =>
   import('./components/VaultView').then((m) => ({ default: m.VaultView }))
 );
-import { CardPersonalMemo } from './components/CardPersonalMemo';
+const CardPersonalMemo = lazyWithRetry(() =>
+  import('./components/CardPersonalMemo').then((m) => ({ default: m.CardPersonalMemo }))
+);
 
 import {
   APP_BASE_DOMAIN,
@@ -50,10 +51,8 @@ import {
   normalizeDomain,
   sanitizeCardForVault,
 } from '@/utils/cardSerializer';
-import { pullWalletFromEdge, pushWalletToEdge } from './utils/syncWallet';
 import { useAutoLock } from './hooks/useAutoLock';
 import { useModalState } from './hooks/useModalState';
-import { verifyBiometric } from './utils/biometrics';
 import { usePWAInstall } from './hooks/usePWAInstall';
 const PWAInstallModal = lazyWithRetry(() =>
   import('./components/PWAInstallModal').then((m) => ({ default: m.PWAInstallModal }))
@@ -101,6 +100,7 @@ export default function App() {
   const [isPublicExternalView, setIsPublicExternalView] = useState<boolean>(false);
 
   const [isSamplePreview, setIsSamplePreview] = useState<boolean>(false);
+  const [sampleCard, setSampleCard] = useState<StoredCard | null>(null);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [isMemoOpen, setIsMemoOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -157,6 +157,7 @@ export default function App() {
 
   // Optional Biometric Unlock handler with automatic cryptographic vault rehydration
   const handleBiometricUnlock = async () => {
+    const { verifyBiometric } = await import('./utils/biometrics');
     const res = await verifyBiometric();
     if (res.success) {
       unlockApp();
@@ -222,21 +223,23 @@ export default function App() {
     const searchParams = new URLSearchParams(window.location.search);
     const syncId = searchParams.get('sync');
     if (syncId) {
-      pullWalletFromEdge(syncId).then((remoteCards) => {
-        if (remoteCards && Array.isArray(remoteCards) && remoteCards.length > 0) {
-          const normalized = normalizeStoredCards(remoteCards);
-          setCards(normalized);
-          saveStoredCards(normalized);
-          setPublicCard(null);
-          setIsPublicExternalView(false);
-          setSelectedVaultCardId(null);
-          setActiveTab('vault');
-          showToast('기기 보관함이 성공적으로 동기화되었습니다.');
-        }
-        const url = new URL(window.location.href);
-        url.searchParams.delete('sync');
-        window.history.replaceState({}, document.title, url.pathname + (url.search || ''));
-      });
+      import('./utils/syncWallet').then(({ pullWalletFromEdge }) =>
+        pullWalletFromEdge(syncId).then((remoteCards) => {
+          if (remoteCards && Array.isArray(remoteCards) && remoteCards.length > 0) {
+            const normalized = normalizeStoredCards(remoteCards);
+            setCards(normalized);
+            saveStoredCards(normalized);
+            setPublicCard(null);
+            setIsPublicExternalView(false);
+            setSelectedVaultCardId(null);
+            setActiveTab('vault');
+            showToast('기기 보관함이 성공적으로 동기화되었습니다.');
+          }
+          const url = new URL(window.location.href);
+          url.searchParams.delete('sync');
+          window.history.replaceState({}, document.title, url.pathname + (url.search || ''));
+        })
+      );
     }
   }, [showToast]);
 
@@ -245,7 +248,7 @@ export default function App() {
     if (isPinConfigured && isLocked) return;
     if (!cards || cards.length === 0) return;
     const timer = setTimeout(() => {
-      pushWalletToEdge(cards);
+      import('./utils/syncWallet').then(({ pushWalletToEdge }) => pushWalletToEdge(cards));
     }, 800);
     return () => clearTimeout(timer);
   }, [cards, isPinConfigured, isLocked]);
@@ -275,7 +278,6 @@ export default function App() {
       const slug = getRouteSlug();
       const hostname = window.location.hostname.toLowerCase();
       const customDomainParam = !isPlatformHost(hostname) ? normalizeDomain(hostname) : null;
-      const sampleFallback = resolvePublicRouteCard([], SAMPLE_CARDS);
 
       const endpoint = customDomainParam
         ? `/api/resolve?domain=${encodeURIComponent(customDomainParam)}`
@@ -283,53 +285,57 @@ export default function App() {
           ? `/api/cards?slug=${encodeURIComponent(slug)}`
           : null;
 
-      if (!endpoint) {
-        if (sampleFallback) {
-          setPublicCard(sampleFallback);
-          setIsPublicExternalView(true);
-          setIsFlipped(false);
-        }
-        return;
-      }
+      import('./constants/sampleCards').then(({ INITIAL_CARDS }) => {
+        const sampleFallback = resolvePublicRouteCard([], INITIAL_CARDS);
 
-      fetch(endpoint)
-        .then((res) => (res.ok ? res.json() : null))
-        .then((payload) => {
-          const remoteCard: StoredCard | null = payload?.card || sampleFallback || null;
-          if (!remoteCard) return;
-
-          const currentMyCards = loadUserCards().filter((c) => c.isMyCard);
-          const isOwnedByLocalUser = currentMyCards.some(
-            (c) =>
-              c.id === remoteCard.id ||
-              (Boolean(remoteCard.owner_key) && c.owner_key === remoteCard.owner_key)
-          );
-
-          if (isOwnedByLocalUser) {
-            const owned =
-              currentMyCards.find(
-                (c) =>
-                  c.id === remoteCard.id ||
-                  (Boolean(remoteCard.owner_key) && c.owner_key === remoteCard.owner_key)
-              ) || currentMyCards[0];
-            setPublicCard(null);
-            setIsPublicExternalView(false);
-            setSelectedVaultCardId(null);
-            if (owned) setSelectedMyCardId(owned.id);
-            setActiveTab('my-card');
-          } else {
-            setPublicCard(remoteCard);
-            setIsPublicExternalView(true);
-            setIsFlipped(false);
-          }
-        })
-        .catch(() => {
+        if (!endpoint) {
           if (sampleFallback) {
             setPublicCard(sampleFallback);
             setIsPublicExternalView(true);
             setIsFlipped(false);
           }
-        });
+          return;
+        }
+
+        fetch(endpoint)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((payload) => {
+            const remoteCard: StoredCard | null = payload?.card || sampleFallback || null;
+            if (!remoteCard) return;
+
+            const currentMyCards = loadUserCards().filter((c) => c.isMyCard);
+            const isOwnedByLocalUser = currentMyCards.some(
+              (c) =>
+                c.id === remoteCard.id ||
+                (Boolean(remoteCard.owner_key) && c.owner_key === remoteCard.owner_key)
+            );
+
+            if (isOwnedByLocalUser) {
+              const owned =
+                currentMyCards.find(
+                  (c) =>
+                    c.id === remoteCard.id ||
+                    (Boolean(remoteCard.owner_key) && c.owner_key === remoteCard.owner_key)
+                ) || currentMyCards[0];
+              setPublicCard(null);
+              setIsPublicExternalView(false);
+              setSelectedVaultCardId(null);
+              if (owned) setSelectedMyCardId(owned.id);
+              setActiveTab('my-card');
+            } else {
+              setPublicCard(remoteCard);
+              setIsPublicExternalView(true);
+              setIsFlipped(false);
+            }
+          })
+          .catch(() => {
+            if (sampleFallback) {
+              setPublicCard(sampleFallback);
+              setIsPublicExternalView(true);
+              setIsFlipped(false);
+            }
+          });
+      });
     } catch (e) {
       console.error('URL routing error', e);
     }
@@ -382,7 +388,7 @@ export default function App() {
   // Resolved personal card strictly from `myCards` (`isMyCard === true`), or sample card when `isSamplePreview` is active
   const currentMyCard: StoredCard | undefined =
     isSamplePreview
-      ? SAMPLE_CARDS[0]
+      ? sampleCard || undefined
       : myCards.length > 0
         ? myCards.find((c) => c.id === selectedMyCardId) ||
           myCards.find((c) => c.isDefault) ||
@@ -1290,10 +1296,12 @@ export default function App() {
 
                   {/* Personal Memo Section underneath the card detail view (toggled via main card icon button) */}
                   {isMemoOpen && (
-                    <CardPersonalMemo
-                      card={selectedVaultCard}
-                      onSaveMemo={(newNotes) => handleUpdateCardNotes(selectedVaultCard.id, newNotes)}
-                    />
+                    <Suspense fallback={null}>
+                      <CardPersonalMemo
+                        card={selectedVaultCard}
+                        onSaveMemo={(newNotes) => handleUpdateCardNotes(selectedVaultCard.id, newNotes)}
+                      />
+                    </Suspense>
                   )}
                 </div>
               ) : null}
@@ -1377,8 +1385,10 @@ export default function App() {
                     markFirstLaunchDone();
                     handleOpenCreateModal();
                   }}
-                  onExploreSample={() => {
+                  onExploreSample={async () => {
                     markFirstLaunchDone();
+                    const { INITIAL_CARDS } = await import('./constants/sampleCards');
+                    setSampleCard(INITIAL_CARDS[0] || null);
                     setShowWelcomeIntro(false);
                     setIsSamplePreview(true);
                   }}
@@ -1459,8 +1469,10 @@ export default function App() {
                     markFirstLaunchDone();
                     handleOpenCreateModal();
                   }}
-                  onExploreSample={() => {
+                  onExploreSample={async () => {
                     markFirstLaunchDone();
+                    const { INITIAL_CARDS } = await import('./constants/sampleCards');
+                    setSampleCard(INITIAL_CARDS[0] || null);
                     setIsSamplePreview(true);
                   }}
                   onViewMyCards={myCards.length > 0 ? () => {

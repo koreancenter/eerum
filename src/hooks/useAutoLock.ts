@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { isPinSet, getSessionLocked, setSessionLocked } from '../utils/pinLock';
-import { isBiometricRegistered } from '../utils/biometrics';
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const BIOMETRIC_CREDENTIAL_KEY = 'app_biometric_credential_id';
 
 export function useAutoLock() {
-  const isSecurityActive = () => isPinSet() || isBiometricRegistered();
+  const isSecurityActive = () =>
+    isPinSet() ||
+    (typeof window !== 'undefined' && Boolean(localStorage.getItem(BIOMETRIC_CREDENTIAL_KEY)));
 
   const [isLocked, setIsLockedState] = useState<boolean>(() => {
     return isSecurityActive() && getSessionLocked();

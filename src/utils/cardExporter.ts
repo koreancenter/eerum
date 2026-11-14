@@ -1,6 +1,6 @@
 import { CardData, CardTheme, StoredCard } from '../types/card';
 import { sanitizeHtml, escapeHtmlText } from './sanitizeHtml';
-import { CARD_DATA } from '../constants/sampleCards';
+import { CARD_DATA } from '../constants/masterCardData';
 import { APP_BASE_URL } from './cardSerializer';
 
 export interface VCardOptions {

@@ -1,18 +1,11 @@
 import { StoredCard } from '../types/card';
-import { CARD_DATA, INITIAL_CARDS } from '../constants/sampleCards';
-
-export { INITIAL_CARDS };
-export const SAMPLE_CARDS = INITIAL_CARDS;
-
+import { CARD_DATA } from '../constants/masterCardData';
 import {
   isEncryptedEnvelope,
-  encryptCardsVault,
-  decryptCardsVault,
   getActiveSessionKey,
   getActiveSessionPin,
   clearActiveSessionKey,
-  EncryptedEnvelope
-} from './cryptoVault';
+} from './vaultSession';
 import { isPinSet } from './pinLock';
 
 const STORAGE_KEY = 'my_cards';
@@ -240,6 +233,7 @@ export async function decryptStoredCards(keyOrPin?: CryptoKey | string): Promise
         return [];
       }
 
+      const { decryptCardsVault } = await import('./cryptoVault');
       const decrypted = await decryptCardsVault(parsed, key);
       const normalized = normalizeStoredCards(decrypted);
       memoryDecryptedCards = normalized;
@@ -302,14 +296,17 @@ export function saveUserCards(cards: StoredCard[]): void {
     }
 
     if (pinActive && (activeKey || activePin)) {
-      encryptCardsVault(normalizedCards, activeKey || activePin!).then((envelope) => {
-        const encryptedPayload = JSON.stringify(envelope);
-        localStorage.setItem(STORAGE_KEY, encryptedPayload);
-        localStorage.setItem(FALLBACK_STORAGE_KEY, encryptedPayload);
-        localStorage.setItem('saved_cards', encryptedPayload);
-      }).catch((err) => {
-        console.warn('Background encryption save notice:', err);
-      });
+      import('./cryptoVault')
+        .then(({ encryptCardsVault }) => encryptCardsVault(normalizedCards, activeKey || activePin!))
+        .then((envelope) => {
+          const encryptedPayload = JSON.stringify(envelope);
+          localStorage.setItem(STORAGE_KEY, encryptedPayload);
+          localStorage.setItem(FALLBACK_STORAGE_KEY, encryptedPayload);
+          localStorage.setItem('saved_cards', encryptedPayload);
+        })
+        .catch((err) => {
+          console.warn('Background encryption save notice:', err);
+        });
       return;
     }
 
@@ -333,6 +330,7 @@ export async function reEncryptCardsOnPinChange(pin: string): Promise<void> {
   if (!currentCards || currentCards.length === 0) return;
 
   try {
+    const { encryptCardsVault } = await import('./cryptoVault');
     const envelope = await encryptCardsVault(currentCards, pin);
     const payload = JSON.stringify(envelope);
     localStorage.setItem(STORAGE_KEY, payload);

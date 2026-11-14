@@ -1,24 +1,25 @@
 import { StoredCard } from '../types/card';
+import {
+  type EncryptedEnvelope,
+  isEncryptedEnvelope,
+  setActiveSessionKey,
+  getActiveSessionKey,
+  getActiveSessionPin,
+  clearActiveSessionKey,
+} from './vaultSession';
 
-export interface EncryptedEnvelope {
-  __encrypted: true;
-  version: 1;
-  algo: 'AES-GCM-256';
-  kdf: 'PBKDF2-SHA256';
-  iterations: number;
-  salt: string;       // Base64 16 bytes
-  iv: string;         // Base64 12 bytes
-  ciphertext: string; // Base64 ciphertext + auth tag
-}
+export {
+  type EncryptedEnvelope,
+  isEncryptedEnvelope,
+  setActiveSessionKey,
+  getActiveSessionKey,
+  getActiveSessionPin,
+  clearActiveSessionKey,
+};
 
 const PBKDF2_ITERATIONS = 100000;
 const VAULT_VERIFY_PAYLOAD = 'GOGUMA_CARD_VAULT_INTEGRITY_CHECK_TOKEN_v1';
 const BIOMETRIC_VAULT_STORAGE_KEY = 'app_biometric_vault_token';
-const SESSION_VAULT_KEY = 'app_session_vault_key';
-
-// In-memory active CryptoKey cache during unlocked session
-let activeMemoryKey: CryptoKey | null = null;
-let activeMemoryPin: string | null = null;
 
 // Helpers for Base64 and ArrayBuffer conversion
 export function bufferToBase64(buf: ArrayBuffer | Uint8Array): string {
@@ -43,15 +44,6 @@ function toArrayBufferView(view: Uint8Array): Uint8Array<ArrayBuffer> {
   const copy = new Uint8Array(view.byteLength);
   copy.set(view);
   return copy;
-}
-
-/**
- * Checks if a parsed object is an AES-GCM Encrypted Envelope
- */
-export function isEncryptedEnvelope(obj: unknown): obj is EncryptedEnvelope {
-  if (!obj || typeof obj !== 'object') return false;
-  const env = obj as Record<string, unknown>;
-  return env.__encrypted === true && typeof env.ciphertext === 'string' && typeof env.iv === 'string';
 }
 
 /**
@@ -203,30 +195,6 @@ export async function decryptCardsVault(envelope: EncryptedEnvelope, keyOrPin: C
   }
   const parsed = JSON.parse(jsonStr);
   return Array.isArray(parsed) ? parsed : [];
-}
-
-/**
- * Manages runtime in-memory session encryption keys
- */
-export function setActiveSessionKey(key: CryptoKey | null, pin?: string | null): void {
-  activeMemoryKey = key;
-  activeMemoryPin = pin || null;
-}
-
-export function getActiveSessionKey(): CryptoKey | null {
-  return activeMemoryKey;
-}
-
-export function getActiveSessionPin(): string | null {
-  return activeMemoryPin;
-}
-
-export function clearActiveSessionKey(): void {
-  activeMemoryKey = null;
-  activeMemoryPin = null;
-  if (typeof sessionStorage !== 'undefined') {
-    sessionStorage.removeItem(SESSION_VAULT_KEY);
-  }
 }
 
 /**

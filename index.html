@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <script data-dev-hmr-shim>
       (function () {
         // Intercept Vite HMR WebSocket so it never fails or throws in environments with disabled HMR
         if (typeof window !== 'undefined' && window.WebSocket) {
@@ -157,10 +159,19 @@
     <meta name="twitter:description" content="Interactive local-first digital business card studio with privacy-first on-device encryption and print-ready PDF generator." />
     <meta name="twitter:image" content="https://eerum.goguma.app/pwa-512x512.png" />
 
-    <!-- Google Fonts with immediate preconnect usage and display=swap -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Cinzel:wght@500;700&display=swap" />
+    <!-- Non-render-blocking Google Fonts with display=swap -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Cinzel:wght@500;700&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Cinzel:wght@500;700&display=swap"
+      />
+    </noscript>
 
     <!-- Schema.org Structured Data (JSON-LD) -->
     <script type="application/ld+json">
@@ -192,25 +203,48 @@
   </head>
   <body class="bg-[#0A0A0B] text-neutral-100 antialiased selection:bg-neutral-200 selection:text-neutral-900">
     <div id="root">
-      <!-- Instant Pre-rendered Shell for sub-second FCP & LCP without layout shift -->
-      <div id="app-prerender-skeleton" style="min-height:100vh;background-color:#0A0A0B;color:#F5F5F7;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:1.5rem 1rem;text-align:center;box-sizing:border-box;font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-        <div style="width:48px;height:28px;margin-bottom:1rem;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:linear-gradient(135deg,rgba(255,255,255,0.1),transparent);display:flex;align-items:flex-end;padding:6px;box-sizing:border-box;">
-          <span style="width:12px;height:1px;background-color:rgba(255,255,255,0.55);"></span>
+      <!-- Instant Pre-rendered Shell matching App + WelcomeCard for sub-second FCP/LCP and minimal Speed Index -->
+      <div id="app-prerender-skeleton" style="min-height:100vh;min-height:100dvh;width:100%;background-color:#0A0A0B;color:#F5F5F7;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box;font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+        <div style="height:49px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;gap:6px;padding:0 16px;box-sizing:border-box;">
+          <span style="padding:6px 14px;border-radius:12px;background:rgba(255,255,255,0.1);color:#fff;font-size:12px;font-weight:600;">내 명함</span>
+          <span style="padding:6px 14px;border-radius:12px;color:#a1a1aa;font-size:12px;font-weight:600;">명함 보관함 0</span>
         </div>
-        <p style="font-size:11px;letter-spacing:0.28em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin:0 0 8px;font-weight:300;">Private Digital Identity Studio</p>
-        <h1 style="font-size:40px;font-weight:500;letter-spacing:0.02em;color:#FFFFFF;margin:0 0 12px;line-height:1.2;">
-          eerum <span style="font-weight:200;color:rgba(255,255,255,0.5);font-size:24px;letter-spacing:0.15em;">이룸</span>
-        </h1>
-        <p style="font-size:13px;color:rgba(255,255,255,0.6);font-weight:300;max-width:440px;margin:0 auto 24px;line-height:1.6;">
-          서버에 남지 않는 온디바이스 암호화로 당신만의 디지털 명함과 프라이빗 보관함을 완성하세요.
-        </p>
-        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;max-width:320px;width:100%;">
-          <div style="height:42px;padding:0 24px;border-radius:12px;background-color:#FFFFFF;color:#0A0A0B;font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:center;flex:1;min-width:130px;">
-            내 명함 만들기
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:0.5rem 1rem;text-align:center;box-sizing:border-box;">
+          <div style="width:48px;height:28px;margin-bottom:1rem;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:linear-gradient(135deg,rgba(255,255,255,0.1),transparent);display:flex;align-items:flex-end;padding:6px;box-sizing:border-box;">
+            <span style="width:12px;height:1px;background-color:rgba(255,255,255,0.55);"></span>
           </div>
-          <div style="height:42px;padding:0 20px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background-color:rgba(255,255,255,0.03);color:rgba(255,255,255,0.75);font-size:13px;display:flex;align-items:center;justify-content:center;flex:1;min-width:130px;">
-            샘플 둘러보기
+          <p style="font-size:11px;letter-spacing:0.28em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin:0 0 8px;font-weight:300;">Private Digital Identity Studio</p>
+          <h1 style="font-size:40px;font-weight:500;letter-spacing:0.02em;color:#FFFFFF;margin:0 0 12px;line-height:1.2;">
+            eerum <span style="font-weight:200;color:rgba(255,255,255,0.5);font-size:24px;letter-spacing:0.15em;">이룸</span>
+          </h1>
+          <p style="font-size:13px;color:rgba(255,255,255,0.6);font-weight:300;max-width:440px;margin:0 auto 24px;line-height:1.6;">
+            서버에 남지 않는 온디바이스 암호화로 당신만의 디지털 명함과 프라이빗 보관함을 완성하세요.
+          </p>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;max-width:320px;width:100%;">
+            <div style="height:42px;padding:0 24px;border-radius:12px;background-color:#FFFFFF;color:#0A0A0B;font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:center;flex:1;min-width:130px;">
+              내 명함 만들기
+            </div>
+            <div style="height:42px;padding:0 20px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background-color:rgba(255,255,255,0.03);color:rgba(255,255,255,0.75);font-size:13px;display:flex;align-items:center;justify-content:center;flex:1;min-width:130px;">
+              샘플 둘러보기
+            </div>
           </div>
+          <div style="width:100%;max-width:672px;margin-top:28px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
+            <div style="border-radius:12px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.1);padding:12px 8px;">
+              <div style="font-size:12px;color:rgba(255,255,255,0.9);">3D Studio</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.6);font-weight:300;margin-top:4px;">3D Canvas / Custom Card</div>
+            </div>
+            <div style="border-radius:12px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.1);padding:12px 8px;">
+              <div style="font-size:12px;color:rgba(255,255,255,0.9);">Instant Share</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.6);font-weight:300;margin-top:4px;">Offline QR / 300 DPI PDF</div>
+            </div>
+            <div style="border-radius:12px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.1);padding:12px 8px;">
+              <div style="font-size:12px;color:rgba(255,255,255,0.9);">Zero-Server Vault</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.6);font-weight:300;margin-top:4px;">AES-256 / On-Device</div>
+            </div>
+          </div>
+        </div>
+        <div style="height:49px;border-top:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;padding:0 32px;box-sizing:border-box;">
+          <span style="font-size:11px;color:rgba(255,255,255,0.5);letter-spacing:0.1em;font-weight:300;">© 2026 GOGUMA CARD STUDIO</span>
         </div>
       </div>
     </div>

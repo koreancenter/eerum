@@ -442,13 +442,38 @@ export default {
         const spaRequest = new Request(new URL('/index.html', request.url), request);
         const spaRes = await env.ASSETS.fetch(spaRequest);
         const headers = new Headers(spaRes.headers);
-        headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
+        headers.set('Cache-Control', 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400');
+        headers.set(
+          'Link',
+          '<https://fonts.googleapis.com>; rel=preconnect, <https://fonts.gstatic.com>; rel=preconnect; crossorigin'
+        );
+        headers.set('X-Content-Type-Options', 'nosniff');
         return new Response(spaRes.body, { status: 200, headers });
       }
 
-      if (assetRes.ok && url.pathname.startsWith('/assets/')) {
+      if (assetRes.ok) {
         const headers = new Headers(assetRes.headers);
-        headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+        if (url.pathname.startsWith('/assets/')) {
+          headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+        } else if (
+          url.pathname === '/manifest.webmanifest' ||
+          url.pathname.endsWith('.json')
+        ) {
+          headers.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=86400');
+        } else if (
+          url.pathname.endsWith('.png') ||
+          url.pathname.endsWith('.svg') ||
+          url.pathname.endsWith('.ico')
+        ) {
+          headers.set('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
+        } else if (url.pathname === '/' || url.pathname === '/index.html') {
+          headers.set('Cache-Control', 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400');
+          headers.set(
+            'Link',
+            '<https://fonts.googleapis.com>; rel=preconnect, <https://fonts.gstatic.com>; rel=preconnect; crossorigin'
+          );
+          headers.set('X-Content-Type-Options', 'nosniff');
+        }
         return new Response(assetRes.body, { status: assetRes.status, headers });
       }
 

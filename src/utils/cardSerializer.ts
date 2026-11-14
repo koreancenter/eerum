@@ -1,7 +1,4 @@
 import { CardData, CardTheme, StoredCard } from '../types/card';
-import { CARD_DATA } from '../constants/sampleCards';
-
-export { CARD_DATA };
 
 export const APP_BASE_DOMAIN = 'eerum.goguma.app';
 export const APP_BASE_URL = `https://${APP_BASE_DOMAIN}`;
