@@ -13,6 +13,7 @@ import {
   Mic,
   ArrowUpDown,
   ChevronDown,
+  GitMerge,
 } from 'lucide-react';
 
 export type VaultSortOption = 'newest' | 'oldest' | 'name' | 'company';
@@ -30,6 +31,7 @@ import {
   VaultCardMobileListItem,
 } from './VaultCardItem';
 import { CategoryManagementPanel } from './CategoryManagementPanel';
+import { DuplicateMergeModal } from './DuplicateMergeModal';
 import {
   CATEGORIES_UPDATED_EVENT,
   loadVaultCategories,
@@ -40,6 +42,7 @@ import {
   resetVaultCategories,
 } from '../utils/categories';
 import { matchesAnySearchField } from '../utils/koreanSearch';
+import { detectDuplicateVaultGroups } from '../utils/duplicateDetector';
 
 const parseTimestampMs = (val?: string): number => {
   if (!val) return 0;
@@ -79,6 +82,7 @@ interface VaultViewProps {
   onRenameCategory?: (oldName: string, newName: string) => void;
   onMergeCategories?: (sourceCategory: string, targetCategory: string) => void;
   onDeleteCategory?: (deletedName: string, fallbackCategory: string) => void;
+  onMergeDuplicateCards?: (mergedCard: StoredCard, duplicateCardIds: string[]) => void;
   onShowToast?: (msg: string) => void;
 }
 
@@ -95,12 +99,17 @@ export const VaultView: React.FC<VaultViewProps> = ({
   onRenameCategory,
   onMergeCategories,
   onDeleteCategory,
+  onMergeDuplicateCards,
   onShowToast,
 }) => {
   // Defensive filter: strictly isolate Vault cards from personal cards (`isMyCard: true` belongs exclusively to '내 명함')
   const cards = useMemo(() => rawCards.filter((c) => !c.isMyCard), [rawCards]);
   const cardsRef = useRef<StoredCard[]>(cards);
   cardsRef.current = cards;
+
+  // Duplicate contact detection (Vault-only, normalized phone/email)
+  const duplicateGroups = useMemo(() => detectDuplicateVaultGroups(cards), [cards]);
+  const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState<boolean>(false);
 
   // Dynamic categories persisted in localStorage
   const [categories, setCategories] = useState<string[]>(() =>
@@ -933,6 +942,22 @@ export const VaultView: React.FC<VaultViewProps> = ({
           </div>
         </div>
 
+        {/* Subtle Duplicate Contact Cleanup Trigger (Shown ONLY when duplicates are detected) */}
+        {duplicateGroups.length > 0 && (
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setIsDuplicateModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/25 text-amber-200 hover:text-amber-100 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400/40"
+            >
+              <GitMerge className="w-3.5 h-3.5 stroke-[1.8] text-amber-300 shrink-0" />
+              <span className="tabular-nums">
+                중복 연락처 {duplicateGroups.length}건 정리
+              </span>
+            </button>
+          </div>
+        )}
+
         {/* Row 3: Dedicated Full-Width Horizontal Scrolling Track for Category Filter Chips */}
         <div className="w-full max-w-full min-w-0">
           <div
@@ -1141,6 +1166,16 @@ export const VaultView: React.FC<VaultViewProps> = ({
         onMergeCategories={handlePanelMergeCategories}
         onDeleteCategory={handlePanelDeleteCategory}
         onResetCategories={handlePanelResetCategories}
+      />
+
+      {/* Side-by-Side Duplicate Contact Comparison & Smart Merge Modal */}
+      <DuplicateMergeModal
+        isOpen={isDuplicateModalOpen}
+        onClose={() => setIsDuplicateModalOpen(false)}
+        duplicateGroups={duplicateGroups}
+        onMergeGroup={(mergedCard, duplicateCardIds) => {
+          onMergeDuplicateCards?.(mergedCard, duplicateCardIds);
+        }}
       />
 
       {/* Web Speech Voice Search & Mic Permission Toast Notification */}

@@ -877,6 +877,35 @@ export default function App() {
     );
   }, []);
 
+  const handleMergeDuplicateCards = useCallback(
+    (mergedCard: StoredCard, duplicateCardIds: string[]) => {
+      if (isPinConfigured && isLocked) {
+        lockApp();
+        return;
+      }
+      const removeSet = new Set(duplicateCardIds);
+      const safeMerged: StoredCard = {
+        ...mergedCard,
+        isMyCard: false,
+        isDefault: false,
+      };
+      setCards((prev) =>
+        prev
+          .filter((c) => c.isMyCard || !removeSet.has(c.id))
+          .map((c) => (!c.isMyCard && c.id === safeMerged.id ? safeMerged : c))
+      );
+      if (selectedVaultCardId && removeSet.has(selectedVaultCardId)) {
+        setSelectedVaultCardId(safeMerged.id);
+      }
+      showToast(
+        `중복 연락처 ${duplicateCardIds.length}건을 '${
+          safeMerged.data.name || safeMerged.data.nameKr || '대표 명함'
+        }'(으)로 병합했습니다.`
+      );
+    },
+    [isPinConfigured, isLocked, lockApp, selectedVaultCardId, showToast]
+  );
+
   // Keyboard shortcut: Space to flip card in active single-card views
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1376,6 +1405,7 @@ export default function App() {
                       handleDeleteCategory(deletedName, fallbackCategory);
                     });
                   }}
+                  onMergeDuplicateCards={handleMergeDuplicateCards}
                   onShowToast={showToast}
                 />
               </Suspense>
