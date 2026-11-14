@@ -11,9 +11,16 @@ import {
   Check,
   Plus,
   UserPlus,
+  ScanText,
+  ShieldCheck,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { BusinessCardFront } from './BusinessCardFront';
 import { cropAndCompressCardImage } from '../utils/imageProcess';
+import { runLocalCardOcr } from '../utils/localOcr';
+import { ParsedCardFields, parseBusinessCardText } from '../utils/cardTextParser';
 import {
   CardSerializer,
   parseSlugFromInput,
@@ -70,10 +77,25 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
 
   // Essential Quick Input State (Photo Mode)
   const [name, setName] = useState('');
+  const [nameEn, setNameEn] = useState('');
   const [phone, setPhone] = useState('');
   const [companyAndNote, setCompanyAndNote] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
+  const [email, setEmail] = useState('');
+  const [website, setWebsite] = useState('');
+  const [extraMemo, setExtraMemo] = useState('');
   const [category, setCategory] = useState<string>('VIP 파트너');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Local OCR State
+  const [isExtractingOcr, setIsExtractingOcr] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const [ocrMessage, setOcrMessage] = useState('');
+  const [ocrError, setOcrError] = useState('');
+  const [rawOcrText, setRawOcrText] = useState('');
+  const [showRawOcrText, setShowRawOcrText] = useState(false);
+  const [pendingOcrParsed, setPendingOcrParsed] = useState<ParsedCardFields | null>(null);
+  const [ocrConflicts, setOcrConflicts] = useState<string[]>([]);
 
   // Shared Link Registration State (Link Mode)
   const [linkInput, setLinkInput] = useState('');
@@ -305,18 +327,35 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
   }
 
   // CAPTURE / ARCHIVE INPUT MODE
+  const resetOcrStates = () => {
+    setIsExtractingOcr(false);
+    setOcrProgress(0);
+    setOcrMessage('');
+    setOcrError('');
+    setRawOcrText('');
+    setShowRawOcrText(false);
+    setPendingOcrParsed(null);
+    setOcrConflicts([]);
+  };
+
   const resetModalInputs = () => {
     setFrontPhoto(null);
     setBackPhoto(null);
     setName('');
+    setNameEn('');
     setPhone('');
     setCompanyAndNote('');
+    setJobTitle('');
+    setEmail('');
+    setWebsite('');
+    setExtraMemo('');
     setCategory('VIP 파트너');
     setLinkInput('');
     setLinkNote('');
     setResolvedLinkCard(null);
     setLinkError(null);
     setRegisterMode('photo');
+    resetOcrStates();
   };
 
   const handleSafeClose = () => {
@@ -434,6 +473,7 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
       });
       if (slot === 'front') {
         setFrontPhoto(result.dataUrl);
+        resetOcrStates();
       } else {
         setBackPhoto(result.dataUrl);
       }
@@ -442,6 +482,128 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
     } finally {
       processingRef.current = false;
       setIsProcessing(false);
+    }
+  };
+
+  const applyOcrResult = (parsed: ParsedCardFields, mode: 'fill_empty' | 'overwrite') => {
+    let applied = 0;
+    const canSet = (cur: string, next: string) =>
+      Boolean(next.trim()) && (mode === 'overwrite' || cur.trim().length === 0);
+
+    if (canSet(name, parsed.name)) {
+      setName(parsed.name);
+      applied += 1;
+    }
+    if (canSet(nameEn, parsed.nameEn)) {
+      setNameEn(parsed.nameEn);
+    }
+    if (canSet(phone, parsed.phone)) {
+      setPhone(parsed.phone);
+      applied += 1;
+    }
+    if (canSet(companyAndNote, parsed.company)) {
+      setCompanyAndNote(parsed.company);
+      applied += 1;
+    }
+    if (canSet(jobTitle, parsed.title)) {
+      setJobTitle(parsed.title);
+      applied += 1;
+    }
+    if (canSet(email, parsed.email)) {
+      setEmail(parsed.email);
+      applied += 1;
+    }
+    if (canSet(website, parsed.website)) {
+      setWebsite(parsed.website);
+      applied += 1;
+    }
+
+    if (parsed.extraNotes.length > 0) {
+      const currentMemo = extraMemo.trim();
+      const additions = parsed.extraNotes.filter((line) => !currentMemo.includes(line));
+      if (additions.length > 0) {
+        setExtraMemo(currentMemo ? `${currentMemo} / ${additions.join(' / ')}` : additions.join(' / '));
+        applied += 1;
+      }
+    }
+
+    setPendingOcrParsed(null);
+    setOcrConflicts([]);
+    setOcrMessage(
+      applied > 0
+        ? `${applied}개 항목이 자동 입력되었습니다. 저장 전 내용을 확인해 주세요.`
+        : '새로 채울 항목이 없어 기존 입력값을 유지했습니다.'
+    );
+  };
+
+  const handleRunLocalOcr = async () => {
+    if (!frontPhoto || isExtractingOcr || isProcessing) return;
+    setIsExtractingOcr(true);
+    setOcrProgress(2);
+    setOcrMessage('');
+    setOcrError('');
+    setPendingOcrParsed(null);
+    setOcrConflicts([]);
+
+    try {
+      const { text } = await runLocalCardOcr(frontPhoto, ({ progress }) => {
+        setOcrProgress(progress);
+      });
+      setRawOcrText(text);
+
+      if (!text.trim()) {
+        setOcrError(
+          '이미지에서 글자를 인식하지 못했습니다. 조명이 밝고 글자가 선명한 정면 사진으로 다시 시도해 주세요.'
+        );
+        return;
+      }
+
+      const parsed = parseBusinessCardText(text);
+      const hasAnyField = Boolean(
+        parsed.name ||
+          parsed.nameEn ||
+          parsed.phone ||
+          parsed.company ||
+          parsed.title ||
+          parsed.email ||
+          parsed.website ||
+          parsed.extraNotes.length > 0
+      );
+
+      if (!hasAnyField) {
+        setOcrError(
+          '텍스트는 감지되었으나 연락처 항목을 찾지 못했습니다. 아래 원문 보기를 참고해 직접 입력해 주세요.'
+        );
+        setShowRawOcrText(true);
+        return;
+      }
+
+      const conflicts: string[] = [];
+      const checkConflict = (label: string, cur: string, ext: string) => {
+        if (cur.trim() && ext.trim() && cur.trim().toLowerCase() !== ext.trim().toLowerCase()) {
+          conflicts.push(label);
+        }
+      };
+      checkConflict('성명', name, parsed.name);
+      checkConflict('연락처', phone, parsed.phone);
+      checkConflict('소속', companyAndNote, parsed.company);
+      checkConflict('직함', jobTitle, parsed.title);
+      checkConflict('이메일', email, parsed.email);
+      checkConflict('웹사이트', website, parsed.website);
+
+      if (conflicts.length > 0) {
+        setOcrConflicts(conflicts);
+        setPendingOcrParsed(parsed);
+      } else {
+        applyOcrResult(parsed, 'fill_empty');
+      }
+    } catch (err) {
+      console.error('Local OCR error:', err);
+      setOcrError(
+        '로컬 OCR 분석 중 문제가 발생했습니다. 최초 실행 시 언어 데이터 로드를 위해 네트워크 연결이 필요할 수 있습니다.'
+      );
+    } finally {
+      setIsExtractingOcr(false);
     }
   };
 
@@ -482,7 +644,17 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
     if (!name.trim() || !phone.trim()) return;
 
     const cleanName = name.trim();
+    const cleanNameEn = nameEn.trim();
     const cleanOrg = companyAndNote.trim();
+    const cleanTitle = jobTitle.trim();
+    const cleanEmail = email.trim();
+    const cleanWebsite = website.trim();
+    const cleanWebsiteDisplay = cleanWebsite
+      ? cleanWebsite.replace(/^https?:\/\//i, '').replace(/\/$/, '')
+      : '';
+    const cleanNotes = [extraMemo.trim(), !extraMemo.trim() ? cleanOrg : '']
+      .filter(Boolean)
+      .join(' / ');
     const rawPhone = phone.replace(/[^0-9+]/g, '');
     const id = `photo-card-${Date.now()}`;
     const now = new Date().toISOString().split('T')[0];
@@ -496,52 +668,52 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
       theme: 'sumi_ink',
       layout_type: 'editorial_minimal',
       card_features: {
-        show_en_name: false,
+        show_en_name: Boolean(cleanNameEn),
         show_sub_org: Boolean(cleanOrg),
         show_address: false,
         monogram_text: '',
       },
       createdAt: now,
-      notes: cleanOrg || '실물 명함 보관',
+      notes: cleanNotes || '실물 명함 보관',
       scannedImage: frontPhoto || undefined,
       scannedImageBack: backPhoto || undefined,
       front_image_url: frontPhoto || undefined,
       back_image_url: backPhoto || undefined,
       details: {
-        en_name: '',
+        en_name: cleanNameEn,
         sub_org: '',
         address: '',
         address_en: '',
         slogan: '',
         show_address: false,
-        show_en_name: false,
+        show_en_name: Boolean(cleanNameEn),
       },
       data: {
         name: cleanName,
-        nameEn: '',
+        nameEn: cleanNameEn,
         nameKr: '',
         title: '',
-        titleKr: '',
+        titleKr: cleanTitle,
         organization: '',
         organizationKr: cleanOrg,
         subOrg: '',
         phone: phone.trim(),
         phoneRaw: rawPhone,
         whatsappUrl: rawPhone ? `https://wa.me/${rawPhone.replace(/^\+/, '')}` : '',
-        email: '',
-        website: '',
-        websiteDisplay: '',
+        email: cleanEmail,
+        website: cleanWebsite,
+        websiteDisplay: cleanWebsiteDisplay,
         addressLines: [],
         addressKr: '',
         address_en: '',
         details: {
-          en_name: '',
+          en_name: cleanNameEn,
           sub_org: '',
           address: '',
           address_en: '',
           slogan: '',
           show_address: false,
-          show_en_name: false,
+          show_en_name: Boolean(cleanNameEn),
         },
         googleMapsUrl: '',
         naverMapsUrl: '',
@@ -797,8 +969,11 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
                   {frontPhoto && (
                     <button
                       type="button"
-                      disabled={isProcessing}
-                      onClick={() => setFrontPhoto(null)}
+                      disabled={isProcessing || isExtractingOcr}
+                      onClick={() => {
+                        setFrontPhoto(null);
+                        resetOcrStates();
+                      }}
                       className="text-zinc-300 hover:text-white disabled:opacity-40 disabled:pointer-events-none text-[11px] cursor-pointer"
                     >
                       삭제
@@ -920,6 +1095,153 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
                 </div>
               </div>
             </div>
+
+            {frontPhoto && (
+              <div className="space-y-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={handleRunLocalOcr}
+                  disabled={isExtractingOcr || isProcessing}
+                  className={`w-full min-h-[42px] px-3.5 py-2.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-2 transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30 ${
+                    isExtractingOcr
+                      ? 'bg-[#1D1D20] border-white/15 text-zinc-200 cursor-wait'
+                      : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.12] hover:border-white/20 text-white cursor-pointer active:scale-[0.99]'
+                  }`}
+                >
+                  {isExtractingOcr ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-300 shrink-0" />
+                      <span className="tabular-nums">명함 텍스트 로컬 분석 중... {ocrProgress}%</span>
+                    </>
+                  ) : (
+                    <>
+                      <ScanText className="w-3.5 h-3.5 text-zinc-300 shrink-0 stroke-[1.6]" />
+                      <span>이미지에서 정보 자동 추출 (로컬 OCR)</span>
+                    </>
+                  )}
+                </button>
+
+                {isExtractingOcr ? (
+                  <div className="space-y-1.5 px-1">
+                    <div className="h-1 w-full rounded-full bg-white/[0.06] overflow-hidden">
+                      <div
+                        className="h-full bg-[#EAEAE6] transition-all duration-200 ease-out"
+                        style={{ width: `${ocrProgress}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-zinc-400 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                      <span>이미지는 외부 서버로 전송되지 않고 기기 내에서만 분석됩니다.</span>
+                    </p>
+                  </div>
+                ) : (
+                  !ocrMessage &&
+                  !ocrError &&
+                  !pendingOcrParsed && (
+                    <p className="text-[11px] text-zinc-500 flex items-center gap-1.5 px-0.5">
+                      <ShieldCheck className="w-3 h-3 text-zinc-500 shrink-0" />
+                      <span>100% 브라우저 온디바이스 분석 · 외부 전송 없음</span>
+                    </p>
+                  )
+                )}
+
+                {pendingOcrParsed && !isExtractingOcr && (
+                  <div className="rounded-xl bg-[#161618] border border-white/15 p-3.5 space-y-3 animate-in fade-in duration-150">
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-[#F2F2F5]">
+                        기존 입력과 겹치는 항목이 있습니다 ({ocrConflicts.join(', ')})
+                      </p>
+                      <p className="text-[11px] text-zinc-400 leading-relaxed">
+                        추출된 텍스트를 비어 있는 항목에만 채우거나, 기존 입력값을 덮어쓸 수 있습니다.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => applyOcrResult(pendingOcrParsed, 'fill_empty')}
+                        className="flex-1 min-h-[36px] px-3 py-1.5 rounded-lg bg-[#EAEAE6] hover:bg-[#F3F3F0] text-[#121214] text-xs font-medium whitespace-nowrap cursor-pointer transition-colors"
+                      >
+                        비어 있는 항목만 채우기
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyOcrResult(pendingOcrParsed, 'overwrite')}
+                        className="flex-1 min-h-[36px] px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-zinc-200 text-xs font-medium whitespace-nowrap cursor-pointer transition-colors"
+                      >
+                        기존 입력 덮어쓰기
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPendingOcrParsed(null);
+                          setOcrConflicts([]);
+                        }}
+                        className="min-h-[36px] px-2.5 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 text-xs whitespace-nowrap cursor-pointer"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {ocrMessage && !isExtractingOcr && (
+                  <div className="rounded-xl bg-[#161618] border border-emerald-500/20 px-3 py-2.5 space-y-2 animate-in fade-in duration-150">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-[11px] text-emerald-300/90 flex items-start gap-1.5 leading-relaxed">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                        <span>{ocrMessage}</span>
+                      </p>
+                      {rawOcrText && (
+                        <button
+                          type="button"
+                          onClick={() => setShowRawOcrText((prev) => !prev)}
+                          className="text-[11px] text-zinc-400 hover:text-zinc-200 inline-flex items-center gap-0.5 shrink-0 whitespace-nowrap cursor-pointer"
+                        >
+                          <span>원문</span>
+                          {showRawOcrText ? (
+                            <ChevronUp className="w-3 h-3" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3" />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    {showRawOcrText && rawOcrText && (
+                      <pre className="p-2 rounded-lg bg-[#101012] border border-white/[0.06] text-[11px] text-zinc-400 font-mono whitespace-pre-wrap break-words max-h-28 overflow-y-auto">
+                        {rawOcrText}
+                      </pre>
+                    )}
+                  </div>
+                )}
+
+                {ocrError && !isExtractingOcr && (
+                  <div className="rounded-xl bg-[#161618] border border-amber-500/25 px-3 py-2.5 space-y-2 animate-in fade-in duration-150">
+                    <p className="text-[11px] text-amber-300/90 leading-relaxed">{ocrError}</p>
+                    {rawOcrText && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setShowRawOcrText((prev) => !prev)}
+                          className="text-[11px] text-zinc-400 hover:text-zinc-200 inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
+                        >
+                          <span>인식된 원문 {showRawOcrText ? '숨기기' : '보기'}</span>
+                          {showRawOcrText ? (
+                            <ChevronUp className="w-3 h-3" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3" />
+                          )}
+                        </button>
+                        {showRawOcrText && (
+                          <pre className="p-2 rounded-lg bg-[#101012] border border-white/[0.06] text-[11px] text-zinc-400 font-mono whitespace-pre-wrap break-words max-h-28 overflow-y-auto">
+                            {rawOcrText}
+                          </pre>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
           {/* 2. Essential Contact Inputs (Separated by Hairline & Whitespace) */}
@@ -960,17 +1282,81 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
               </div>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <label className="flex items-center justify-between text-[11px]">
+                  <span className="text-zinc-400 font-normal">소속</span>
+                  <span className="text-[10px] text-zinc-500">선택</span>
+                </label>
+                <input
+                  type="text"
+                  value={companyAndNote}
+                  disabled={isProcessing}
+                  onChange={(e) => setCompanyAndNote(e.target.value)}
+                  placeholder="회사 또는 소속"
+                  className={INPUT_CLASS}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="flex items-center justify-between text-[11px]">
+                  <span className="text-zinc-400 font-normal">직함</span>
+                  <span className="text-[10px] text-zinc-500">선택</span>
+                </label>
+                <input
+                  type="text"
+                  value={jobTitle}
+                  disabled={isProcessing}
+                  onChange={(e) => setJobTitle(e.target.value)}
+                  placeholder="직책 또는 역할"
+                  className={INPUT_CLASS}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <label className="flex items-center justify-between text-[11px]">
+                  <span className="text-zinc-400 font-normal">이메일</span>
+                  <span className="text-[10px] text-zinc-500">선택</span>
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  disabled={isProcessing}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@domain.com"
+                  className={INPUT_CLASS}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="flex items-center justify-between text-[11px]">
+                  <span className="text-zinc-400 font-normal">웹사이트</span>
+                  <span className="text-[10px] text-zinc-500">선택</span>
+                </label>
+                <input
+                  type="url"
+                  value={website}
+                  disabled={isProcessing}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  placeholder="https://example.com"
+                  className={`${INPUT_CLASS} font-mono`}
+                />
+              </div>
+            </div>
+
             <div className="space-y-1.5">
               <label className="flex items-center justify-between text-[11px]">
-                <span className="text-zinc-400 font-normal">소속 및 메모</span>
-                <span className="text-[10px] text-zinc-400">선택</span>
+                <span className="text-zinc-400 font-normal">보관 메모 (유선/팩스 등)</span>
+                <span className="text-[10px] text-zinc-500">선택</span>
               </label>
               <input
                 type="text"
-                value={companyAndNote}
+                value={extraMemo}
                 disabled={isProcessing}
-                onChange={(e) => setCompanyAndNote(e.target.value)}
-                placeholder="소속 또는 메모"
+                onChange={(e) => setExtraMemo(e.target.value)}
+                placeholder="미팅 일시 또는 보조 연락처"
                 className={INPUT_CLASS}
               />
             </div>
