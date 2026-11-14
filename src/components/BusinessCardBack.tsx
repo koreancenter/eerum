@@ -4,6 +4,7 @@ import { CardData, CardTheme, CardOrientation, CardLayoutType } from '../types/c
 import { resolveThemeStyles, isVerticalLayout } from '../constants/templates';
 import { SandboxedCardRenderer } from './SandboxedCardRenderer';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
+import { sanitizeExternalUrl } from '../utils/sanitizeUrl';
 
 interface BusinessCardBackProps {
   data: CardData;
@@ -37,8 +38,10 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
   const isVerticalCard = isVerticalLayout(layout_type);
   const isPortrait = isVerticalCard || orientation === 'portrait';
 
+  const safeWebsiteUrl = useMemo(() => sanitizeExternalUrl(data.website), [data.website]);
+
   useEffect(() => {
-    const targetUrl = data.website || 'https://eerum.goguma.app/master';
+    const targetUrl = safeWebsiteUrl || 'https://eerum.goguma.app/master';
     QRCode.toString(targetUrl, {
       type: 'svg',
       margin: 0,
@@ -54,7 +57,7 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
       .catch((err) => {
         console.warn('Notice generating QR', err);
       });
-  }, [theme, isLight, data.website]);
+  }, [theme, isLight, safeWebsiteUrl]);
 
   // Custom HTML / Tailwind Injection Back Face Rendering
   if (sanitizedHtmlBack) {
@@ -165,28 +168,39 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
       {/* Bottom Bar: QR Code Block cleanly at Bottom-Left, HQ Address at Bottom-Right */}
       <div className={`relative z-10 flex items-end justify-between gap-3 w-full pt-3 sm:pt-3.5 border-t ${themeStyles.accentHairline} mt-auto`}>
         {/* Bottom-Left: QR Code Block */}
-        <a
-          href={data.website || 'https://eerum.goguma.app/master'}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-end gap-2.5 group/qr hover:opacity-85 transition-opacity min-w-0 shrink-0 cursor-pointer"
-          title={data.websiteDisplay ? `${data.websiteDisplay} 바로가기` : '디지털 명함 바로가기'}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {qrSvg && (
-            <div
-              className={`w-9 h-9 sm:w-10 sm:h-10 p-1.5 rounded-md bg-[#FAF8F4] border border-[#1C1B1A]/10 flex items-center justify-center shrink-0 [&>svg]:w-full [&>svg]:h-full`}
-              dangerouslySetInnerHTML={{ __html: qrSvg }}
-            />
-          )}
-          {!isPortrait && (
-            <div className="text-left leading-tight pb-0.5 min-w-0">
-              <p className={`font-mono text-[9.5px] sm:text-[10px] tracking-tight ${themeStyles.textSecondary} group-hover/qr:underline underline-offset-2 truncate max-w-[155px] sm:max-w-[195px]`}>
-                {data.websiteDisplay}
-              </p>
-            </div>
-          )}
-        </a>
+        {safeWebsiteUrl ? (
+          <a
+            href={safeWebsiteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-end gap-2.5 group/qr hover:opacity-85 transition-opacity min-w-0 shrink-0 cursor-pointer"
+            title={data.websiteDisplay ? `${data.websiteDisplay} 바로가기` : '디지털 명함 바로가기'}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {qrSvg && (
+              <div
+                className={`w-9 h-9 sm:w-10 sm:h-10 p-1.5 rounded-md bg-[#FAF8F4] border border-[#1C1B1A]/10 flex items-center justify-center shrink-0 [&>svg]:w-full [&>svg]:h-full`}
+                dangerouslySetInnerHTML={{ __html: qrSvg }}
+              />
+            )}
+            {!isPortrait && (
+              <div className="text-left leading-tight pb-0.5 min-w-0">
+                <p className={`font-mono text-[9.5px] sm:text-[10px] tracking-tight ${themeStyles.textSecondary} group-hover/qr:underline underline-offset-2 truncate max-w-[155px] sm:max-w-[195px]`}>
+                  {data.websiteDisplay}
+                </p>
+              </div>
+            )}
+          </a>
+        ) : (
+          <div className="flex items-end gap-2.5 min-w-0 shrink-0">
+            {qrSvg && (
+              <div
+                className={`w-9 h-9 sm:w-10 sm:h-10 p-1.5 rounded-md bg-[#FAF8F4] border border-[#1C1B1A]/10 flex items-center justify-center shrink-0 [&>svg]:w-full [&>svg]:h-full`}
+                dangerouslySetInnerHTML={{ __html: qrSvg }}
+              />
+            )}
+          </div>
+        )}
 
         {/* Bottom-Right: HQ Address */}
         <div className="text-right min-w-0 pb-0.5">

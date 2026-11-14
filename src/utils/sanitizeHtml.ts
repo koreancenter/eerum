@@ -1,4 +1,5 @@
 import DOMPurify, { Config } from 'dompurify';
+export { sanitizeExternalUrl } from './sanitizeUrl';
 
 /**
  * Allowed safe HTML & non-executable SVG tags for custom business card rendering.

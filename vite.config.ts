@@ -4,6 +4,100 @@ import path from 'path';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+const DEV_HMR_SHIM_SCRIPT = `<script data-dev-hmr-shim>
+      (function () {
+        if (typeof window !== 'undefined' && window.WebSocket) {
+          var OrigWebSocket = window.WebSocket;
+          var DummyWebSocket = function (url, protocols) {
+            var isHmr =
+              protocols === 'vite-hmr' ||
+              (Array.isArray(protocols) && protocols.indexOf('vite-hmr') !== -1) ||
+              (typeof url === 'string' && (url.indexOf('vite') !== -1 || url.indexOf('hmr') !== -1));
+
+            if (isHmr) {
+              var target = new EventTarget();
+              target.binaryType = 'blob';
+              target.readyState = 1;
+              target.url = url;
+              target.protocol = 'vite-hmr';
+              target.extensions = '';
+              target.bufferedAmount = 0;
+              target.send = function () {};
+              target.close = function () {};
+              target.onopen = null;
+              target.onclose = null;
+              target.onerror = null;
+              target.onmessage = null;
+              target.CONNECTING = 0;
+              target.OPEN = 1;
+              target.CLOSING = 2;
+              target.CLOSED = 3;
+
+              setTimeout(function () {
+                var openEvt = new Event('open');
+                if (typeof target.onopen === 'function') target.onopen(openEvt);
+                target.dispatchEvent(openEvt);
+              }, 10);
+
+              return target;
+            }
+
+            return new OrigWebSocket(url, protocols);
+          };
+
+          DummyWebSocket.CONNECTING = 0;
+          DummyWebSocket.OPEN = 1;
+          DummyWebSocket.CLOSING = 2;
+          DummyWebSocket.CLOSED = 3;
+          DummyWebSocket.prototype = OrigWebSocket.prototype;
+          window.WebSocket = DummyWebSocket;
+        }
+
+        function isViteWsError(str) {
+          if (!str || typeof str !== 'string') return false;
+          return (
+            str.indexOf('WebSocket') !== -1 ||
+            str.indexOf('websocket') !== -1 ||
+            str.indexOf('[vite]') !== -1 ||
+            str.indexOf('vite') !== -1
+          );
+        }
+
+        window.onerror = function (msg, source, lineno, colno, error) {
+          var text = (msg || '') + ' ' + (source || '') + ' ' + (error && error.message ? error.message : '');
+          if (isViteWsError(text)) return true;
+        };
+
+        window.addEventListener('error', function (e) {
+          var msg = (e && (e.message || (e.error && e.error.message))) || '';
+          if (isViteWsError(msg)) {
+            if (e.preventDefault) e.preventDefault();
+            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function (e) {
+          var reason = e && e.reason;
+          var msg = typeof reason === 'string' ? reason : (reason && (reason.message || String(reason))) || '';
+          if (isViteWsError(msg)) {
+            if (e.preventDefault) e.preventDefault();
+            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+          }
+        }, true);
+
+        var origError = console.error;
+        console.error = function () {
+          for (var i = 0; i < arguments.length; i++) {
+            var arg = arguments[i];
+            var str = typeof arg === 'string' ? arg : (arg && (arg.message || String(arg))) || '';
+            if (isViteWsError(str)) return;
+          }
+          return origError.apply(console, arguments);
+        };
+      })();
+    </script>`;
+
 export default defineConfig(({ mode }) => {
   return {
     define: {
@@ -13,17 +107,29 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       {
+        name: 'inject-dev-hmr-shim',
+        apply: 'serve',
+        transformIndexHtml: {
+          order: 'pre',
+          handler(html) {
+            if (mode !== 'development') return html;
+            return html.replace(
+              '<meta name="theme-color"',
+              `${DEV_HMR_SHIM_SCRIPT}\n    <meta name="theme-color"`
+            );
+          },
+        },
+      },
+      {
         name: 'optimize-html-build',
         apply: 'build',
         transformIndexHtml: {
           order: 'post',
           handler(html) {
-            return html
-              .replace(/<script data-dev-hmr-shim>[\s\S]*?<\/script>\s*/i, '')
-              .replace(
-                /<link rel="stylesheet"([^>]*href="\/assets\/[^"]+\.css"[^>]*)>/gi,
-                '<link rel="preload" as="style"$1><link rel="stylesheet"$1 media="print" onload="this.media=\'all\'" data-app-css><noscript><link rel="stylesheet"$1></noscript>'
-              );
+            return html.replace(
+              /<link rel="stylesheet"([^>]*href="\/assets\/[^"]+\.css"[^>]*)>/gi,
+              '<link rel="preload" as="style"$1><link rel="stylesheet"$1 media="print" onload="this.media=\'all\'" data-app-css><noscript><link rel="stylesheet"$1></noscript>'
+            );
           },
         },
       },

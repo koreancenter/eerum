@@ -1,6 +1,7 @@
 import React from 'react';
 import { CardData, CardOrientation } from '../types/card';
 import { downloadVCard } from '@/utils/cardExporter';
+import { sanitizeExternalUrl } from '@/utils/sanitizeUrl';
 import {
   Phone,
   MessageSquare,
@@ -59,6 +60,8 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   const iconButtonClass =
     'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-200 cursor-pointer';
 
+  const safeWebsiteUrl = sanitizeExternalUrl(data.website);
+
   const contactChannels = (
     [
       phoneTarget && {
@@ -82,9 +85,9 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
         title: `이메일 작성 (${data.email})`,
         ariaLabel: '이메일 작성',
       },
-      data.website && {
+      safeWebsiteUrl && {
         key: 'website',
-        href: data.website,
+        href: safeWebsiteUrl,
         Icon: Globe,
         title: isOwner ? '온라인 웹사이트 보기' : '웹사이트 방문',
         ariaLabel: isOwner ? '온라인 웹사이트' : '웹사이트',

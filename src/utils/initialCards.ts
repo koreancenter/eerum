@@ -6,7 +6,8 @@ import {
   getActiveSessionPin,
   clearActiveSessionKey,
 } from './vaultSession';
-import { isPinSet } from './pinLock';
+import { isPinSet, getSessionLocked } from './pinLock';
+import { sanitizeExternalUrl } from './sanitizeUrl';
 
 const STORAGE_KEY = 'my_cards';
 const FALLBACK_STORAGE_KEY = 'user_cards';
@@ -14,6 +15,14 @@ const LEGACY_STORAGE_KEY = 'koreancenter_stored_cards_v2';
 
 // In-memory decrypted cards cache to protect against DevTools plain-text extraction
 let memoryDecryptedCards: StoredCard[] | null = null;
+
+/**
+ * Immediately wipes decrypted cards and session cryptographic keys from runtime memory.
+ */
+export function clearMemoryDecryptedCards(): void {
+  memoryDecryptedCards = null;
+  clearActiveSessionKey();
+}
 
 function enrichCard(c: StoredCard): StoredCard {
   const rawData = c.data;
@@ -47,14 +56,28 @@ function enrichCard(c: StoredCard): StoredCard {
     slug: c.isMyCard ? c.slug : undefined,
     customDomain: c.isMyCard ? c.customDomain : undefined,
     data: rawData
-      ? {
-          ...rawData,
-          name: primaryName || rawData.name || '',
-          nameEn: cleanNameEn,
-          nameKr: cleanNameKr,
-          organization: cleanOrg,
-          title: cleanTitle,
-        }
+      ? (() => {
+          const rawWeb = rawData.website || '';
+          const safeWeb = rawWeb ? sanitizeExternalUrl(rawWeb) : '';
+          const safeDisplay =
+            rawWeb && !safeWeb ? '' : (rawData.websiteDisplay || '');
+          return {
+            ...rawData,
+            name: primaryName || rawData.name || '',
+            nameEn: cleanNameEn,
+            nameKr: cleanNameKr,
+            organization: cleanOrg,
+            title: cleanTitle,
+            website: safeWeb,
+            websiteDisplay: safeDisplay,
+            googleMapsUrl: rawData.googleMapsUrl
+              ? sanitizeExternalUrl(rawData.googleMapsUrl)
+              : rawData.googleMapsUrl,
+            naverMapsUrl: rawData.naverMapsUrl
+              ? sanitizeExternalUrl(rawData.naverMapsUrl)
+              : rawData.naverMapsUrl,
+          };
+        })()
       : c.data,
   };
   const isLegacyMasterSample =
@@ -125,6 +148,23 @@ export function normalizeStoredCards(rawCards: StoredCard[]): StoredCard[] {
   const hasExplicitDefaultMyCard = enrichedList.some((c) => c.isMyCard && c.isDefault);
 
   return enrichedList.map((card, idx) => {
+    const rawWebsite = card.data?.website || '';
+    const sanitizedWebsite = rawWebsite ? sanitizeExternalUrl(rawWebsite) : '';
+    const sanitizedData = card.data
+      ? {
+          ...card.data,
+          website: sanitizedWebsite,
+          websiteDisplay:
+            rawWebsite && !sanitizedWebsite ? '' : (card.data.websiteDisplay || ''),
+          googleMapsUrl: card.data.googleMapsUrl
+            ? sanitizeExternalUrl(card.data.googleMapsUrl)
+            : card.data.googleMapsUrl,
+          naverMapsUrl: card.data.naverMapsUrl
+            ? sanitizeExternalUrl(card.data.naverMapsUrl)
+            : card.data.naverMapsUrl,
+        }
+      : card.data;
+
     if (card.isMyCard) {
       let id = card.id || `my-card-${Date.now()}-${idx}`;
       const shouldBeDefault = hasExplicitDefaultMyCard
@@ -138,6 +178,7 @@ export function normalizeStoredCards(rawCards: StoredCard[]): StoredCard[] {
         id,
         isMyCard: true,
         isDefault: shouldBeDefault,
+        data: sanitizedData,
       };
     }
 
@@ -155,6 +196,7 @@ export function normalizeStoredCards(rawCards: StoredCard[]): StoredCard[] {
       owner_key: undefined,
       slug: undefined,
       customDomain: undefined,
+      data: sanitizedData,
     };
   });
 }
@@ -180,6 +222,11 @@ export function hasLocalWalletInitialized(): boolean {
 
 export function loadUserCards(): StoredCard[] {
   if (typeof window === 'undefined') return [];
+
+  // Never expose plaintext cards from memory or storage while session lock is active
+  if (isPinSet() && getSessionLocked()) {
+    return [];
+  }
 
   // 1. If cards have been decrypted into memory during the authenticated session, return them
   if (memoryDecryptedCards !== null) {
