@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { StoredCard } from '../types/card';
 import type { PinModalMode } from '../components/PinLockModal';
 import type { LegalDocType } from '../components/LegalModal';
+import type { BackupModalTab } from '../components/VaultBackupModal';
 
 export interface ModalManager {
   // Modal visibility flags
@@ -24,6 +25,8 @@ export interface ModalManager {
   isResetOpen: boolean;
   isFromShare: boolean;
   isImportContactsOpen: boolean;
+  isBackupOpen: boolean;
+  backupInitialTab: BackupModalTab;
 
   // Settings dropdown ref
   settingsMenuRef: React.RefObject<HTMLDivElement | null>;
@@ -57,6 +60,8 @@ export interface ModalManager {
   closeLegal: () => void;
   openReset: () => void;
   closeReset: () => void;
+  openBackup: (tab?: BackupModalTab) => void;
+  closeBackup: () => void;
   closeAll: () => void;
 }
 
@@ -85,6 +90,8 @@ export function useModalState(): ModalManager {
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [isFromShare, setIsFromShare] = useState(false);
   const [isImportContactsOpen, setIsImportContactsOpen] = useState(false);
+  const [isBackupOpen, setIsBackupOpen] = useState(false);
+  const [backupInitialTab, setBackupInitialTab] = useState<BackupModalTab>('export');
 
   const settingsMenuRef = useRef<HTMLDivElement | null>(null);
   const isShareOpenRef = useRef(false);
@@ -213,6 +220,12 @@ export function useModalState(): ModalManager {
   const openReset = useCallback(() => setIsResetOpen(true), []);
   const closeReset = useCallback(() => setIsResetOpen(false), []);
 
+  const openBackup = useCallback((tab: BackupModalTab = 'export') => {
+    setBackupInitialTab(tab);
+    setIsBackupOpen(true);
+  }, []);
+  const closeBackup = useCallback(() => setIsBackupOpen(false), []);
+
   const closeAll = useCallback(() => {
     returnToShareRef.current = false;
     setIsFromShare(false);
@@ -230,6 +243,7 @@ export function useModalState(): ModalManager {
     setIsLazyPinOpen(false);
     setIsLegalOpen(false);
     setIsResetOpen(false);
+    setIsBackupOpen(false);
     setEditingCard(null);
     setIsCreatingCard(false);
   }, []);
@@ -254,6 +268,8 @@ export function useModalState(): ModalManager {
     legalDocType,
     isResetOpen,
     isFromShare,
+    isBackupOpen,
+    backupInitialTab,
     settingsMenuRef,
     openShare,
     closeShare,
@@ -283,6 +299,8 @@ export function useModalState(): ModalManager {
     closeLegal,
     openReset,
     closeReset,
+    openBackup,
+    closeBackup,
     closeAll,
   };
 }

@@ -10,6 +10,12 @@ import {
 import { generateOwnerKey } from '../utils/ownerKey';
 import { isLazyPinPromptEligible } from '../utils/pinLock';
 import { APP_BASE_DOMAIN, sanitizeCardForVault } from '@/utils/cardSerializer';
+import { loadVaultCategories } from '../utils/categories';
+import {
+  type VaultBackupPayloadV1,
+  type BackupRestoreMode,
+  applyBackupRestore,
+} from '../utils/vaultBackup';
 import { useAutoLock } from './useAutoLock';
 import type { ModalManager } from './useModalState';
 
@@ -700,6 +706,72 @@ export function useCardVault({
     [isPinConfigured, isLocked, lockApp, selectedVaultCardId, showToast]
   );
 
+  const handleRestoreVaultBackup = useCallback(
+    (payload: VaultBackupPayloadV1, mode: BackupRestoreMode) => {
+      requireUnlock(() => {
+        const existingCategories = loadVaultCategories(cards);
+        const result = applyBackupRestore(payload, cards, existingCategories, mode);
+
+        setCards(result.cards);
+        saveUserCards(result.cards);
+
+        const restoredMyCards = result.cards.filter((c) => c.isMyCard);
+        const restoredVaultCards = result.cards.filter((c) => !c.isMyCard);
+
+        // Strictly isolate selectedMyCardId to personal cards (`isMyCard: true`)
+        if (restoredMyCards.length === 0) {
+          setSelectedMyCardId('');
+        } else if (
+          mode === 'replace' ||
+          !restoredMyCards.some((c) => c.id === selectedMyCardId)
+        ) {
+          const nextDefaultMy =
+            restoredMyCards.find((c) => c.isDefault) || restoredMyCards[0];
+          setSelectedMyCardId(nextDefaultMy?.id || '');
+        }
+
+        // Strictly isolate selectedVaultCardId to Vault cards (`isMyCard: false`)
+        if (
+          mode === 'replace' ||
+          (selectedVaultCardId &&
+            !restoredVaultCards.some((c) => c.id === selectedVaultCardId))
+        ) {
+          setSelectedVaultCardId(null);
+        }
+
+        setModalTargetCardId(null);
+        setCardPendingDelete(null);
+        setIsSamplePreview(false);
+        setIsFlipped(false);
+        if (restoredMyCards.length > 0) {
+          setShowWelcomeIntro(false);
+        }
+
+        if (mode === 'replace') {
+          showToast(`백업 파일의 명함 ${result.cards.length}장으로 보관함이 복원되었습니다.`);
+        } else if (result.addedCount === 0 && result.skippedCount > 0) {
+          showToast(`모든 명함(${result.skippedCount}장)이 이미 보관함에 있어 건너뛰었습니다.`);
+        } else if (result.skippedCount > 0) {
+          showToast(
+            `명함 ${result.addedCount}장이 병합 복원되었습니다 (중복 ${result.skippedCount}장 건너뜀).`
+          );
+        } else {
+          showToast(`명함 ${result.addedCount}장이 보관함에 안전하게 복원되었습니다.`);
+        }
+      });
+    },
+    [
+      requireUnlock,
+      cards,
+      selectedMyCardId,
+      selectedVaultCardId,
+      setIsSamplePreview,
+      setIsFlipped,
+      setShowWelcomeIntro,
+      showToast,
+    ]
+  );
+
   return {
     cards,
     setCards,
@@ -735,5 +807,6 @@ export function useCardVault({
     handleDeleteCategory,
     handleUpdateCardNotes,
     handleMergeDuplicateCards,
+    handleRestoreVaultBackup,
   };
 }

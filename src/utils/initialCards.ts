@@ -514,6 +514,8 @@ export function clearAllLocalData(): void {
     localStorage.removeItem('lazy_pin_dismissed');
     localStorage.removeItem('vault_categories_v1');
     localStorage.removeItem('eerum_first_launch_done');
+    localStorage.removeItem('eerum_last_backup_at');
+    localStorage.removeItem('eerum_backup_nudge_dismissed_at');
     sessionStorage.clear();
   } catch (e) {
     console.warn('Notice resetting local data', e);

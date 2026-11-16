@@ -34,6 +34,8 @@ import {
   KeyRound,
   Code2,
   Download,
+  Upload,
+  HardDriveDownload,
 } from 'lucide-react';
 
 const AppModals = lazyWithRetry(() =>
@@ -64,7 +66,9 @@ const PWAInstallModal = lazyWithRetry(() =>
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('my-card');
   const [isSamplePreview, setIsSamplePreview] = useState<boolean>(false);
-  const [sampleCard, setSampleCard] = useState<StoredCard | null>(null);
+  const [sampleCards, setSampleCards] = useState<StoredCard[]>([]);
+  const [sampleIndex, setSampleIndex] = useState<number>(0);
+  const sampleCard = sampleCards[sampleIndex] || null;
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [isMemoOpen, setIsMemoOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -277,6 +281,13 @@ export default function App() {
     !isSamplePreview &&
     (showWelcomeIntro || vault.myCards.length === 0 || !currentMyCard);
 
+  const selectedVaultIndex = vault.selectedVaultCard
+    ? vault.vaultCards.findIndex((c) => c.id === vault.selectedVaultCard!.id)
+    : -1;
+  const hasPrevVaultCard = selectedVaultIndex > 0;
+  const hasNextVaultCard =
+    selectedVaultIndex >= 0 && selectedVaultIndex < vault.vaultCards.length - 1;
+
   return (
     <>
       {/* SCREEN UI CONTAINER */}
@@ -439,6 +450,32 @@ export default function App() {
                       </button>
 
                       <div className="my-1 border-t border-white/10" />
+
+                      <button
+                        onClick={() => {
+                          modals.closeSettings();
+                          vault.requireUnlock(() => {
+                            modals.openBackup('export');
+                          });
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer text-left"
+                      >
+                        <HardDriveDownload className="w-3.5 h-3.5 text-white" />
+                        <span>보관함 백업 내보내기 (.eerum)</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          modals.closeSettings();
+                          vault.requireUnlock(() => {
+                            modals.openBackup('restore');
+                          });
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer text-left"
+                      >
+                        <Upload className="w-3.5 h-3.5 text-white" />
+                        <span>백업 파일에서 복원</span>
+                      </button>
 
                       <button
                         onClick={() => {
@@ -637,6 +674,7 @@ export default function App() {
                       }
                     >
                       <CardContainer
+                        cardKey={vault.selectedVaultCard.id}
                         data={vault.selectedVaultCard.data}
                         theme={vault.selectedVaultCard.theme}
                         layout_type={vault.selectedVaultCard.layout_type}
@@ -672,6 +710,26 @@ export default function App() {
                         onToggleMemo={() => setIsMemoOpen((prev) => !prev)}
                         isMemoOpen={isMemoOpen}
                         hasMemo={Boolean(vault.selectedVaultCard.notes?.trim())}
+                        hasPrev={hasPrevVaultCard}
+                        hasNext={hasNextVaultCard}
+                        carouselIndex={Math.max(0, selectedVaultIndex)}
+                        carouselTotal={vault.vaultCards.length}
+                        onSwipePrev={() => {
+                          if (!hasPrevVaultCard) return;
+                          setIsFlipped(false);
+                          vault.setSelectedVaultCardId(vault.vaultCards[selectedVaultIndex - 1].id);
+                        }}
+                        onSwipeNext={() => {
+                          if (!hasNextVaultCard) return;
+                          setIsFlipped(false);
+                          vault.setSelectedVaultCardId(vault.vaultCards[selectedVaultIndex + 1].id);
+                        }}
+                        onSelectIndex={(idx) => {
+                          const target = vault.vaultCards[idx];
+                          if (!target) return;
+                          setIsFlipped(false);
+                          vault.setSelectedVaultCardId(target.id);
+                        }}
                       />
                     </Suspense>
                   </LazyErrorBoundary>
@@ -758,6 +816,12 @@ export default function App() {
                   }}
                   onMergeDuplicateCards={vault.handleMergeDuplicateCards}
                   onShowToast={showToast}
+                  totalSavedCardsCount={vault.cards.length}
+                  onOpenBackup={(tab = 'export') => {
+                    vault.requireUnlock(() => {
+                      modals.openBackup(tab);
+                    });
+                  }}
                 />
               </Suspense>
             </LazyErrorBoundary>
@@ -773,7 +837,9 @@ export default function App() {
                   onExploreSample={async () => {
                     markFirstLaunchDone();
                     const { INITIAL_CARDS } = await import('./constants/sampleCards');
-                    setSampleCard(INITIAL_CARDS[0] || null);
+                    setSampleCards(INITIAL_CARDS);
+                    setSampleIndex(0);
+                    setIsFlipped(false);
                     setShowWelcomeIntro(false);
                     setIsSamplePreview(true);
                   }}
@@ -832,6 +898,7 @@ export default function App() {
                         }
                       >
                         <CardContainer
+                          cardKey={currentMyCard.id}
                           data={currentMyCard.data}
                           theme={currentMyCard.theme}
                           layout_type={currentMyCard.layout_type}
@@ -839,6 +906,8 @@ export default function App() {
                           isPhotoCard={currentMyCard.isPhotoCard}
                           photoUrl={currentMyCard.scannedImage}
                           backPhotoUrl={currentMyCard.scannedImageBack}
+                          html_front={currentMyCard.html_front}
+                          html_back={currentMyCard.html_back}
                           isFlipped={isFlipped}
                           onFlip={() => setIsFlipped((prev) => !prev)}
                           onOpenShare={() => {
@@ -849,6 +918,25 @@ export default function App() {
                           onDelete={
                             !isSamplePreview ? () => vault.handleRequestDeleteCard(currentMyCard) : undefined
                           }
+                          hasPrev={sampleIndex > 0}
+                          hasNext={sampleIndex < sampleCards.length - 1}
+                          carouselIndex={sampleIndex}
+                          carouselTotal={sampleCards.length}
+                          onSwipePrev={() => {
+                            if (sampleIndex <= 0) return;
+                            setIsFlipped(false);
+                            setSampleIndex((prev) => Math.max(0, prev - 1));
+                          }}
+                          onSwipeNext={() => {
+                            if (sampleIndex >= sampleCards.length - 1) return;
+                            setIsFlipped(false);
+                            setSampleIndex((prev) => Math.min(sampleCards.length - 1, prev + 1));
+                          }}
+                          onSelectIndex={(idx) => {
+                            if (idx < 0 || idx >= sampleCards.length) return;
+                            setIsFlipped(false);
+                            setSampleIndex(idx);
+                          }}
                         />
                       </Suspense>
                     </LazyErrorBoundary>
@@ -863,7 +951,9 @@ export default function App() {
                   onExploreSample={async () => {
                     markFirstLaunchDone();
                     const { INITIAL_CARDS } = await import('./constants/sampleCards');
-                    setSampleCard(INITIAL_CARDS[0] || null);
+                    setSampleCards(INITIAL_CARDS);
+                    setSampleIndex(0);
+                    setIsFlipped(false);
                     setIsSamplePreview(true);
                   }}
                   onViewMyCards={
@@ -991,13 +1081,15 @@ export default function App() {
           modals.isBiometricsOpen ||
           modals.isLazyPinOpen ||
           modals.isLegalOpen ||
-          modals.isResetOpen) && (
+          modals.isResetOpen ||
+          modals.isBackupOpen) && (
           <Suspense fallback={null}>
             <AppModals
               modals={modals}
               activeCard={modalTargetCard}
               existingCards={vault.cards}
               onImportCards={vault.handleImportCards}
+              onRestoreBackup={vault.handleRestoreVaultBackup}
               isOwner={!isPublicExternalView}
               printConfig={printConfig}
               setPrintConfig={setPrintConfig}

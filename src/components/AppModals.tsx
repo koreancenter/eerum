@@ -5,6 +5,7 @@ import { loadUserCards } from '../utils/initialCards';
 import { markLazyPinDismissed } from '../utils/pinLock';
 import { loadVaultCategories } from '../utils/categories';
 import { getCardShareUrl } from '@/utils/cardSerializer';
+import type { VaultBackupPayloadV1, BackupRestoreMode } from '../utils/vaultBackup';
 import { lazyWithRetry, LazyErrorBoundary } from '../utils/lazyWithRetry';
 
 const ShareModal = lazyWithRetry(() =>
@@ -46,6 +47,9 @@ const ResetDataModal = lazyWithRetry(() =>
 const ImportContactsModal = lazyWithRetry(() =>
   import('./ImportContactsModal').then((m) => ({ default: m.ImportContactsModal }))
 );
+const VaultBackupModal = lazyWithRetry(() =>
+  import('./VaultBackupModal').then((m) => ({ default: m.VaultBackupModal }))
+);
 
 export interface AppModalsProps {
   modals: ModalManager;
@@ -66,6 +70,7 @@ export interface AppModalsProps {
   categories?: string[];
   onImportCards?: (cards: StoredCard[]) => void;
   onDeleteCard?: (cardId: string) => void;
+  onRestoreBackup?: (payload: VaultBackupPayloadV1, mode: BackupRestoreMode) => void;
 }
 
 /**
@@ -92,6 +97,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
   categories,
   onImportCards,
   onDeleteCard,
+  onRestoreBackup,
 }) => {
   const isLockScreenActive = isLocked && isPinConfigured;
 
@@ -283,6 +289,20 @@ export const AppModals: React.FC<AppModalsProps> = ({
             onImportCards={handleImport}
             categories={resolvedCategories}
             showToast={showToast}
+          />
+        )}
+
+        {/* Encrypted Local Vault Backup & Restore Modal */}
+        {modals.isBackupOpen && onRestoreBackup && (
+          <VaultBackupModal
+            isOpen={modals.isBackupOpen}
+            initialTab={modals.backupInitialTab}
+            onClose={modals.closeBackup}
+            cards={existingCards}
+            categories={resolvedCategories}
+            isPinConfigured={isPinConfigured}
+            onRestoreBackup={onRestoreBackup}
+            onShowToast={showToast}
           />
         )}
 

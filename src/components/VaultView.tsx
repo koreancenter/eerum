@@ -14,6 +14,8 @@ import {
   ArrowUpDown,
   ChevronDown,
   GitMerge,
+  ShieldAlert,
+  Download,
 } from 'lucide-react';
 
 export type VaultSortOption = 'newest' | 'oldest' | 'name' | 'company';
@@ -43,6 +45,12 @@ import {
 } from '../utils/categories';
 import { matchesAnySearchField } from '../utils/koreanSearch';
 import { detectDuplicateVaultGroups } from '../utils/duplicateDetector';
+import {
+  BACKUP_UPDATED_EVENT,
+  getLastBackupAt,
+  shouldShowBackupNudge,
+  dismissBackupNudge,
+} from '../utils/vaultBackup';
 
 const parseTimestampMs = (val?: string): number => {
   if (!val) return 0;
@@ -84,6 +92,8 @@ interface VaultViewProps {
   onDeleteCategory?: (deletedName: string, fallbackCategory: string) => void;
   onMergeDuplicateCards?: (mergedCard: StoredCard, duplicateCardIds: string[]) => void;
   onShowToast?: (msg: string) => void;
+  totalSavedCardsCount?: number;
+  onOpenBackup?: (tab?: 'export' | 'restore') => void;
 }
 
 export const VaultView: React.FC<VaultViewProps> = ({
@@ -101,11 +111,32 @@ export const VaultView: React.FC<VaultViewProps> = ({
   onDeleteCategory,
   onMergeDuplicateCards,
   onShowToast,
+  totalSavedCardsCount,
+  onOpenBackup,
 }) => {
   // Defensive filter: strictly isolate Vault cards from personal cards (`isMyCard: true` belongs exclusively to '내 명함')
   const cards = useMemo(() => rawCards.filter((c) => !c.isMyCard), [rawCards]);
   const cardsRef = useRef<StoredCard[]>(cards);
   cardsRef.current = cards;
+
+  // Non-intrusive Backup Safety Nudge state (shows when >= 3 cards and never backed up or > 30 days)
+  const effectiveTotalCardsCount = totalSavedCardsCount ?? cards.length;
+  const [showBackupNudge, setShowBackupNudge] = useState<boolean>(() =>
+    shouldShowBackupNudge(effectiveTotalCardsCount)
+  );
+  const [lastBackupTimestamp, setLastBackupTimestamp] = useState<number | null>(() =>
+    getLastBackupAt()
+  );
+
+  useEffect(() => {
+    const syncBackupNudge = () => {
+      setLastBackupTimestamp(getLastBackupAt());
+      setShowBackupNudge(shouldShowBackupNudge(effectiveTotalCardsCount));
+    };
+    syncBackupNudge();
+    window.addEventListener(BACKUP_UPDATED_EVENT, syncBackupNudge);
+    return () => window.removeEventListener(BACKUP_UPDATED_EVENT, syncBackupNudge);
+  }, [effectiveTotalCardsCount]);
 
   // Duplicate contact detection (Vault-only, normalized phone/email)
   const duplicateGroups = useMemo(() => detectDuplicateVaultGroups(cards), [cards]);
@@ -1062,6 +1093,53 @@ export const VaultView: React.FC<VaultViewProps> = ({
           )}
         </div>
       </header>
+
+      {/* Non-Intrusive Local-First Backup Safety Nudge */}
+      {showBackupNudge && onOpenBackup && (
+        <aside
+          aria-label="보관함 안전 백업 안내"
+          className="w-full rounded-2xl bg-[#121214] border border-white/10 px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-lg animate-in fade-in duration-200"
+        >
+          <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center shrink-0 text-zinc-200 mt-0.5 sm:mt-0">
+              <ShieldAlert className="w-3.5 h-3.5 stroke-[1.75]" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-zinc-100 leading-snug">
+                {lastBackupTimestamp
+                  ? '마지막 백업 이후 30일이 지났습니다.'
+                  : `소중한 명함 ${effectiveTotalCardsCount}장을 기기 분실·초기화에 대비해 백업해 두세요.`}
+              </p>
+              <p className="text-[11px] text-zinc-400 leading-snug mt-0.5">
+                계정 없이 암호화된 로컬 백업 파일(.eerum)로 언제든 안전하게 복원할 수 있습니다.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => onOpenBackup('export')}
+              className="h-8 px-3 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 text-[11px] font-semibold inline-flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+            >
+              <Download className="w-3.5 h-3.5 stroke-[2]" />
+              <span>백업 저장</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                dismissBackupNudge();
+                setShowBackupNudge(false);
+              }}
+              aria-label="백업 안내 닫기"
+              title="나중에 하기"
+              className="w-8 h-8 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 inline-flex items-center justify-center cursor-pointer shrink-0"
+            >
+              <X className="w-3.5 h-3.5 stroke-[1.75]" />
+            </button>
+          </div>
+        </aside>
+      )}
 
       {/* Content Rendering: Cards Grid or List Table */}
       {sortedCards.length === 0 ? (

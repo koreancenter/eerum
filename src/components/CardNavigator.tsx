@@ -1,14 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { StoredCard, CardOrientation } from '../types/card';
 import { isVerticalLayout } from '../constants/templates';
-import { BusinessCardFront } from './BusinessCardFront';
-import { BusinessCardBack } from './BusinessCardBack';
+import { CardContainer } from './CardContainer';
 import { ActionButtons } from './ActionButtons';
 import { 
   Plus, 
   ChevronLeft, 
   ChevronRight, 
-  RefreshCw,
   LayoutGrid,
   CreditCard,
   Check
@@ -63,14 +61,11 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
     const initCard = personalCards[initialIndex >= 0 ? initialIndex : 0];
     return initCard && isVerticalLayout(initCard.layout_type) ? 'portrait' : 'landscape';
   });
-  const [dragOffset, setDragOffset] = useState<number>(0);
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-
   // Tactile haptic vibration feedback for mobile devices (Vibration API)
-  const triggerTactileHaptic = useCallback(() => {
+  const triggerTactileHaptic = useCallback((durationMs = 6) => {
     if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try {
-        navigator.vibrate(5);
+        navigator.vibrate(durationMs);
       } catch {
         // Silently ignore if restricted
       }
@@ -91,66 +86,178 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
     }
   }, [activeCardId, personalCards]);
 
-  const goToSlide = useCallback((newIndex: number) => {
+  // Reset track inline transform whenever currentIndex settles
+  useEffect(() => {
+    if (trackRef.current) {
+      trackRef.current.style.transition = 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)';
+      trackRef.current.style.transform = `translateX(${-currentIndex * 100}%)`;
+    }
+  }, [currentIndex]);
+
+  const goToSlide = useCallback((newIndex: number, withHaptic = true) => {
     const bounded = Math.max(0, Math.min(newIndex, totalSlides - 1));
+    if (withHaptic && bounded !== currentIndex) {
+      triggerTactileHaptic(6);
+    }
     setCurrentIndex(bounded);
     setIsFlipped(false);
-    setDragOffset(0);
+
+    if (trackRef.current) {
+      trackRef.current.style.transition = 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)';
+      trackRef.current.style.transform = `translateX(${-bounded * 100}%)`;
+    }
 
     if (bounded < personalCards.length) {
       onSelectCard(personalCards[bounded].id);
       setOrientation(isVerticalLayout(personalCards[bounded].layout_type) ? 'portrait' : 'landscape');
     }
-  }, [totalSlides, personalCards, onSelectCard]);
+  }, [totalSlides, currentIndex, triggerTactileHaptic, personalCards, onSelectCard]);
 
-  // Touch and Drag handling for carousel mode
-  const startXRef = useRef<number | null>(null);
+  // Mobile-native axis-locked pointer/touch drag handling for carousel mode
+  const gestureRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startTime: number;
+    lastX: number;
+    axis: 'x' | 'y' | null;
+  } | null>(null);
   const isMovedRef = useRef<boolean>(false);
+  const movedResetTimerRef = useRef<number | null>(null);
 
-  const handlePointerDown = (clientX: number) => {
-    if (mode !== 'carousel') return;
-    startXRef.current = clientX;
+  useEffect(() => {
+    return () => {
+      if (movedResetTimerRef.current !== null) {
+        window.clearTimeout(movedResetTimerRef.current);
+      }
+    };
+  }, []);
+
+  const scheduleMovedReset = useCallback(() => {
+    if (movedResetTimerRef.current !== null) {
+      window.clearTimeout(movedResetTimerRef.current);
+    }
+    movedResetTimerRef.current = window.setTimeout(() => {
+      isMovedRef.current = false;
+      movedResetTimerRef.current = null;
+    }, 100);
+  }, []);
+
+  const handleContainerPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (mode !== 'carousel' || !e.isPrimary) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('button, input, textarea, select, [data-no-swipe="true"]')) {
+      return;
+    }
+
+    if (movedResetTimerRef.current !== null) {
+      window.clearTimeout(movedResetTimerRef.current);
+      movedResetTimerRef.current = null;
+    }
     isMovedRef.current = false;
-    setIsDragging(true);
+
+    gestureRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startTime: performance.now(),
+      lastX: e.clientX,
+      axis: null,
+    };
   };
 
-  const handlePointerMove = (clientX: number) => {
-    if (startXRef.current === null || mode !== 'carousel') return;
-    const diff = clientX - startXRef.current;
-    if (Math.abs(diff) > 4) {
+  const handleContainerPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const g = gestureRef.current;
+    if (!g || g.pointerId !== e.pointerId || mode !== 'carousel') return;
+
+    const dx = e.clientX - g.startX;
+    const dy = e.clientY - g.startY;
+    g.lastX = e.clientX;
+
+    if (g.axis === null) {
+      const dist = Math.hypot(dx, dy);
+      if (dist < 8) return;
+
+      // Let vertical scroll pass through undisturbed
+      if (Math.abs(dy) > Math.abs(dx) * 1.15) {
+        g.axis = 'y';
+        return;
+      }
+
+      g.axis = 'x';
       isMovedRef.current = true;
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // Ignore if pointer capture is unsupported
+      }
     }
-    // Resistance at bounds
-    if ((currentIndex === 0 && diff > 0) || (currentIndex === totalSlides - 1 && diff < 0)) {
-      setDragOffset(diff * 0.3);
-    } else {
-      setDragOffset(diff);
+
+    if (g.axis !== 'x') return;
+
+    // Resistance at carousel edges
+    const atStartEdge = currentIndex === 0 && dx > 0;
+    const atEndEdge = currentIndex === totalSlides - 1 && dx < 0;
+    const effectiveDx = atStartEdge || atEndEdge ? dx * 0.28 : dx;
+
+    if (trackRef.current) {
+      trackRef.current.style.transition = 'none';
+      trackRef.current.style.transform = `translateX(calc(${-currentIndex * 100}% + ${effectiveDx}px))`;
     }
   };
 
-  const handlePointerUp = () => {
-    if (startXRef.current === null || mode !== 'carousel') return;
-    const diff = dragOffset;
-    const threshold = 45;
+  const finishContainerGesture = (e: React.PointerEvent<HTMLDivElement>, cancelled = false) => {
+    const g = gestureRef.current;
+    if (!g || g.pointerId !== e.pointerId) return;
+    gestureRef.current = null;
 
-    if (diff < -threshold && currentIndex < totalSlides - 1) {
-      goToSlide(currentIndex + 1);
-    } else if (diff > threshold && currentIndex > 0) {
-      goToSlide(currentIndex - 1);
-    } else {
-      setDragOffset(0);
+    if (g.axis !== 'x') return;
+
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      // Ignore release errors
     }
 
-    startXRef.current = null;
-    setIsDragging(false);
+    scheduleMovedReset();
+
+    if (cancelled) {
+      goToSlide(currentIndex, false);
+      return;
+    }
+
+    const dx = (e.clientX || g.lastX) - g.startX;
+    const elapsed = Math.max(1, performance.now() - g.startTime);
+    const velocity = dx / elapsed; // px/ms
+    const width = containerRef.current?.offsetWidth || 360;
+    const distanceThreshold = Math.min(72, Math.max(44, width * 0.18));
+    const isFlick = Math.abs(velocity) > 0.32 && Math.abs(dx) > 18;
+    const shouldSwitch = Math.abs(dx) > distanceThreshold || isFlick;
+
+    if (shouldSwitch && dx < 0 && currentIndex < totalSlides - 1) {
+      goToSlide(currentIndex + 1, true);
+    } else if (shouldSwitch && dx > 0 && currentIndex > 0) {
+      goToSlide(currentIndex - 1, true);
+    } else {
+      goToSlide(currentIndex, false);
+    }
   };
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (
+        e.defaultPrevented ||
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      ) {
         return;
       }
+      if (document.querySelector('[role="dialog"]')) return;
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
         goToSlide(currentIndex - 1);
@@ -290,23 +397,22 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
       {/* 1. Carousel Viewport Container */}
       <div 
         ref={containerRef}
+        style={{ touchAction: 'pan-y' }}
         className="w-full max-w-5xl relative flex items-center justify-center min-h-[220px] sm:min-h-[290px] md:min-h-[330px] px-2 sm:px-4"
-        onTouchStart={(e) => handlePointerDown(e.touches[0].clientX)}
-        onTouchMove={(e) => handlePointerMove(e.touches[0].clientX)}
-        onTouchEnd={handlePointerUp}
-        onMouseDown={(e) => handlePointerDown(e.clientX)}
-        onMouseMove={(e) => isDragging && handlePointerMove(e.clientX)}
-        onMouseUp={handlePointerUp}
-        onMouseLeave={handlePointerUp}
+        onPointerDown={handleContainerPointerDown}
+        onPointerMove={handleContainerPointerMove}
+        onPointerUp={(e) => finishContainerGesture(e, false)}
+        onPointerCancel={(e) => finishContainerGesture(e, true)}
       >
         {/* Left Arrow (Visible on Mobile & Desktop) */}
         {currentIndex > 0 && (
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               goToSlide(currentIndex - 1);
             }}
-            className="flex absolute left-1 sm:left-2 md:left-6 z-30 p-2 sm:p-2.5 rounded-full bg-black/70 hover:bg-black/90 border border-white/10 text-white/70 hover:text-white backdrop-blur-md transition-all active:scale-90 cursor-pointer shadow-xl"
+            className="flex absolute left-1 sm:left-2 md:left-6 z-30 p-2 sm:p-2.5 rounded-full bg-black/70 hover:bg-black/90 border border-white/10 text-white/70 hover:text-white backdrop-blur-md active:scale-90 cursor-pointer shadow-xl"
             title="이전 명함 보기"
             aria-label="이전 명함"
           >
@@ -317,11 +423,12 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
         {/* Right Arrow (Visible on Mobile & Desktop) */}
         {currentIndex < totalSlides - 1 && (
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               goToSlide(currentIndex + 1);
             }}
-            className="flex absolute right-1 sm:right-2 md:right-6 z-30 p-2 sm:p-2.5 rounded-full bg-black/70 hover:bg-black/90 border border-white/10 text-white/70 hover:text-white backdrop-blur-md transition-all active:scale-90 cursor-pointer shadow-xl"
+            className="flex absolute right-1 sm:right-2 md:right-6 z-30 p-2 sm:p-2.5 rounded-full bg-black/70 hover:bg-black/90 border border-white/10 text-white/70 hover:text-white backdrop-blur-md active:scale-90 cursor-pointer shadow-xl"
             title="다음 명함 보기"
             aria-label="다음 명함"
           >
@@ -332,131 +439,62 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
         {/* Cards Deck Track */}
         <div 
           ref={trackRef}
-          className="flex items-center transition-transform duration-300 ease-out"
+          className="flex items-center"
           style={{
-            transform: `translateX(calc(${-currentIndex * 100}% + ${dragOffset}px))`,
-            transition: isDragging ? 'none' : 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
+            transform: `translateX(${-currentIndex * 100}%)`,
+            transition: 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
             width: '100%',
           }}
         >
-          {/* Card Slides */}
+          {/* Card Slides rendered via unified CardContainer */}
           {personalCards.map((card, idx) => {
             const isCenter = idx === currentIndex;
             const isFlippedCard = isCenter && isFlipped;
-            const isCardPortrait = isVerticalLayout(card.layout_type) || orientation === 'portrait';
 
             return (
               <div
                 key={card.id}
-                className="w-full shrink-0 flex items-center justify-center px-2 sm:px-8 transition-all duration-300"
+                className="w-full shrink-0 flex items-center justify-center px-2 sm:px-8"
                 style={{
                   transform: isCenter ? 'scale(1)' : 'scale(0.92)',
                   opacity: isCenter ? 1 : 0.38,
                   transition: 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.45s ease',
-                  cursor: 'pointer',
                   zIndex: isCenter ? 20 : 10,
                 }}
-                onClick={() => {
-                  if (isMovedRef.current) return;
-                  if (!isCenter) {
-                    goToSlide(idx);
-                  } else {
-                    triggerTactileHaptic();
-                    setIsFlipped(prev => !prev);
-                  }
-                }}
               >
-                <div 
-                  className="w-full [perspective:1400px] flex justify-center transition-all duration-300"
-                  style={{
-                    maxWidth: isCardPortrait
-                      ? 'min(100%, calc((100vh - 240px) * 5 / 8), 320px)'
-                      : 'min(100%, 540px)',
-                    maxHeight: isCardPortrait
-                      ? 'calc(100vh - 240px)'
-                      : 'none',
+                <CardContainer
+                  cardKey={card.id}
+                  data={card.data}
+                  theme={card.theme}
+                  layout_type={card.layout_type}
+                  card_features={card.card_features}
+                  isPhotoCard={card.isPhotoCard || card.creation_mode === 'photo'}
+                  photoUrl={card.scannedImage || card.front_image_url}
+                  backPhotoUrl={card.scannedImageBack || card.back_image_url}
+                  html_front={card.html_front}
+                  html_back={card.html_back}
+                  isFlipped={isFlippedCard}
+                  onFlip={() => {
+                    if (isMovedRef.current) return;
+                    setIsFlipped((prev) => !prev);
                   }}
-                >
-                  {/* 3D Flip Card */}
-                  <div
-                    style={{
-                      transform: `rotateY(${isFlippedCard ? 180 : 0}deg)`,
-                      transformStyle: 'preserve-3d',
-                      WebkitTransformStyle: 'preserve-3d',
-                      transition: 'transform 0.65s cubic-bezier(0.16, 1, 0.3, 1)',
-                      maxWidth: isCardPortrait
-                        ? 'min(100%, calc((100vh - 240px) * 5 / 8), 320px)'
-                        : '100%',
-                      maxHeight: isCardPortrait
-                        ? 'calc(100vh - 240px)'
-                        : 'none',
-                    }}
-                    className={`relative w-full rounded-2xl group transition-shadow duration-300 ${
-                      isCenter 
-                        ? 'shadow-[0_24px_64px_rgba(0,0,0,0.6)] hover:shadow-[0_32px_80px_rgba(0,0,0,0.75)]' 
-                        : 'shadow-lg'
-                    }`}
-                  >
-                    {/* Top-Right Discreet Flip Trigger Badge on Active Card */}
-                    {isCenter && (
-                      <div 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          triggerTactileHaptic();
-                          setIsFlipped(prev => !prev);
-                        }}
-                        className="absolute top-3 right-3 z-30 opacity-40 group-hover:opacity-100 transition-opacity p-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white/80 cursor-pointer hover:scale-105 active:scale-95"
-                        title="앞·뒷면 뒤집기 (클릭)"
-                      >
-                        <RefreshCw className="w-3 h-3 text-zinc-300" />
-                      </div>
-                    )}
-
-                    {/* Front Face */}
-                    <div 
-                      style={{ 
-                        backfaceVisibility: 'hidden',
-                        WebkitBackfaceVisibility: 'hidden',
-                        transform: 'rotateY(0deg)',
-                        transformStyle: 'preserve-3d',
-                        WebkitTransformStyle: 'preserve-3d',
-                      }}
-                      className="w-full h-full rounded-2xl overflow-hidden ring-1 ring-white/10"
-                    >
-                      <BusinessCardFront 
-                        data={card.data} 
-                        theme={card.theme} 
-                        layout_type={card.layout_type}
-                        card_features={card.card_features}
-                        orientation={isCardPortrait ? 'portrait' : 'landscape'}
-                        isPhotoCard={card.isPhotoCard || card.creation_mode === 'photo'}
-                        photoUrl={card.scannedImage || card.front_image_url}
-                        html_front={card.html_front}
-                      />
-                    </div>
-
-                    {/* Back Face */}
-                    <div 
-                      style={{ 
-                        backfaceVisibility: 'hidden',
-                        WebkitBackfaceVisibility: 'hidden',
-                        transform: 'rotateY(180deg)',
-                        transformStyle: 'preserve-3d',
-                        WebkitTransformStyle: 'preserve-3d',
-                      }}
-                      className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden ring-1 ring-white/10"
-                    >
-                      <BusinessCardBack 
-                        data={card.data} 
-                        theme={card.theme} 
-                        layout_type={card.layout_type}
-                        orientation={isCardPortrait ? 'portrait' : 'landscape'}
-                        backPhotoUrl={card.scannedImageBack || card.back_image_url}
-                        html_back={card.html_back}
-                      />
-                    </div>
-                  </div>
-                </div>
+                  onCardClick={() => {
+                    if (isMovedRef.current) return;
+                    if (!isCenter) {
+                      goToSlide(idx);
+                    } else {
+                      triggerTactileHaptic(5);
+                      setIsFlipped((prev) => !prev);
+                    }
+                  }}
+                  onOpenShare={() => onOpenShare(card)}
+                  orientation={isCenter ? orientation : isVerticalLayout(card.layout_type) ? 'portrait' : 'landscape'}
+                  onOrientationChange={isCenter ? setOrientation : undefined}
+                  hideActions={true}
+                  disableSwipe={true}
+                  disableLayout={true}
+                  showFlipBadge={isCenter}
+                />
               </div>
             );
           })}
@@ -499,6 +537,41 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Minimal Carousel Position Indicator */}
+      {totalSlides > 1 && (
+        <div
+          className="w-full flex items-center justify-center gap-1.5 mt-2.5"
+          role="tablist"
+          aria-label="내 명함 슬라이드 순서"
+        >
+          {Array.from({ length: totalSlides }).map((_, idx) => {
+            const isActive = idx === currentIndex;
+            const isGhost = idx === ghostIndex;
+            return (
+              <button
+                key={idx}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                aria-label={isGhost ? '새 명함 만들기 슬라이드' : `${idx + 1}번째 명함`}
+                onClick={() => goToSlide(idx)}
+                className="p-0.5 cursor-pointer flex items-center justify-center"
+              >
+                <span
+                  className={`block h-1 rounded-full transition-all duration-200 ${
+                    isActive
+                      ? 'w-5 bg-white/90'
+                      : isGhost
+                        ? 'w-1.5 bg-white/15 border border-white/30'
+                        : 'w-1.5 bg-white/20 hover:bg-white/45'
+                  }`}
+                />
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* 2. Bottom Actions Bar (Centered beneath Card) */}
       <div className="w-full flex justify-center px-4 mt-2 sm:mt-3 min-h-[38px]">
