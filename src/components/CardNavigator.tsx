@@ -9,7 +9,8 @@ import {
   ChevronRight, 
   LayoutGrid,
   CreditCard,
-  Check
+  Check,
+  QrCode,
 } from 'lucide-react';
 
 export type CardNavigationMode = 'carousel' | 'switcher';
@@ -21,6 +22,7 @@ export interface CardNavigatorProps {
   onCreateNewCard: () => void;
   onOpenEdit?: (card: StoredCard) => void;
   onOpenShare: (card: StoredCard) => void;
+  onOpenQuickQr?: (card: StoredCard) => void;
   onDeleteCard?: (card: StoredCard) => void;
   mode?: CardNavigationMode;
   onModeChange?: (mode: CardNavigationMode) => void;
@@ -39,6 +41,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
   onCreateNewCard,
   onOpenEdit,
   onOpenShare,
+  onOpenQuickQr,
   onDeleteCard,
   mode = 'carousel',
   onModeChange,
@@ -573,20 +576,38 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
         </div>
       )}
 
-      {/* 2. Bottom Actions Bar (Centered beneath Card) */}
-      <div className="w-full flex justify-center px-4 mt-2 sm:mt-3 min-h-[38px]">
-        {activeCard && (
-          <ActionButtons
-            data={activeCard.data}
-            onOpenEdit={() => onOpenEdit && onOpenEdit(activeCard)}
-            onOpenShare={() => onOpenShare(activeCard)}
-            onDelete={onDeleteCard ? () => onDeleteCard(activeCard) : undefined}
-            isPhotoCard={activeCard.isPhotoCard || activeCard.creation_mode === 'photo'}
-            orientation={orientation}
-            onToggleOrientation={() => setOrientation(prev => prev === 'portrait' ? 'landscape' : 'portrait')}
-          />
-        )}
-      </div>
+      {/* 2. Prominent Quick QR Trigger & Bottom Actions Bar */}
+      {activeCard && (
+        <div className="w-full flex flex-col items-center px-4 mt-3 gap-2.5">
+          {onOpenQuickQr && (
+            <button
+              type="button"
+              onClick={() => {
+                triggerTactileHaptic(6);
+                onOpenQuickQr(activeCard);
+              }}
+              className="inline-flex items-center justify-center gap-2 min-h-[40px] px-5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 text-xs font-semibold tracking-tight shadow-lg active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+              title="Quick QR 명함 패스 즉시 열기 (화면 꺼짐 방지)"
+              aria-label="Quick QR"
+            >
+              <QrCode className="w-4 h-4 stroke-[2] shrink-0" />
+              <span>Quick QR</span>
+            </button>
+          )}
+
+          <div className="w-full flex justify-center min-h-[38px]">
+            <ActionButtons
+              data={activeCard.data}
+              onOpenEdit={() => onOpenEdit && onOpenEdit(activeCard)}
+              onOpenShare={() => onOpenShare(activeCard)}
+              onDelete={onDeleteCard ? () => onDeleteCard(activeCard) : undefined}
+              isPhotoCard={activeCard.isPhotoCard || activeCard.creation_mode === 'photo'}
+              orientation={orientation}
+              onToggleOrientation={() => setOrientation(prev => prev === 'portrait' ? 'landscape' : 'portrait')}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

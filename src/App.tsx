@@ -172,6 +172,57 @@ export default function App() {
     onResetFlip: handleResetFlip,
   });
 
+  const [pendingQuickQr, setPendingQuickQr] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).get('mode') === 'quick-qr';
+  });
+
+  // Clean ?mode=quick-qr from URL once captured on mount
+  useEffect(() => {
+    if (!pendingQuickQr || typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('mode') === 'quick-qr') {
+      url.searchParams.delete('mode');
+      window.history.replaceState({}, document.title, url.pathname + (url.search || ''));
+    }
+  }, [pendingQuickQr]);
+
+  // Launch Quick-QR Pass immediately once unlocked and personal cards are available
+  useEffect(() => {
+    if (!pendingQuickQr) return;
+    if (vault.isPinConfigured && vault.isLocked) return;
+
+    setShowWelcomeIntro(false);
+    setIsSamplePreview(false);
+    setActiveTab('my-card');
+
+    if (vault.myCards.length > 0) {
+      const targetCard =
+        vault.myCards.find((c) => c.id === vault.selectedMyCardId) ||
+        vault.myCards.find((c) => c.isDefault) ||
+        vault.myCards[0];
+      if (targetCard) {
+        vault.setSelectedMyCardId(targetCard.id);
+        vault.setModalTargetCardId(targetCard.id);
+        modals.openQuickQr();
+      }
+      setPendingQuickQr(false);
+    } else {
+      setPendingQuickQr(false);
+      showToast('등록된 내 명함이 없습니다. 먼저 명함을 만들어 주세요.');
+    }
+  }, [
+    pendingQuickQr,
+    vault.isPinConfigured,
+    vault.isLocked,
+    vault.myCards,
+    vault.selectedMyCardId,
+    vault.setSelectedMyCardId,
+    vault.setModalTargetCardId,
+    modals.openQuickQr,
+    showToast,
+  ]);
+
   useEffect(() => {
     cleanPublicRouteRef.current = cleanPublicUrlToRoot;
   }, [cleanPublicUrlToRoot]);
@@ -990,6 +1041,10 @@ export default function App() {
                         vault.setModalTargetCardId(cardToShare.id);
                         modals.openShare();
                       }}
+                      onOpenQuickQr={(cardForQuickQr) => {
+                        vault.setModalTargetCardId(cardForQuickQr.id);
+                        modals.openQuickQr();
+                      }}
                       onDeleteCard={(cardToDelete) => {
                         vault.handleRequestDeleteCard(cardToDelete);
                       }}
@@ -1071,6 +1126,7 @@ export default function App() {
         {((vault.isLocked && vault.isPinConfigured) ||
           modals.isShareOpen ||
           modals.isQrOpen ||
+          modals.isQuickQrOpen ||
           modals.isPrintOpen ||
           modals.isExportOpen ||
           modals.isScanOpen ||

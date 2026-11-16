@@ -170,6 +170,21 @@ export default defineConfig(({ mode }) => {
               purpose: 'maskable',
             },
           ],
+          shortcuts: [
+            {
+              name: 'Quick QR 명함 패스',
+              short_name: 'Quick QR',
+              description: '내 디지털 명함 QR 코드 즉시 열기',
+              url: '/?mode=quick-qr',
+              icons: [
+                {
+                  src: '/pwa-192x192.png',
+                  sizes: '192x192',
+                  type: 'image/png',
+                },
+              ],
+            },
+          ],
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
@@ -227,7 +242,6 @@ export default defineConfig(({ mode }) => {
         'lucide-react',
         'dompurify',
         'qrcode',
-        'tesseract.js',
         'workbox-window',
       ],
     },

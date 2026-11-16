@@ -150,12 +150,13 @@ export function useCardVault({
     }
   }, [selectedVaultCardId, isPinConfigured, isLocked, selectedVaultCard]);
 
-  // Clear temporary modal target card once Share/QR/Print/Export modals close
+  // Clear temporary modal target card once Share/QR/QuickQR/Print/Export modals close
   useEffect(() => {
     if (
       modalTargetCardId &&
       !modals.isShareOpen &&
       !modals.isQrOpen &&
+      !modals.isQuickQrOpen &&
       !modals.isPrintOpen &&
       !modals.isExportOpen
     ) {
@@ -165,6 +166,7 @@ export function useCardVault({
     modalTargetCardId,
     modals.isShareOpen,
     modals.isQrOpen,
+    modals.isQuickQrOpen,
     modals.isPrintOpen,
     modals.isExportOpen,
   ]);

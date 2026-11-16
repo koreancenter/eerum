@@ -4,6 +4,10 @@ import { CardData } from '../types/card';
 import { downloadVCard, generateVCard } from '@/utils/cardExporter';
 import { shareOrCopyLink } from '@/utils/share';
 import {
+  downloadLockscreenWallpaper,
+  type LockscreenWallpaperTheme,
+} from '@/utils/lockscreenWallpaper';
+import {
   X,
   Copy,
   Check,
@@ -11,6 +15,9 @@ import {
   UserPlus,
   Printer,
   FileCode2,
+  Wallpaper,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 interface ShareModalProps {
@@ -20,6 +27,7 @@ interface ShareModalProps {
   cardUrl?: string;
   onOpenPrint?: () => void;
   onOpenExport?: () => void;
+  onShowToast?: (msg: string) => void;
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({
@@ -29,10 +37,13 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   cardUrl,
   onOpenPrint,
   onOpenExport,
+  onShowToast,
 }) => {
   const [copied, setCopied] = useState(false);
   const [qrType, setQrType] = useState<'url' | 'vcard'>('url');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [wallpaperTheme, setWallpaperTheme] = useState<LockscreenWallpaperTheme>('dark');
+  const [isSavingWallpaper, setIsSavingWallpaper] = useState(false);
 
   const resolvedUrl = cardUrl || data.website || 'https://eerum.goguma.app/master';
 
@@ -92,6 +103,26 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  };
+
+  const handleSaveWallpaper = async () => {
+    if (isSavingWallpaper) return;
+    setIsSavingWallpaper(true);
+    try {
+      await downloadLockscreenWallpaper({
+        data,
+        cardUrl: resolvedUrl,
+        theme: wallpaperTheme,
+        qrMode: qrType,
+      });
+      onShowToast?.(
+        `잠금화면 QR 배경화면(${wallpaperTheme === 'dark' ? '다크' : '라이트'})이 저장되었습니다.`
+      );
+    } catch {
+      onShowToast?.('잠금화면 배경화면 저장에 실패했습니다.');
+    } finally {
+      setIsSavingWallpaper(false);
+    }
   };
 
   return (
@@ -208,11 +239,59 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           </button>
         </div>
 
+        {/* Lockscreen QR Wallpaper Action */}
+        <div className="w-full mt-3 p-2.5 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={handleSaveWallpaper}
+            disabled={isSavingWallpaper}
+            className="flex-1 min-h-[38px] px-3 py-2 rounded-lg bg-white/[0.07] hover:bg-white/[0.12] text-white text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+          >
+            <Wallpaper className="w-3.5 h-3.5 stroke-[1.75] shrink-0" />
+            <span>{isSavingWallpaper ? '생성 중...' : '잠금화면 배경화면 저장'}</span>
+          </button>
+
+          <div
+            role="group"
+            aria-label="잠금화면 배경화면 테마"
+            className="flex items-center p-0.5 rounded-lg bg-black/40 border border-white/10 shrink-0"
+          >
+            <button
+              type="button"
+              onClick={() => setWallpaperTheme('dark')}
+              title="다크 배경화면"
+              aria-label="다크 배경화면"
+              aria-pressed={wallpaperTheme === 'dark'}
+              className={`p-1.5 rounded-md cursor-pointer ${
+                wallpaperTheme === 'dark'
+                  ? 'bg-white text-neutral-950'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Moon className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setWallpaperTheme('light')}
+              title="라이트 배경화면"
+              aria-label="라이트 배경화면"
+              aria-pressed={wallpaperTheme === 'light'}
+              className={`p-1.5 rounded-md cursor-pointer ${
+                wallpaperTheme === 'light'
+                  ? 'bg-white text-neutral-950'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Sun className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
         {/* 5. Accessible Labeled Bottom Action Toolbar */}
         <div
           role="toolbar"
           aria-label="명함 공유 및 배포 도구"
-          className="w-full pt-4 mt-5 border-t border-white/10 grid grid-cols-4 gap-1"
+          className="w-full pt-4 mt-4 border-t border-white/10 grid grid-cols-4 gap-1"
         >
           <button
             type="button"

@@ -14,6 +14,9 @@ const ShareModal = lazyWithRetry(() =>
 const QrModal = lazyWithRetry(() =>
   import('./QrModal').then((m) => ({ default: m.QrModal }))
 );
+const QuickQrPassModal = lazyWithRetry(() =>
+  import('./QuickQrPassModal').then((m) => ({ default: m.QuickQrPassModal }))
+);
 const PrintModal = lazyWithRetry(() =>
   import('./PrintModal').then((m) => ({ default: m.PrintModal }))
 );
@@ -165,6 +168,16 @@ export const AppModals: React.FC<AppModalsProps> = ({
             cardUrl={getCardShareUrl(activeCard)}
             onOpenPrint={() => modals.openPrint(true)}
             onOpenExport={() => modals.openExport(true)}
+            onShowToast={showToast}
+          />
+        )}
+
+        {isOwner && activeCard && modals.isQuickQrOpen && (
+          <QuickQrPassModal
+            isOpen={modals.isQuickQrOpen}
+            onClose={modals.closeQuickQr}
+            card={activeCard}
+            onShowToast={showToast}
           />
         )}
 

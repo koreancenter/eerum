@@ -11,8 +11,7 @@ import {
 } from 'lucide-react';
 import { CardData } from '../../types/card';
 import { cropAndCompressCardImage } from '../../utils/imageProcess';
-import { runLocalCardOcr } from '../../utils/localOcr';
-import { ParsedCardFields, parseBusinessCardText } from '../../utils/cardTextParser';
+import { ParsedCardFields, parseBusinessCardText } from '../../utils/parseBusinessCardText';
 import { CategorySelectSection, EDITOR_INPUT_CLASS } from './CategorySelectSection';
 import { ProfileFieldsGroup } from './ProfileFieldsGroup';
 
@@ -248,7 +247,8 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
     setConflictingFields([]);
 
     try {
-      const { text } = await runLocalCardOcr(frontImageUrl, ({ progress }) => {
+      const { runLocalCardOcr } = await import('../../utils/localOcr');
+      const { text, engine } = await runLocalCardOcr(frontImageUrl, ({ progress }) => {
         setOcrProgress(progress);
       });
 
@@ -261,6 +261,9 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
       }
 
       const parsed = parseBusinessCardText(text);
+      if (engine === 'text-detector') {
+        setOcrProgress(100);
+      }
       const hasAnyExtractedValue = Boolean(
         parsed.name ||
           parsed.nameEn ||
@@ -447,6 +450,8 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
               type="button"
               onClick={handleRunLocalOcr}
               disabled={isExtracting || isCompressing}
+              title="Auto-Fill Text from Image"
+              aria-label="이미지에서 텍스트 자동 채우기 (Auto-Fill Text from Image)"
               className={`w-full min-h-[42px] px-3.5 py-2.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-2 transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30 ${
                 isExtracting
                   ? 'bg-[#1D1D20] border-white/15 text-zinc-200 cursor-wait'
@@ -461,7 +466,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
               ) : (
                 <>
                   <ScanText className="w-3.5 h-3.5 text-zinc-300 shrink-0 stroke-[1.6]" />
-                  <span>이미지에서 정보 자동 추출 (로컬 OCR)</span>
+                  <span>이미지에서 텍스트 자동 채우기</span>
                 </>
               )}
             </button>
@@ -476,7 +481,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
                 </div>
                 <p className="text-[11px] text-zinc-400 flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                  <span>이미지는 외부 서버로 전송되지 않고 기기 내에서만 분석됩니다.</span>
+                  <span>이미지는 외부 서버로 전송되지 않고 브라우저 내에서만 분석됩니다.</span>
                 </p>
               </div>
             ) : (
@@ -485,7 +490,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
               !pendingParsed && (
                 <p className="text-[11px] text-zinc-500 flex items-center gap-1.5 px-0.5">
                   <ShieldCheck className="w-3 h-3 text-zinc-500 shrink-0" />
-                  <span>100% 브라우저 온디바이스 분석 · 외부 전송 없음</span>
+                  <span>브라우저 내장 인식 우선 · 미지원 시 온디바이스 OCR 자동 로드</span>
                 </p>
               )
             )}

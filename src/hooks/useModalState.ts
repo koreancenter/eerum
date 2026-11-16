@@ -8,6 +8,7 @@ export interface ModalManager {
   // Modal visibility flags
   isShareOpen: boolean;
   isQrOpen: boolean;
+  isQuickQrOpen: boolean;
   isPrintOpen: boolean;
   isExportOpen: boolean;
   isScanOpen: boolean;
@@ -36,6 +37,8 @@ export interface ModalManager {
   closeShare: () => void;
   openQr: (fromShare?: boolean) => void;
   closeQr: () => void;
+  openQuickQr: () => void;
+  closeQuickQr: () => void;
   openPrint: (fromShare?: boolean) => void;
   closePrint: () => void;
   openExport: (fromShare?: boolean) => void;
@@ -73,6 +76,7 @@ export interface ModalManager {
 export function useModalState(): ModalManager {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
+  const [isQuickQrOpen, setIsQuickQrOpen] = useState(false);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isScanOpen, setIsScanOpen] = useState(false);
@@ -140,6 +144,17 @@ export function useModalState(): ModalManager {
       setIsFromShare(false);
       setIsShareOpen(true);
     }
+  }, []);
+
+  const openQuickQr = useCallback(() => {
+    returnToShareRef.current = false;
+    setIsFromShare(false);
+    setIsShareOpen(false);
+    setIsQuickQrOpen(true);
+  }, []);
+
+  const closeQuickQr = useCallback(() => {
+    setIsQuickQrOpen(false);
   }, []);
 
   const openPrint = useCallback((fromShare?: boolean) => {
@@ -231,6 +246,7 @@ export function useModalState(): ModalManager {
     setIsFromShare(false);
     setIsShareOpen(false);
     setIsQrOpen(false);
+    setIsQuickQrOpen(false);
     setIsPrintOpen(false);
     setIsExportOpen(false);
     setIsScanOpen(false);
@@ -251,6 +267,7 @@ export function useModalState(): ModalManager {
   return {
     isShareOpen,
     isQrOpen,
+    isQuickQrOpen,
     isPrintOpen,
     isExportOpen,
     isScanOpen,
@@ -275,6 +292,8 @@ export function useModalState(): ModalManager {
     closeShare,
     openQr,
     closeQr,
+    openQuickQr,
+    closeQuickQr,
     openPrint,
     closePrint,
     openExport,
