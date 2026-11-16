@@ -38,6 +38,7 @@ import {
   HardDriveDownload,
   Calendar,
   MapPin,
+  Compass,
 } from 'lucide-react';
 
 const AppModals = lazyWithRetry(() =>
@@ -577,6 +578,17 @@ export default function App() {
                       <button
                         onClick={() => {
                           modals.closeSettings();
+                          modals.openAbout('philosophy');
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer text-left"
+                      >
+                        <Compass className="w-3.5 h-3.5 text-white" />
+                        <span>앱 소개 · Net to Dot 철학</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          modals.closeSettings();
                           setShowWelcomeIntro(true);
                           setIsSamplePreview(false);
                           setActiveTab('my-card');
@@ -665,6 +677,15 @@ export default function App() {
                     </span>
                   </a>
                 )}
+
+                <a
+                  href="https://nettodot.org/pages/chapter01/abstract"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="pt-1 text-[10px] font-mono tracking-[0.14em] text-zinc-500 hover:text-zinc-300 transition-colors"
+                >
+                  eerum · Net to Dot Movement ↗
+                </a>
               </div>
             </div>
           ) : isVaultDetailActive ? (
@@ -1105,9 +1126,27 @@ export default function App() {
         {/* Footer */}
         <footer className="shrink-0 border-t border-white/[0.08] py-2 sm:py-2.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(0.625rem+env(safe-area-inset-bottom,0px))] px-4 sm:px-8 font-sans text-xs">
           <div className="max-w-5xl mx-auto w-full flex items-center justify-between gap-3">
-            <p className="text-[10px] sm:text-[11px] text-white/50 tracking-widest font-light font-sans whitespace-nowrap select-none">
-              © {new Date().getFullYear()} GOGUMA CARD STUDIO
-            </p>
+            <div className="flex items-center gap-2.5 min-w-0">
+              {isUnauthenticatedExternalVisitor ? (
+                <a
+                  href="https://nettodot.org/pages/chapter01/abstract"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] sm:text-[11px] text-white/55 hover:text-white tracking-wider font-light font-sans whitespace-nowrap transition-colors"
+                >
+                  eerum · Net to Dot Movement ↗
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => modals.openAbout('philosophy')}
+                  className="text-[10px] sm:text-[11px] text-white/55 hover:text-white tracking-wider font-light font-sans whitespace-nowrap cursor-pointer transition-colors text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 rounded"
+                  title="앱 소개 · Net to Dot 철학 보기"
+                >
+                  eerum · Net to Dot Movement
+                </button>
+              )}
+            </div>
 
             <div className="flex items-center justify-end gap-1.5 sm:gap-2 shrink-0">
               <button
@@ -1184,6 +1223,7 @@ export default function App() {
           modals.isBiometricsOpen ||
           modals.isLazyPinOpen ||
           modals.isLegalOpen ||
+          modals.isAboutOpen ||
           modals.isResetOpen ||
           modals.isBackupOpen) && (
           <Suspense fallback={null}>

@@ -59,6 +59,9 @@ const ImportContactsModal = lazyWithRetry(() =>
 const VaultBackupModal = lazyWithRetry(() =>
   import('./VaultBackupModal').then((m) => ({ default: m.VaultBackupModal }))
 );
+const AboutModal = lazyWithRetry(() =>
+  import('./AboutModal').then((m) => ({ default: m.AboutModal }))
+);
 
 export interface AppModalsProps {
   modals: ModalManager;
@@ -317,6 +320,16 @@ export const AppModals: React.FC<AppModalsProps> = ({
             isOpen={modals.isLegalOpen}
             initialDoc={modals.legalDocType}
             onClose={modals.closeLegal}
+          />
+        )}
+
+        {/* About & Net to Dot Philosophy Modal */}
+        {modals.isAboutOpen && (
+          <AboutModal
+            isOpen={modals.isAboutOpen}
+            initialTab={modals.aboutInitialTab}
+            onClose={modals.closeAbout}
+            onShowToast={showToast}
           />
         )}
 

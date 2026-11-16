@@ -3,6 +3,7 @@ import { StoredCard } from '../types/card';
 import type { PinModalMode } from '../components/PinLockModal';
 import type { LegalDocType } from '../components/LegalModal';
 import type { BackupModalTab } from '../components/VaultBackupModal';
+import type { AboutTab } from '../components/AboutModal';
 
 export interface ModalManager {
   // Modal visibility flags
@@ -30,6 +31,8 @@ export interface ModalManager {
   isImportContactsOpen: boolean;
   isBackupOpen: boolean;
   backupInitialTab: BackupModalTab;
+  isAboutOpen: boolean;
+  aboutInitialTab: AboutTab;
 
   // Settings dropdown ref
   settingsMenuRef: React.RefObject<HTMLDivElement | null>;
@@ -71,6 +74,8 @@ export interface ModalManager {
   closeReset: () => void;
   openBackup: (tab?: BackupModalTab) => void;
   closeBackup: () => void;
+  openAbout: (tab?: AboutTab) => void;
+  closeAbout: () => void;
   closeAll: () => void;
 }
 
@@ -104,6 +109,8 @@ export function useModalState(): ModalManager {
   const [isImportContactsOpen, setIsImportContactsOpen] = useState(false);
   const [isBackupOpen, setIsBackupOpen] = useState(false);
   const [backupInitialTab, setBackupInitialTab] = useState<BackupModalTab>('export');
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [aboutInitialTab, setAboutInitialTab] = useState<AboutTab>('philosophy');
 
   const settingsMenuRef = useRef<HTMLDivElement | null>(null);
   const isShareOpenRef = useRef(false);
@@ -278,6 +285,12 @@ export function useModalState(): ModalManager {
   }, []);
   const closeBackup = useCallback(() => setIsBackupOpen(false), []);
 
+  const openAbout = useCallback((tab: AboutTab = 'philosophy') => {
+    setAboutInitialTab(tab);
+    setIsAboutOpen(true);
+  }, []);
+  const closeAbout = useCallback(() => setIsAboutOpen(false), []);
+
   const closeAll = useCallback(() => {
     returnToShareRef.current = false;
     setIsFromShare(false);
@@ -299,6 +312,7 @@ export function useModalState(): ModalManager {
     setIsLegalOpen(false);
     setIsResetOpen(false);
     setIsBackupOpen(false);
+    setIsAboutOpen(false);
     setEditingCard(null);
     setIsCreatingCard(false);
   }, []);
@@ -328,6 +342,8 @@ export function useModalState(): ModalManager {
     isFromShare,
     isBackupOpen,
     backupInitialTab,
+    isAboutOpen,
+    aboutInitialTab,
     settingsMenuRef,
     openShare,
     closeShare,
@@ -365,6 +381,8 @@ export function useModalState(): ModalManager {
     closeReset,
     openBackup,
     closeBackup,
+    openAbout,
+    closeAbout,
     closeAll,
   };
 }
