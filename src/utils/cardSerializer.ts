@@ -261,6 +261,7 @@ export class CardSerializer {
       id: vaultId,
       isMyCard: false,
       isDefault: false,
+      ownerKey: undefined,
       owner_key: undefined,
       slug: undefined,
       customDomain: undefined,
@@ -303,10 +304,13 @@ export class CardSerializer {
    * Serializes StoredCard to portable JSON envelope
    */
   static toJsonEnvelope(card: StoredCard): string {
+    const safeCard: StoredCard = { ...card };
+    delete safeCard.ownerKey;
+    delete safeCard.owner_key;
     const envelope: CardJsonEnvelope = {
       schemaVersion: '1.0',
       exportedAt: new Date().toISOString(),
-      card,
+      card: safeCard,
     };
     return JSON.stringify(envelope, null, 2);
   }

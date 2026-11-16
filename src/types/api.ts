@@ -42,6 +42,8 @@ export interface UpsertCardSuccessResponse {
   success: true;
   id: string;
   slug: string;
+  ownerKey?: string;
+  created?: boolean;
 }
 
 export type UpsertCardResponse = UpsertCardSuccessResponse | ApiErrorResponse;

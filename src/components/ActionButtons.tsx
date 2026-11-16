@@ -2,6 +2,7 @@ import React from 'react';
 import { CardData, CardOrientation } from '../types/card';
 import { downloadVCard } from '@/utils/cardExporter';
 import { sanitizeExternalUrl } from '@/utils/sanitizeUrl';
+import { shareOrCopyLink } from '@/utils/share';
 import {
   Phone,
   MessageSquare,
@@ -110,31 +111,13 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
     const title = `${data.name} — ${data.organization}`;
     const text = `${data.organization} ${data.title} ${data.name} 디지털 명함`;
 
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({
-          title,
-          text,
-          url: targetUrl,
-        });
-        return;
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') return;
-      }
-    }
-
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      try {
-        await navigator.clipboard.writeText(targetUrl);
-        if (onShowToast) {
-          onShowToast('명함 링크가 복사되었습니다.');
-        }
-      } catch {
-        if (onShowToast) {
-          onShowToast('명함 링크 복사에 실패했습니다.');
-        }
-      }
-    }
+    await shareOrCopyLink({
+      title,
+      text,
+      url: targetUrl,
+      onCopied: () => onShowToast?.('명함 링크가 복사되었습니다.'),
+      onCopyError: () => onShowToast?.('명함 링크 복사에 실패했습니다.'),
+    });
   };
 
   return (

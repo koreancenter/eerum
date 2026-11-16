@@ -353,6 +353,7 @@ export function buildMergedVaultCard(
     ...primary,
     isMyCard: false,
     isDefault: false,
+    ownerKey: undefined,
     owner_key: undefined,
     slug: undefined,
     customDomain: undefined,

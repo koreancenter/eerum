@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { StoredCard, PrintConfig } from '../types/card';
 import { ModalManager } from '../hooks/useModalState';
 import { loadUserCards } from '../utils/initialCards';
+import { markLazyPinDismissed } from '../utils/pinLock';
 import { loadVaultCategories } from '../utils/categories';
 import { getCardShareUrl } from '@/utils/cardSerializer';
 import { lazyWithRetry, LazyErrorBoundary } from '../utils/lazyWithRetry';
@@ -94,6 +95,55 @@ export const AppModals: React.FC<AppModalsProps> = ({
 }) => {
   const isLockScreenActive = isLocked && isPinConfigured;
 
+  const handleImport = (importedCards: StoredCard[]) => {
+    if (onImportCards) {
+      onImportCards(importedCards);
+    } else {
+      setCards((prev) => [...importedCards, ...prev]);
+    }
+  };
+
+  const handlePinUnlock = () => {
+    unlockApp();
+    setCards(loadUserCards());
+    showToast('보안 잠금이 해제되었습니다.');
+  };
+
+  const handlePinConfigSuccess = () => {
+    refreshPinStatus();
+    const decrypted = loadUserCards();
+    if (decrypted && decrypted.length > 0) {
+      setCards(decrypted);
+    }
+    showToast(
+      modals.pinModalMode === 'setup'
+        ? '4자리 PIN 잠금이 설정되었습니다.'
+        : 'PIN 번호가 성공적으로 변경되었습니다.'
+    );
+  };
+
+  const handleDismissLazyPin = () => {
+    markLazyPinDismissed();
+    modals.closeLazyPin();
+    showToast('설정 메뉴에서 언제든 4자리 PIN을 설정할 수 있습니다.');
+  };
+
+  const handleProceedLazyPinSetup = () => {
+    markLazyPinDismissed();
+    modals.closeLazyPin();
+    modals.openPinConfig('setup');
+  };
+
+  const handleOpenImportFromScan = () => {
+    modals.closeScan();
+    modals.openImportContacts();
+  };
+
+  const resolvedCategories = React.useMemo(
+    () => categories || loadVaultCategories(existingCards),
+    [categories, existingCards]
+  );
+
   return (
     <LazyErrorBoundary
       variant="modal"
@@ -149,18 +199,9 @@ export const AppModals: React.FC<AppModalsProps> = ({
             onClose={modals.closeScan}
             onSaveCard={onSaveCard}
             existingCards={existingCards}
-            onImportCards={(importedCards) => {
-              if (onImportCards) {
-                onImportCards(importedCards);
-              } else {
-                setCards((prev) => [...importedCards, ...prev]);
-              }
-            }}
+            onImportCards={handleImport}
             showToast={showToast}
-            onOpenImportContacts={() => {
-              modals.closeScan();
-              modals.openImportContacts();
-            }}
+            onOpenImportContacts={handleOpenImportFromScan}
           />
         )}
 
@@ -178,11 +219,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
             isOpen={true}
             mode="unlock"
             allowCancel={false}
-            onUnlock={() => {
-              unlockApp();
-              setCards(loadUserCards());
-              showToast('보안 잠금이 해제되었습니다.');
-            }}
+            onUnlock={handlePinUnlock}
             onBiometricUnlock={onBiometricUnlock}
           />
         )}
@@ -194,18 +231,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
             mode={modals.pinModalMode}
             allowCancel={true}
             onClose={modals.closePinConfig}
-            onSuccess={() => {
-              refreshPinStatus();
-              const decrypted = loadUserCards();
-              if (decrypted && decrypted.length > 0) {
-                setCards(decrypted);
-              }
-              showToast(
-                modals.pinModalMode === 'setup'
-                  ? '4자리 PIN 잠금이 설정되었습니다.'
-                  : 'PIN 번호가 성공적으로 변경되었습니다.'
-              );
-            }}
+            onSuccess={handlePinConfigSuccess}
           />
         )}
 
@@ -217,9 +243,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
             onOpenPinSetup={() => {
               modals.openPinConfig(isPinConfigured ? 'change' : 'setup');
             }}
-            onStatusChange={() => {
-              refreshPinStatus();
-            }}
+            onStatusChange={refreshPinStatus}
           />
         )}
 
@@ -227,20 +251,8 @@ export const AppModals: React.FC<AppModalsProps> = ({
         {modals.isLazyPinOpen && (
           <LazyPinSetupModal
             isOpen={modals.isLazyPinOpen}
-            onClose={() => {
-              if (typeof window !== 'undefined') {
-                localStorage.setItem('lazy_pin_dismissed', 'true');
-              }
-              modals.closeLazyPin();
-              showToast('설정 메뉴에서 언제든 4자리 PIN을 설정할 수 있습니다.');
-            }}
-            onProceedSetup={() => {
-              if (typeof window !== 'undefined') {
-                localStorage.setItem('lazy_pin_dismissed', 'true');
-              }
-              modals.closeLazyPin();
-              modals.openPinConfig('setup');
-            }}
+            onClose={handleDismissLazyPin}
+            onProceedSetup={handleProceedLazyPinSetup}
           />
         )}
 
@@ -268,14 +280,8 @@ export const AppModals: React.FC<AppModalsProps> = ({
             isOpen={modals.isImportContactsOpen}
             onClose={modals.closeImportContacts}
             existingCards={existingCards}
-            onImportCards={(importedCards) => {
-              if (onImportCards) {
-                onImportCards(importedCards);
-              } else {
-                setCards((prev) => [...importedCards, ...prev]);
-              }
-            }}
-            categories={categories || loadVaultCategories(existingCards)}
+            onImportCards={handleImport}
+            categories={resolvedCategories}
             showToast={showToast}
           />
         )}

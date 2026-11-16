@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import { CardData } from '../types/card';
 import { downloadVCard, generateVCard } from '@/utils/cardExporter';
+import { shareOrCopyLink } from '@/utils/share';
 import {
   X,
   Copy,
@@ -72,19 +73,15 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   };
 
   const handleNativeShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `${data.name} — ${data.organization}`,
-          text: `${data.organizationKr || data.organization} ${data.titleKr || data.title} ${data.name}의 디지털 명함입니다.`,
-          url: resolvedUrl,
-        });
-      } catch {
-        // User cancelled share
-      }
-    } else {
-      void handleCopyLink();
-    }
+    await shareOrCopyLink({
+      title: `${data.name} — ${data.organization}`,
+      text: `${data.organizationKr || data.organization} ${data.titleKr || data.title} ${data.name}의 디지털 명함입니다.`,
+      url: resolvedUrl,
+      onCopied: () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      },
+    });
   };
 
   const handleDownloadQr = () => {

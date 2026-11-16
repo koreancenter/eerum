@@ -1,9 +1,17 @@
 /**
  * Production Serverless Edge Worker for Korean Center Digital Card Studio
  * Configured as the single authoritative serverless entry point via wrangler.toml (main = "worker.ts").
- * Enforces Zero-Trust parameter binding on Cloudflare D1 with zero string concatenation.
+ * Enforces Zero-Trust parameter binding on Cloudflare D1 with zero string concatenation,
+ * SHA-256 ownerKey verification on public slug updates, and strict wallet sync isolation.
  */
 
+import { D1StorageAdapter } from './server/d1Storage';
+import {
+  buildUpsertInputFromPayload,
+  constantTimeEqual,
+  hashOwnerKeySha256,
+  type D1DatabaseLike,
+} from './server/storageTypes';
 import {
   createApiError,
   isPlatformDomain,
@@ -17,47 +25,6 @@ import {
   type UpsertCardResponse,
 } from './src/types/api';
 
-export interface D1PreparedStatementLike {
-  bind: (...values: Array<string | number | null>) => D1PreparedStatementLike;
-  first: <T = Record<string, unknown>>() => Promise<T | null>;
-  all: <T = Record<string, unknown>>() => Promise<{ results?: T[] }>;
-  run: () => Promise<unknown>;
-}
-
-export interface D1DatabaseLike {
-  prepare: (query: string) => D1PreparedStatementLike;
-}
-
-export interface D1CardRow {
-  id: string;
-  slug: string;
-  custom_domain?: string | null;
-  owner_key?: string | null;
-  theme?: string | null;
-  data?: unknown;
-  updated_at?: string;
-}
-
-export interface D1WalletRow {
-  cards_json?: string | null;
-}
-
-export interface CardUpsertPayload {
-  id?: unknown;
-  slug?: unknown;
-  customDomain?: unknown;
-  custom_domain?: unknown;
-  owner_key?: unknown;
-  theme?: unknown;
-  data?: unknown;
-  isMyCard?: unknown;
-}
-
-export interface SyncWalletPayload {
-  syncId?: unknown;
-  cards?: unknown;
-}
-
 export interface Env {
   DB: D1DatabaseLike;
   R2?: unknown;
@@ -65,49 +32,59 @@ export interface Env {
   BASE_DOMAIN?: string;
 }
 
-// Static Prepared SQL Statements (Strictly Zero String Concatenation)
-const SQL_SELECT_CARD_BY_DOMAIN = 'SELECT * FROM cards WHERE custom_domain = ? LIMIT 1';
-const SQL_SELECT_CARD_BY_SLUG = 'SELECT * FROM cards WHERE slug = ? LIMIT 1';
-const SQL_SELECT_RECENT_CARDS = 'SELECT * FROM cards ORDER BY updated_at DESC LIMIT 50';
-const SQL_UPSERT_CARD = `
-  INSERT INTO cards (id, slug, custom_domain, owner_key, theme, data, updated_at)
-  VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-  ON CONFLICT(id) DO UPDATE SET
-    slug = excluded.slug,
-    custom_domain = excluded.custom_domain,
-    theme = excluded.theme,
-    data = excluded.data,
-    updated_at = CURRENT_TIMESTAMP
-`;
-const SQL_SELECT_WALLET = 'SELECT cards_json FROM wallets WHERE sync_id = ? LIMIT 1';
-const SQL_UPSERT_WALLET = `
-  INSERT INTO wallets (sync_id, cards_json, updated_at)
-  VALUES (?, ?, CURRENT_TIMESTAMP)
-  ON CONFLICT(sync_id) DO UPDATE SET
-    cards_json = excluded.cards_json,
-    updated_at = CURRENT_TIMESTAMP
-`;
+const MAX_BODY_BYTES = 3 * 1024 * 1024; // 3MB
+const MAX_SYNC_CARDS = 500;
 
-function sanitizeParam(val: unknown, maxLen = 128): string | null {
+function sanitizeIdParam(val: unknown): string | null {
   if (typeof val !== 'string') return null;
-  const trimmed = val.trim();
-  if (!trimmed || trimmed.length > maxLen) return null;
+  const trimmed = val.trim().slice(0, 64);
+  if (!trimmed || !/^[a-zA-Z0-9_.:-]+$/.test(trimmed)) return null;
   return trimmed;
 }
 
-function hydrateCardRow(row: D1CardRow): D1CardRow & { customDomain?: string } {
-  const hydrated: D1CardRow & { customDomain?: string } = { ...row };
-  if (typeof hydrated.data === 'string') {
-    try {
-      hydrated.data = JSON.parse(hydrated.data);
-    } catch {
-      // Keep raw string if JSON parsing fails
-    }
+function extractOwnerKey(request: Request, payload: Record<string, unknown>): string | null {
+  const headerKey = request.headers.get('x-owner-key');
+  if (headerKey && headerKey.trim()) {
+    return headerKey.trim().slice(0, 256);
   }
-  if (hydrated.custom_domain) {
-    hydrated.customDomain = hydrated.custom_domain;
+  const auth = request.headers.get('authorization');
+  if (auth && auth.toLowerCase().startsWith('bearer ')) {
+    const token = auth.slice(7).trim();
+    if (token) return token.slice(0, 256);
   }
-  return hydrated;
+  const bodyKey = payload.ownerKey ?? payload.owner_key;
+  if (typeof bodyKey === 'string' && bodyKey.trim()) {
+    return bodyKey.trim().slice(0, 256);
+  }
+  return null;
+}
+
+async function readJsonWithLimit(
+  request: Request
+): Promise<{ ok: true; data: unknown } | { ok: false; status: number; error: string }> {
+  const contentLength = request.headers.get('content-length');
+  if (contentLength && Number(contentLength) > MAX_BODY_BYTES) {
+    return {
+      ok: false,
+      status: 413,
+      error: 'Request payload too large (3MB limit exceeded)',
+    };
+  }
+
+  const rawText = await request.text();
+  if (new TextEncoder().encode(rawText).byteLength > MAX_BODY_BYTES) {
+    return {
+      ok: false,
+      status: 413,
+      error: 'Request payload too large (3MB limit exceeded)',
+    };
+  }
+
+  try {
+    return { ok: true, data: JSON.parse(rawText) };
+  } catch {
+    return { ok: false, status: 400, error: 'Malformed JSON payload' };
+  }
 }
 
 function jsonResponse<T>(body: T, headers: Record<string, string>, status = 200): Response {
@@ -117,13 +94,13 @@ function jsonResponse<T>(body: T, headers: Record<string, string>, status = 200)
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    const storage = new D1StorageAdapter(env.DB);
 
-    // Standard CORS headers for client-side queries
     const corsHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Owner-Key',
     };
 
     if (request.method === 'OPTIONS') {
@@ -173,6 +150,7 @@ export default {
           service: 'Korean Center Card Studio',
           architecture: 'Zero-AI Local-First & Quiet Luxury Minimalist',
           runtime: 'Cloudflare Edge Worker (Unified Serverless Entry Point)',
+          storage: storage.kind,
           timestamp: new Date().toISOString(),
         },
         corsHeaders
@@ -189,15 +167,8 @@ export default {
       const baseDomain = (env.BASE_DOMAIN || 'eerum.goguma.app').toLowerCase();
 
       try {
-        let card: D1CardRow | null = null;
+        let card = slug ? await storage.getCardBySlug(slug) : null;
         let matchType: ResolveMatchType = 'slug';
-
-        if (slug) {
-          card = await env.DB.prepare(SQL_SELECT_CARD_BY_SLUG)
-            .bind(slug)
-            .first<D1CardRow>();
-          matchType = 'slug';
-        }
 
         if (!card) {
           const targetDomain =
@@ -205,9 +176,7 @@ export default {
             (headerHost && !isPlatformDomain(headerHost, baseDomain) ? headerHost : null);
 
           if (targetDomain) {
-            card = await env.DB.prepare(SQL_SELECT_CARD_BY_DOMAIN)
-              .bind(targetDomain)
-              .first<D1CardRow>();
+            card = await storage.getCardByDomain(targetDomain);
             matchType = 'custom_domain';
           }
         }
@@ -220,8 +189,14 @@ export default {
           );
         }
 
+        await storage.recordCardView(card.id, {
+          referrer: request.headers.get('referer'),
+          country: request.headers.get('cf-ipcountry'),
+          userAgent: request.headers.get('user-agent'),
+        });
+
         return jsonResponse<ResolveCardResponse>(
-          { success: true, card: hydrateCardRow(card), matchType },
+          { success: true, card, matchType },
           corsHeaders
         );
       } catch (err: unknown) {
@@ -241,9 +216,7 @@ export default {
 
       try {
         if (slug) {
-          const card = await env.DB.prepare(SQL_SELECT_CARD_BY_SLUG)
-            .bind(slug)
-            .first<D1CardRow>();
+          const card = await storage.getCardBySlug(slug);
           if (!card) {
             return jsonResponse<GetCardsResponse>(
               createApiError('Card not found for slug', true),
@@ -251,16 +224,16 @@ export default {
               404
             );
           }
-          return jsonResponse<GetCardsResponse>(
-            { success: true, card: hydrateCardRow(card) },
-            corsHeaders
-          );
+          await storage.recordCardView(card.id, {
+            referrer: request.headers.get('referer'),
+            country: request.headers.get('cf-ipcountry'),
+            userAgent: request.headers.get('user-agent'),
+          });
+          return jsonResponse<GetCardsResponse>({ success: true, card }, corsHeaders);
         }
 
         if (domain) {
-          const card = await env.DB.prepare(SQL_SELECT_CARD_BY_DOMAIN)
-            .bind(domain)
-            .first<D1CardRow>();
+          const card = await storage.getCardByDomain(domain);
           if (!card) {
             return jsonResponse<GetCardsResponse>(
               createApiError('Card not found for custom domain', true),
@@ -268,16 +241,15 @@ export default {
               404
             );
           }
-          return jsonResponse<GetCardsResponse>(
-            { success: true, card: hydrateCardRow(card) },
-            corsHeaders
-          );
+          await storage.recordCardView(card.id, {
+            referrer: request.headers.get('referer'),
+            country: request.headers.get('cf-ipcountry'),
+            userAgent: request.headers.get('user-agent'),
+          });
+          return jsonResponse<GetCardsResponse>({ success: true, card }, corsHeaders);
         }
 
-        // Fetch recent cards collection
-        const { results = [] } = await env.DB.prepare(SQL_SELECT_RECENT_CARDS).all<D1CardRow>();
-        const cards = results.map(hydrateCardRow);
-
+        const cards = await storage.listPublicCards(50);
         return jsonResponse<GetCardsResponse>({ success: true, cards }, corsHeaders);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Query failed';
@@ -285,11 +257,20 @@ export default {
       }
     }
 
-    // 4. Card Upsert: POST /api/cards
+    // 4. Card Upsert with Owner-Key SHA-256 Verification: POST /api/cards
     if (url.pathname === '/api/cards' && request.method === 'POST') {
       try {
-        const body = (await request.json()) as CardUpsertPayload | null;
-        if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        const parsed = await readJsonWithLimit(request);
+        if (!parsed.ok) {
+          return jsonResponse<UpsertCardResponse>(
+            createApiError(parsed.error),
+            corsHeaders,
+            parsed.status
+          );
+        }
+
+        const payload = parsed.data as Record<string, unknown> | null;
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
           return jsonResponse<UpsertCardResponse>(
             createApiError('Invalid payload'),
             corsHeaders,
@@ -297,32 +278,107 @@ export default {
           );
         }
 
-        const validId = sanitizeParam(body.id, 64) || crypto.randomUUID();
-        const validSlug = normalizeQueryToken(body.slug, 100);
-
-        if (!validSlug) {
+        const validSlug = normalizeQueryToken(payload.slug, 100);
+        if (!validSlug || !/^[a-z0-9_-]{1,100}$/.test(validSlug)) {
           return jsonResponse<UpsertCardResponse>(
-            createApiError('Slug is required'),
+            createApiError('Valid slug is required'),
             corsHeaders,
             400
           );
         }
 
-        const validDomain = normalizeQueryToken(
-          body.customDomain ?? body.custom_domain,
-          255
-        );
-        const validOwnerKey = sanitizeParam(body.owner_key, 128);
-        const validTheme = sanitizeParam(body.theme, 32) || 'pure_white';
-        const validData =
-          typeof body.data === 'string' ? body.data : JSON.stringify(body.data || {});
+        const requestedId = sanitizeIdParam(payload.id) || crypto.randomUUID();
+        const validDomain =
+          normalizeQueryToken(payload.customDomain ?? payload.custom_domain, 255) || null;
+        const incomingOwnerKey = extractOwnerKey(request, payload);
 
-        await env.DB.prepare(SQL_UPSERT_CARD)
-          .bind(validId, validSlug, validDomain, validOwnerKey, validTheme, validData)
-          .run();
+        const existingBySlug = await storage.getCardAuthBySlug(validSlug);
+        const existingById = await storage.getCardAuthById(requestedId);
+
+        let targetId = requestedId;
+        let ownerKeyHash: string;
+        let issuedOwnerKey: string | undefined;
+        let isNewClaim = false;
+
+        if (existingBySlug) {
+          if (!existingBySlug.ownerKeyHash || !incomingOwnerKey) {
+            return jsonResponse<UpsertCardResponse>(
+              createApiError('Forbidden: valid ownerKey is required to update this slug'),
+              corsHeaders,
+              403
+            );
+          }
+
+          const incomingHash = await hashOwnerKeySha256(incomingOwnerKey);
+          if (!constantTimeEqual(incomingHash, existingBySlug.ownerKeyHash)) {
+            return jsonResponse<UpsertCardResponse>(
+              createApiError('Forbidden: ownerKey mismatch for this slug'),
+              corsHeaders,
+              403
+            );
+          }
+
+          if (existingById && existingById.id !== existingBySlug.id) {
+            return jsonResponse<UpsertCardResponse>(
+              createApiError('Forbidden: slug belongs to another card record'),
+              corsHeaders,
+              403
+            );
+          }
+
+          targetId = existingBySlug.id;
+          ownerKeyHash = existingBySlug.ownerKeyHash;
+        } else if (existingById) {
+          if (!existingById.ownerKeyHash || !incomingOwnerKey) {
+            return jsonResponse<UpsertCardResponse>(
+              createApiError('Forbidden: valid ownerKey is required to update this card'),
+              corsHeaders,
+              403
+            );
+          }
+
+          const incomingHash = await hashOwnerKeySha256(incomingOwnerKey);
+          if (!constantTimeEqual(incomingHash, existingById.ownerKeyHash)) {
+            return jsonResponse<UpsertCardResponse>(
+              createApiError('Forbidden: ownerKey mismatch for this card'),
+              corsHeaders,
+              403
+            );
+          }
+
+          targetId = existingById.id;
+          ownerKeyHash = existingById.ownerKeyHash;
+        } else {
+          if (incomingOwnerKey && incomingOwnerKey.length < 8) {
+            return jsonResponse<UpsertCardResponse>(
+              createApiError('ownerKey must be at least 8 characters'),
+              corsHeaders,
+              400
+            );
+          }
+
+          issuedOwnerKey = incomingOwnerKey || crypto.randomUUID();
+          ownerKeyHash = await hashOwnerKeySha256(issuedOwnerKey);
+          isNewClaim = true;
+        }
+
+        const upsertInput = buildUpsertInputFromPayload(
+          payload,
+          targetId,
+          validSlug,
+          validDomain,
+          ownerKeyHash
+        );
+        await storage.upsertCard(upsertInput);
 
         return jsonResponse<UpsertCardResponse>(
-          { success: true, id: validId, slug: validSlug },
+          {
+            success: true,
+            id: targetId,
+            slug: validSlug,
+            created: isNewClaim,
+            ...(isNewClaim && issuedOwnerKey ? { ownerKey: issuedOwnerKey } : {}),
+          },
           corsHeaders
         );
       } catch (err: unknown) {
@@ -349,16 +405,9 @@ export default {
       const syncId = rawSyncId.trim();
 
       try {
-        const wallet = await env.DB.prepare(SQL_SELECT_WALLET)
-          .bind(syncId)
-          .first<D1WalletRow>();
-
+        const cards = await storage.getWallet(syncId);
         return jsonResponse<GetSyncWalletResponse>(
-          {
-            success: true,
-            syncId,
-            cards: wallet && wallet.cards_json ? JSON.parse(wallet.cards_json) : [],
-          },
+          { success: true, syncId, cards },
           corsHeaders
         );
       } catch (err: unknown) {
@@ -371,10 +420,19 @@ export default {
       }
     }
 
-    // 6. Cross-Device Anonymous Sync: POST /api/sync
+    // 6. Cross-Device Anonymous Sync: POST /api/sync (Strictly isolated to wallets table)
     if (url.pathname === '/api/sync' && request.method === 'POST') {
       try {
-        const body = (await request.json()) as SyncWalletPayload | null;
+        const parsed = await readJsonWithLimit(request);
+        if (!parsed.ok) {
+          return jsonResponse<PostSyncWalletResponse>(
+            createApiError(parsed.error),
+            corsHeaders,
+            parsed.status
+          );
+        }
+
+        const body = parsed.data as { syncId?: unknown; cards?: unknown } | null;
         const { syncId: rawSyncId, cards } = body || {};
 
         if (!isValidSyncId(rawSyncId) || !Array.isArray(cards)) {
@@ -385,37 +443,16 @@ export default {
           );
         }
 
-        const syncId = rawSyncId.trim();
-        const cardsJson = JSON.stringify(cards);
-
-        await env.DB.prepare(SQL_UPSERT_WALLET).bind(syncId, cardsJson).run();
-
-        // Mirror server.ts behavior: index personal owned cards (isMyCard === true) for public slug/domain resolution
-        for (const item of cards as CardUpsertPayload[]) {
-          if (item && typeof item === 'object' && item.isMyCard === true) {
-            const cardId = sanitizeParam(item.id, 64);
-            const cardSlug = normalizeQueryToken(item.slug, 100);
-            if (cardId && cardSlug) {
-              const cardDomain = normalizeQueryToken(
-                item.customDomain ?? item.custom_domain,
-                255
-              );
-              const ownerKey = sanitizeParam(item.owner_key, 128);
-              const theme = sanitizeParam(item.theme, 32) || 'pure_white';
-              const dataStr =
-                typeof item.data === 'string'
-                  ? item.data
-                  : JSON.stringify(item.data || {});
-              try {
-                await env.DB.prepare(SQL_UPSERT_CARD)
-                  .bind(cardId, cardSlug, cardDomain, ownerKey, theme, dataStr)
-                  .run();
-              } catch {
-                // Non-fatal if slug belongs to another row; wallet sync still succeeds
-              }
-            }
-          }
+        if (cards.length > MAX_SYNC_CARDS) {
+          return jsonResponse<PostSyncWalletResponse>(
+            createApiError(`Sync payload exceeds maximum of ${MAX_SYNC_CARDS} cards`),
+            corsHeaders,
+            400
+          );
         }
+
+        const syncId = rawSyncId.trim();
+        await storage.saveWallet(syncId, cards as never[]);
 
         return jsonResponse<PostSyncWalletResponse>(
           { success: true, syncId, count: cards.length },
@@ -442,7 +479,10 @@ export default {
         const spaRequest = new Request(new URL('/index.html', request.url), request);
         const spaRes = await env.ASSETS.fetch(spaRequest);
         const headers = new Headers(spaRes.headers);
-        headers.set('Cache-Control', 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400');
+        headers.set(
+          'Cache-Control',
+          'public, max-age=0, s-maxage=300, stale-while-revalidate=86400'
+        );
         headers.set('X-Content-Type-Options', 'nosniff');
         return new Response(spaRes.body, { status: 200, headers });
       }
@@ -463,7 +503,10 @@ export default {
         ) {
           headers.set('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
         } else if (url.pathname === '/' || url.pathname === '/index.html') {
-          headers.set('Cache-Control', 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400');
+          headers.set(
+            'Cache-Control',
+            'public, max-age=0, s-maxage=300, stale-while-revalidate=86400'
+          );
           headers.set('X-Content-Type-Options', 'nosniff');
         }
         return new Response(assetRes.body, { status: assetRes.status, headers });

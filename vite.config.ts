@@ -214,6 +214,22 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(import.meta.dirname, './src'),
       },
+      dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+    },
+    optimizeDeps: {
+      include: [
+        'react',
+        'react-dom',
+        'react-dom/client',
+        'react/jsx-runtime',
+        'react/jsx-dev-runtime',
+        'framer-motion',
+        'lucide-react',
+        'dompurify',
+        'qrcode',
+        'tesseract.js',
+        'workbox-window',
+      ],
     },
     build: {
       target: 'esnext',

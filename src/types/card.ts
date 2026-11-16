@@ -152,6 +152,7 @@ export interface StoredCard {
   template_id?: string;
   photo_url?: string;
   back_photo_url?: string;
+  ownerKey?: string;
   owner_key?: string;
   created_at?: string;
   updated_at?: string;

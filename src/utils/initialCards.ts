@@ -8,6 +8,7 @@ import {
 } from './vaultSession';
 import { isPinSet, getSessionLocked } from './pinLock';
 import { sanitizeExternalUrl } from './sanitizeUrl';
+import { generateOwnerKey } from './ownerKey';
 
 const STORAGE_KEY = 'my_cards';
 const FALLBACK_STORAGE_KEY = 'user_cards';
@@ -24,15 +25,26 @@ export function clearMemoryDecryptedCards(): void {
   clearActiveSessionKey();
 }
 
+const LEGACY_BACK_TITLES = new Set(['고구마 AI 스튜디오', 'GOGUMA AI STUDIO']);
+const LEGACY_BACK_SUBTITLES = new Set(['GOGUMA AI STUDIO', 'AI EXPERT GROUP']);
+const LEGACY_HQ_ADDRESS = 'Gangnam-gu, Seoul, Republic of Korea';
+
+function isLegacyCheongdamAddress(addr: string): boolean {
+  return (
+    addr.includes('77 Cheongdam-ro') &&
+    (addr.includes('06015') || addr.includes('Republic of Korea'))
+  );
+}
+
 function enrichCard(c: StoredCard): StoredCard {
   const rawData = c.data;
   const primaryName = (rawData?.name || rawData?.nameKr || '').trim();
   const rawNameKr = (rawData?.nameKr || '').trim();
-  const rawNameEn = (rawData?.nameEn || '').trim();
+  const rawNameEn = (rawData?.nameEn || rawData?.details?.en_name || c.details?.en_name || '').trim();
   const cleanNameKr =
-    rawNameKr && rawNameKr.toLowerCase() !== primaryName.toLowerCase() ? rawData.nameKr : '';
+    rawNameKr && rawNameKr.toLowerCase() !== primaryName.toLowerCase() ? rawNameKr : '';
   const cleanNameEn =
-    rawNameEn && rawNameEn.toLowerCase() !== primaryName.toLowerCase() ? rawData.nameEn : '';
+    rawNameEn && rawNameEn.toLowerCase() !== primaryName.toLowerCase() ? rawNameEn : '';
 
   const rawOrg = (rawData?.organization || '').trim();
   const rawOrgKr = (rawData?.organizationKr || '').trim();
@@ -48,13 +60,76 @@ function enrichCard(c: StoredCard): StoredCard {
       ? ''
       : (rawData?.title || '');
 
+  const cleanSubOrg = (rawData?.subOrg || rawData?.details?.sub_org || c.details?.sub_org || '').trim();
+  const cleanAddressKr = (rawData?.addressKr || rawData?.details?.address || c.details?.address || '').trim();
+
+  const rawAddressEn = (
+    rawData?.address_en ||
+    rawData?.details?.address_en ||
+    c.details?.address_en ||
+    rawData?.addressEn ||
+    (rawData?.addressLines && rawData.addressLines.length > 0 ? rawData.addressLines.join(', ') : '')
+  ).trim();
+  const cleanAddressEn =
+    !rawAddressEn ||
+    isLegacyCheongdamAddress(rawAddressEn) ||
+    (cleanAddressKr && rawAddressEn.toLowerCase() === cleanAddressKr.toLowerCase())
+      ? ''
+      : rawAddressEn;
+  const cleanAddressLines = cleanAddressEn
+    ? rawData?.addressLines &&
+      rawData.addressLines.length > 0 &&
+      rawData.addressLines.join(', ').trim() === cleanAddressEn
+      ? rawData.addressLines
+      : [cleanAddressEn]
+    : [];
+
+  const rawBackTitle = (rawData?.backTitle || '').trim();
+  const cleanBackTitle = LEGACY_BACK_TITLES.has(rawBackTitle) ? '' : rawBackTitle;
+
+  const rawBackSubtitle = (rawData?.backSubtitle || '').trim();
+  const cleanBackSubtitle = LEGACY_BACK_SUBTITLES.has(rawBackSubtitle) ? '' : rawBackSubtitle;
+
+  const rawBackTagline = (rawData?.backTagline || rawData?.details?.slogan || c.details?.slogan || '').trim();
+  const cleanSlogan = LEGACY_BACK_SUBTITLES.has(rawBackTagline) ? '' : rawBackTagline;
+
+  const rawBackHqAddress = (rawData?.backHqAddress || '').trim();
+  const cleanBackHqAddress = rawBackHqAddress === LEGACY_HQ_ADDRESS ? '' : rawBackHqAddress;
+
+  const showAddress =
+    rawData?.details?.show_address ??
+    c.details?.show_address ??
+    c.card_features?.show_address ??
+    true;
+  const showEnName =
+    rawData?.details?.show_en_name ??
+    c.details?.show_en_name ??
+    c.card_features?.show_en_name ??
+    true;
+
+  const canonicalDetails = {
+    en_name: cleanNameEn,
+    sub_org: cleanSubOrg,
+    address: cleanAddressKr,
+    address_en: cleanAddressEn,
+    slogan: cleanSlogan,
+    show_address: showAddress,
+    show_en_name: showEnName,
+  };
+
+  const resolvedOwnerKey = c.isMyCard
+    ? (c.ownerKey || c.owner_key || generateOwnerKey())
+    : undefined;
+
   const enriched: StoredCard = {
     ...c,
     isMyCard: Boolean(c.isMyCard),
     isDefault: c.isMyCard ? Boolean(c.isDefault) : false,
-    owner_key: c.isMyCard ? (c.owner_key || `key_${c.id}`) : undefined,
+    ownerKey: resolvedOwnerKey,
+    owner_key: resolvedOwnerKey,
     slug: c.isMyCard ? c.slug : undefined,
     customDomain: c.isMyCard ? c.customDomain : undefined,
+    details: canonicalDetails,
     data: rawData
       ? (() => {
           const rawWeb = rawData.website || '';
@@ -67,7 +142,17 @@ function enrichCard(c: StoredCard): StoredCard {
             nameEn: cleanNameEn,
             nameKr: cleanNameKr,
             organization: cleanOrg,
+            subOrg: cleanSubOrg,
             title: cleanTitle,
+            addressKr: cleanAddressKr,
+            address_en: cleanAddressEn,
+            addressEn: cleanAddressEn,
+            addressLines: cleanAddressLines,
+            backTitle: cleanBackTitle,
+            backSubtitle: cleanBackSubtitle,
+            backTagline: cleanSlogan,
+            backHqAddress: cleanBackHqAddress,
+            details: canonicalDetails,
             website: safeWeb,
             websiteDisplay: safeDisplay,
             googleMapsUrl: rawData.googleMapsUrl
@@ -92,7 +177,8 @@ function enrichCard(c: StoredCard): StoredCard {
       ...enriched,
       id: 'sample-card-goguma-master',
       slug: 'master',
-      owner_key: c.owner_key || 'owner_master_sample',
+      ownerKey: c.ownerKey || c.owner_key || 'owner_master_sample',
+      owner_key: c.ownerKey || c.owner_key || 'owner_master_sample',
       customDomain: 'eerum.goguma.app/master',
       category: c.category || '글로벌 네트워크',
       theme: c.theme || 'pure_white',
@@ -128,8 +214,9 @@ function enrichCard(c: StoredCard): StoredCard {
 
 /**
  * Enforces strict wallet invariants across personal cards (`isMyCard: true`) and Vault cards (`isMyCard: false`):
- * 1. Prevents any Vault card from colliding with an existing personal card's ID or carrying `isDefault: true` / `slug` / `owner_key`.
- * 2. Ensures exactly one personal card has `isDefault: true` whenever at least one personal card exists.
+ * 1. Normalizes dual schema fields (`details`, `address_en`/`addressEn`, `name`/`nameEn`/`nameKr`) and strips legacy placeholders once.
+ * 2. Prevents any Vault card from colliding with an existing personal card's ID or carrying `isDefault: true` / `slug` / `owner_key`.
+ * 3. Ensures exactly one personal card has `isDefault: true` whenever at least one personal card exists.
  */
 export function normalizeStoredCards(rawCards: StoredCard[]): StoredCard[] {
   if (!Array.isArray(rawCards) || rawCards.length === 0) return [];
@@ -193,6 +280,7 @@ export function normalizeStoredCards(rawCards: StoredCard[]): StoredCard[] {
       id: safeVaultId,
       isMyCard: false,
       isDefault: false,
+      ownerKey: undefined,
       owner_key: undefined,
       slug: undefined,
       customDomain: undefined,

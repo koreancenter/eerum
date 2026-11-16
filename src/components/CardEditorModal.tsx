@@ -19,6 +19,7 @@ import { PhotoArchivingEditor } from './editor/PhotoArchivingEditor';
 import { EditorPreviewPanel } from './editor/EditorPreviewPanel';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { loadVaultCategories } from '../utils/categories';
+import { generateOwnerKey } from '../utils/ownerKey';
 
 export interface CardEditorModalProps {
   isOpen: boolean;
@@ -604,6 +605,9 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
 
     const isPhotoMode = creationMode === 'photo';
     const isHtmlMode = creationMode === 'custom_html' || (creationMode as string) === 'custom';
+    const resolvedOwnerKey = isMyCardMode
+      ? (activeCard.ownerKey || activeCard.owner_key || generateOwnerKey())
+      : undefined;
 
     const updated: StoredCard = {
       ...activeCard,
@@ -619,7 +623,8 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
       isDefault: isMyCardMode ? isDefault : false,
       isMyCard: Boolean(isMyCardMode),
       creation_mode: creationMode,
-      owner_key: isMyCardMode ? (activeCard.owner_key || `key_${Date.now()}`) : undefined,
+      ownerKey: resolvedOwnerKey,
+      owner_key: resolvedOwnerKey,
       created_at: activeCard.created_at || new Date().toISOString(),
       details: {
         en_name: cleanNameEn,

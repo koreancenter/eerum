@@ -96,26 +96,19 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
     );
   }
 
-  // Resolve clean Quiet Luxury Main Title & Sub-heading
-  const rawBackTitle = (data.backTitle || '').trim();
-  const isLegacyBackTitle = rawBackTitle === '고구마 AI 스튜디오' || rawBackTitle === 'GOGUMA AI STUDIO';
+  // Resolve clean Quiet Luxury Main Title & Sub-heading (legacy cleanup runs in normalizeStoredCards)
   const mainTitle =
-    (!isLegacyBackTitle && rawBackTitle) ||
+    (data.backTitle || '').trim() ||
     data.organization ||
     data.organizationKr ||
     'GOGUMA KNOWLEDGE OFFICE';
 
   const rawBackSubtitle = (data.backSubtitle || '').trim();
   const rawBackTagline = (data.backTagline || '').trim();
-  const isLegacySub =
-    rawBackSubtitle === 'GOGUMA AI STUDIO' || rawBackSubtitle === 'AI EXPERT GROUP';
-  const isLegacyTag =
-    rawBackTagline === 'AI EXPERT GROUP' || rawBackTagline === 'GOGUMA AI STUDIO';
-
   const rawSubHeading =
-    !isLegacySub && rawBackSubtitle && rawBackSubtitle.toLowerCase() !== mainTitle.trim().toLowerCase()
+    rawBackSubtitle && rawBackSubtitle.toLowerCase() !== mainTitle.trim().toLowerCase()
       ? rawBackSubtitle
-      : !isLegacyTag && rawBackTagline && rawBackTagline.toLowerCase() !== mainTitle.trim().toLowerCase()
+      : rawBackTagline && rawBackTagline.toLowerCase() !== mainTitle.trim().toLowerCase()
         ? rawBackTagline
         : 'KOREAN CENTER GLOBAL NETWORK';
   const subHeading =
@@ -127,9 +120,11 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
     data.addressEn ||
     (data.addressLines && data.addressLines.length > 0 ? data.addressLines.join(', ') : '')
   ).trim();
-  const rawHq = (data.backHqAddress || '').trim();
-  const cleanHq = rawHq === 'Gangnam-gu, Seoul, Republic of Korea' ? '' : rawHq;
-  const hqAddress = rawAddressEn || cleanHq || data.addressKr || '152 Teheran-ro, Gangnam-gu, Seoul';
+  const hqAddress =
+    rawAddressEn ||
+    (data.backHqAddress || '').trim() ||
+    data.addressKr ||
+    '152 Teheran-ro, Gangnam-gu, Seoul';
 
   return (
     <div

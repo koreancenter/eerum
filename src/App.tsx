@@ -5,59 +5,17 @@
  * Permitted for personal and non-profit use. Redistribution, modification, sale, and commercial use prohibited.
  */
 
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { PrintConfig, StoredCard } from './types/card';
-import {
-  loadUserCards,
-  saveUserCards,
-  saveStoredCards,
-  normalizeStoredCards,
-  clearAllLocalData,
-  hasLocalWalletInitialized,
-  clearMemoryDecryptedCards,
-} from './utils/initialCards';
+import { saveStoredCards } from './utils/initialCards';
+import { shareOrCopyLink } from './utils/share';
 import { WelcomeCard } from './components/WelcomeCard';
 import { lazyWithRetry, LazyErrorBoundary } from './utils/lazyWithRetry';
-
-const AppModals = lazyWithRetry(() =>
-  import('./components/AppModals').then((m) => ({ default: m.AppModals }))
-);
-const DeleteConfirmModal = lazyWithRetry(() =>
-  import('./components/DeleteConfirmModal').then((m) => ({ default: m.DeleteConfirmModal }))
-);
-
-const CardContainer = lazyWithRetry(() =>
-  import('./components/CardContainer').then((m) => ({ default: m.CardContainer }))
-);
-const CardNavigator = lazyWithRetry(() =>
-  import('./components/CardNavigator').then((m) => ({ default: m.CardNavigator }))
-);
-const PrintSheet = lazyWithRetry(() =>
-  import('./components/PrintSheet').then((m) => ({ default: m.PrintSheet }))
-);
-const VaultView = lazyWithRetry(() =>
-  import('./components/VaultView').then((m) => ({ default: m.VaultView }))
-);
-const CardPersonalMemo = lazyWithRetry(() =>
-  import('./components/CardPersonalMemo').then((m) => ({ default: m.CardPersonalMemo }))
-);
-
-import {
-  APP_BASE_DOMAIN,
-  resolvePublicRouteCard,
-  getCardShareUrl,
-  getRouteSlug,
-  isPublicSlugRoute,
-  isPlatformHost,
-  normalizeDomain,
-  sanitizeCardForVault,
-} from '@/utils/cardSerializer';
-import { useAutoLock } from './hooks/useAutoLock';
+import { getCardShareUrl } from '@/utils/cardSerializer';
 import { useModalState } from './hooks/useModalState';
 import { usePWAInstall } from './hooks/usePWAInstall';
-const PWAInstallModal = lazyWithRetry(() =>
-  import('./components/PWAInstallModal').then((m) => ({ default: m.PWAInstallModal }))
-);
+import { useCardVault, type ActiveTab } from './hooks/useCardVault';
+import { usePublicCardRoute } from './hooks/usePublicCardRoute';
 import {
   Check,
   CreditCard,
@@ -78,28 +36,33 @@ import {
   Download,
 } from 'lucide-react';
 
-type ActiveTab = 'my-card' | 'vault';
+const AppModals = lazyWithRetry(() =>
+  import('./components/AppModals').then((m) => ({ default: m.AppModals }))
+);
+const DeleteConfirmModal = lazyWithRetry(() =>
+  import('./components/DeleteConfirmModal').then((m) => ({ default: m.DeleteConfirmModal }))
+);
+const CardContainer = lazyWithRetry(() =>
+  import('./components/CardContainer').then((m) => ({ default: m.CardContainer }))
+);
+const CardNavigator = lazyWithRetry(() =>
+  import('./components/CardNavigator').then((m) => ({ default: m.CardNavigator }))
+);
+const PrintSheet = lazyWithRetry(() =>
+  import('./components/PrintSheet').then((m) => ({ default: m.PrintSheet }))
+);
+const VaultView = lazyWithRetry(() =>
+  import('./components/VaultView').then((m) => ({ default: m.VaultView }))
+);
+const CardPersonalMemo = lazyWithRetry(() =>
+  import('./components/CardPersonalMemo').then((m) => ({ default: m.CardPersonalMemo }))
+);
+const PWAInstallModal = lazyWithRetry(() =>
+  import('./components/PWAInstallModal').then((m) => ({ default: m.PWAInstallModal }))
+);
 
 export default function App() {
-  const [cards, setCards] = useState<StoredCard[]>(() => loadUserCards());
   const [activeTab, setActiveTab] = useState<ActiveTab>('my-card');
-
-  // Strictly isolated selection states:
-  // 1) selectedMyCardId: exclusively references personal cards (`isMyCard === true`)
-  const [selectedMyCardId, setSelectedMyCardId] = useState<string>(() => {
-    const loadedMyCards = loadUserCards().filter((c) => c.isMyCard);
-    const defaultCard = loadedMyCards.find((c) => c.isDefault) || loadedMyCards[0];
-    return defaultCard?.id || '';
-  });
-  // 2) selectedVaultCardId: exclusively references third-party Vault cards (`isMyCard === false`) when viewing Vault detail
-  const [selectedVaultCardId, setSelectedVaultCardId] = useState<string | null>(null);
-  // 3) modalTargetCardId: transient target for Share / QR / Print / Export modals so selectedMyCardId is never mutated
-  const [modalTargetCardId, setModalTargetCardId] = useState<string | null>(null);
-
-  // External Public Shared Landing State (strictly isolated from internal studio & vault views)
-  const [publicCard, setPublicCard] = useState<StoredCard | null>(null);
-  const [isPublicExternalView, setIsPublicExternalView] = useState<boolean>(false);
-
   const [isSamplePreview, setIsSamplePreview] = useState<boolean>(false);
   const [sampleCard, setSampleCard] = useState<StoredCard | null>(null);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
@@ -107,6 +70,14 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const pwa = usePWAInstall();
   const [isPWAInstallOpen, setIsPWAInstallOpen] = useState<boolean>(false);
+
+  const [printConfig, setPrintConfig] = useState<PrintConfig>({
+    layout: 'single-card',
+    size: 'kr-standard',
+    theme: 'pure_white',
+    showCropMarks: true,
+    scale: 1,
+  });
 
   // App opens to Start Screen (WelcomeCard) on first launch
   const [showWelcomeIntro, setShowWelcomeIntro] = useState<boolean>(() => {
@@ -132,41 +103,6 @@ export default function App() {
     }
   }, []);
 
-  // Card targeted for deletion confirmation
-  const [cardPendingDelete, setCardPendingDelete] = useState<StoredCard | null>(null);
-
-  // Centralized Lightweight Modal Manager Hook
-  const modals = useModalState();
-
-  // Local-First 4-Digit PIN App Lock with Auto-Lock (Manual, Visibility, Idle 5m)
-  const {
-    isLocked,
-    lockApp: rawLockApp,
-    unlockApp,
-    isPinConfigured,
-    refreshPinStatus,
-  } = useAutoLock();
-
-  const lockApp = useCallback(() => {
-    clearMemoryDecryptedCards();
-    setCards([]);
-    setSelectedMyCardId('');
-    setModalTargetCardId(null);
-    modals.closeAll();
-    rawLockApp();
-  }, [rawLockApp, modals.closeAll]);
-
-  // Ensure any lock transition (manual, visibilitychange, or 5m idle) wipes plaintext cards from memory
-  useEffect(() => {
-    if (isPinConfigured && isLocked) {
-      clearMemoryDecryptedCards();
-      setCards((prev) => (prev.length > 0 ? [] : prev));
-      setSelectedMyCardId('');
-      setModalTargetCardId(null);
-      modals.closeAll();
-    }
-  }, [isPinConfigured, isLocked, modals.closeAll]);
-
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -174,210 +110,67 @@ export default function App() {
     }, 2400);
   }, []);
 
-  const requireUnlock = (action: () => void) => {
-    if (isPinConfigured && isLocked) {
-      lockApp();
-    } else {
-      action();
-    }
-  };
+  const modals = useModalState();
 
-  // Optional Biometric Unlock handler with automatic cryptographic vault rehydration
-  const handleBiometricUnlock = async () => {
-    const { verifyBiometric } = await import('./utils/biometrics');
-    const res = await verifyBiometric();
-    if (res.success) {
-      unlockApp();
-      setCards(loadUserCards());
-      showToast('생체 인증(Biometrics)으로 잠금이 해제되었습니다.');
-    } else if (res.error && !res.error.includes('취소')) {
-      showToast(res.error);
-    }
-  };
-
-  // Strictly isolated personal cards collection (`isMyCard === true`)
-  const myCards = cards.filter((c) => c.isMyCard);
-  // Strictly isolated third-party Vault cards collection (`isMyCard === false`)
-  const vaultCards = cards.filter((c) => !c.isMyCard);
-
-  // Synchronize selectedMyCardId strictly with myCards (`isMyCard === true`)
-  useEffect(() => {
-    if (myCards.length === 0) {
-      if (selectedMyCardId !== '') {
-        setSelectedMyCardId('');
-      }
-      return;
-    }
-    if (!myCards.some((c) => c.id === selectedMyCardId)) {
-      const defaultMyCard = myCards.find((c) => c.isDefault) || myCards[0];
-      if (defaultMyCard) {
-        setSelectedMyCardId(defaultMyCard.id);
-      }
-    }
-  }, [myCards, selectedMyCardId]);
-
-  // Clear temporary modal target card once Share/QR/Print/Export modals close
-  useEffect(() => {
-    if (
-      modalTargetCardId &&
-      !modals.isShareOpen &&
-      !modals.isQrOpen &&
-      !modals.isPrintOpen &&
-      !modals.isExportOpen
-    ) {
-      setModalTargetCardId(null);
-    }
-  }, [
-    modalTargetCardId,
-    modals.isShareOpen,
-    modals.isQrOpen,
-    modals.isPrintOpen,
-    modals.isExportOpen,
-  ]);
-
-  // Persist cards to localStorage ONLY when unlocked (prevents wiping encrypted vault while locked)
-  useEffect(() => {
-    if (isPinConfigured && isLocked) return;
-    saveUserCards(cards);
-  }, [cards, isPinConfigured, isLocked]);
-
-  // 1. URL Sync Detection & Initialization (Cross-device anonymous wallet)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const searchParams = new URLSearchParams(window.location.search);
-    const syncId = searchParams.get('sync');
-    if (syncId) {
-      import('./utils/syncWallet').then(({ pullWalletFromEdge }) =>
-        pullWalletFromEdge(syncId).then((remoteCards) => {
-          if (remoteCards && Array.isArray(remoteCards) && remoteCards.length > 0) {
-            const normalized = normalizeStoredCards(remoteCards);
-            setCards(normalized);
-            saveStoredCards(normalized);
-            setPublicCard(null);
-            setIsPublicExternalView(false);
-            setSelectedVaultCardId(null);
-            setActiveTab('vault');
-            showToast('기기 보관함이 성공적으로 동기화되었습니다.');
-          }
-          const url = new URL(window.location.href);
-          url.searchParams.delete('sync');
-          window.history.replaceState({}, document.title, url.pathname + (url.search || ''));
-        })
-      );
-    }
-  }, [showToast]);
-
-  // 2. Automatic background sync of wallet to Cloudflare edge (skipped while locked)
-  useEffect(() => {
-    if (isPinConfigured && isLocked) return;
-    if (!cards || cards.length === 0) return;
-    const timer = setTimeout(() => {
-      import('./utils/syncWallet').then(({ pushWalletToEdge }) => pushWalletToEdge(cards));
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [cards, isPinConfigured, isLocked]);
-
-  // 3. Public URL Route Evaluation (Runs ONLY on initial load & browser Back/Forward, NEVER on cards state mutations)
-  const evaluatePublicRoute = useCallback(() => {
-    if (typeof window === 'undefined') return;
-
-    try {
-      if (!isPublicSlugRoute()) {
-        setPublicCard(null);
-        setIsPublicExternalView(false);
-        return;
-      }
-
-      const localMyCards = loadUserCards().filter((c) => c.isMyCard);
-      const localOwnedMatch = resolvePublicRouteCard(localMyCards, []);
-      if (localOwnedMatch) {
-        setPublicCard(null);
-        setIsPublicExternalView(false);
-        setSelectedVaultCardId(null);
-        setSelectedMyCardId(localOwnedMatch.id);
-        setActiveTab('my-card');
-        return;
-      }
-
-      const slug = getRouteSlug();
-      const hostname = window.location.hostname.toLowerCase();
-      const customDomainParam = !isPlatformHost(hostname) ? normalizeDomain(hostname) : null;
-
-      const endpoint = customDomainParam
-        ? `/api/resolve?domain=${encodeURIComponent(customDomainParam)}`
-        : slug
-          ? `/api/cards?slug=${encodeURIComponent(slug)}`
-          : null;
-
-      import('./constants/sampleCards').then(({ INITIAL_CARDS }) => {
-        const sampleFallback = resolvePublicRouteCard([], INITIAL_CARDS);
-
-        if (!endpoint) {
-          if (sampleFallback) {
-            setPublicCard(sampleFallback);
-            setIsPublicExternalView(true);
-            setIsFlipped(false);
-          }
-          return;
-        }
-
-        fetch(endpoint)
-          .then((res) => (res.ok ? res.json() : null))
-          .then((payload) => {
-            const remoteCard: StoredCard | null = payload?.card || sampleFallback || null;
-            if (!remoteCard) return;
-
-            const currentMyCards = loadUserCards().filter((c) => c.isMyCard);
-            const isOwnedByLocalUser = currentMyCards.some(
-              (c) =>
-                c.id === remoteCard.id ||
-                (Boolean(remoteCard.owner_key) && c.owner_key === remoteCard.owner_key)
-            );
-
-            if (isOwnedByLocalUser) {
-              const owned =
-                currentMyCards.find(
-                  (c) =>
-                    c.id === remoteCard.id ||
-                    (Boolean(remoteCard.owner_key) && c.owner_key === remoteCard.owner_key)
-                ) || currentMyCards[0];
-              setPublicCard(null);
-              setIsPublicExternalView(false);
-              setSelectedVaultCardId(null);
-              if (owned) setSelectedMyCardId(owned.id);
-              setActiveTab('my-card');
-            } else {
-              setPublicCard(remoteCard);
-              setIsPublicExternalView(true);
-              setIsFlipped(false);
-            }
-          })
-          .catch(() => {
-            if (sampleFallback) {
-              setPublicCard(sampleFallback);
-              setIsPublicExternalView(true);
-              setIsFlipped(false);
-            }
-          });
-      });
-    } catch (e) {
-      console.error('URL routing error', e);
-    }
+  const cleanPublicRouteRef = useRef<() => void>(() => {});
+  const handleCleanPublicRoute = useCallback(() => {
+    cleanPublicRouteRef.current();
   }, []);
 
-  useEffect(() => {
-    evaluatePublicRoute();
-    window.addEventListener('popstate', evaluatePublicRoute);
-    return () => window.removeEventListener('popstate', evaluatePublicRoute);
-  }, [evaluatePublicRoute]);
+  const vault = useCardVault({
+    modals,
+    showToast,
+    activeTab,
+    setActiveTab,
+    setIsSamplePreview,
+    setIsFlipped,
+    setShowWelcomeIntro,
+    onCleanPublicRoute: handleCleanPublicRoute,
+    preferredNewCardTheme: isSamplePreview ? sampleCard?.theme : undefined,
+  });
 
-  const cleanPublicUrlToRoot = () => {
-    if (typeof window !== 'undefined' && isPublicSlugRoute()) {
-      window.history.replaceState({}, document.title, '/');
-    }
-    setPublicCard(null);
-    setIsPublicExternalView(false);
-  };
+  const handleResolveOwnedMyCard = useCallback(
+    (ownedCardId?: string) => {
+      vault.setSelectedVaultCardId(null);
+      if (ownedCardId) {
+        vault.setSelectedMyCardId(ownedCardId);
+      }
+      setActiveTab('my-card');
+    },
+    [vault.setSelectedVaultCardId, vault.setSelectedMyCardId]
+  );
+
+  const handleApplySyncedCards = useCallback(
+    (normalized: StoredCard[]) => {
+      vault.setCards(normalized);
+      saveStoredCards(normalized);
+      vault.setSelectedVaultCardId(null);
+      setActiveTab('vault');
+    },
+    [vault.setCards, vault.setSelectedVaultCardId]
+  );
+
+  const handleResetFlip = useCallback(() => {
+    setIsFlipped(false);
+  }, []);
+
+  const {
+    publicCard,
+    isPublicExternalView,
+    isUnauthenticatedExternalVisitor,
+    cleanPublicUrlToRoot,
+  } = usePublicCardRoute({
+    hasLocalCards: vault.cards.length > 0,
+    isPinConfigured: vault.isPinConfigured,
+    showToast,
+    onResolveOwnedMyCard: handleResolveOwnedMyCard,
+    onApplySyncedCards: handleApplySyncedCards,
+    onResetFlip: handleResetFlip,
+  });
+
+  useEffect(() => {
+    cleanPublicRouteRef.current = cleanPublicUrlToRoot;
+  }, [cleanPublicUrlToRoot]);
 
   /**
    * Explicit Tab Change Handler (`handleTabChange`)
@@ -390,285 +183,50 @@ export default function App() {
     setIsSamplePreview(false);
     if (nextTab === 'my-card') {
       cleanPublicUrlToRoot();
-      setSelectedVaultCardId(null);
+      vault.setSelectedVaultCardId(null);
       setIsFlipped(false);
       const preferredMyCard =
-        (targetMyCardId ? myCards.find((c) => c.id === targetMyCardId) : undefined) ||
-        myCards.find((c) => c.isDefault) ||
-        myCards[0];
-      setSelectedMyCardId(preferredMyCard?.id || '');
+        (targetMyCardId ? vault.myCards.find((c) => c.id === targetMyCardId) : undefined) ||
+        vault.myCards.find((c) => c.isDefault) ||
+        vault.myCards[0];
+      vault.setSelectedMyCardId(preferredMyCard?.id || '');
       setActiveTab('my-card');
       return;
     }
 
-    requireUnlock(() => {
+    vault.requireUnlock(() => {
       cleanPublicUrlToRoot();
-      setSelectedVaultCardId(null);
+      vault.setSelectedVaultCardId(null);
       setIsFlipped(false);
       setActiveTab('vault');
     });
+  };
+
+  const handleCreateMyOwnCard = () => {
+    handleTabChange('my-card');
+    vault.handleOpenCreateModal();
   };
 
   // Resolved personal card strictly from `myCards` (`isMyCard === true`), or sample card when `isSamplePreview` is active
   const currentMyCard: StoredCard | undefined =
     isSamplePreview
       ? sampleCard || undefined
-      : myCards.length > 0
-        ? myCards.find((c) => c.id === selectedMyCardId) ||
-          myCards.find((c) => c.isDefault) ||
-          myCards[0]
+      : vault.myCards.length > 0
+        ? vault.myCards.find((c) => c.id === vault.selectedMyCardId) ||
+          vault.myCards.find((c) => c.isDefault) ||
+          vault.myCards[0]
         : undefined;
-
-  // Resolved Vault detail card strictly restricted to third-party cards (`!c.isMyCard`)
-  const selectedVaultCard: StoredCard | undefined = selectedVaultCardId
-    ? cards.find((c) => c.id === selectedVaultCardId && !c.isMyCard)
-    : undefined;
-
-  // Clear stale selectedVaultCardId if the target Vault card was deleted while unlocked
-  useEffect(() => {
-    if (selectedVaultCardId && !(isPinConfigured && isLocked) && !selectedVaultCard) {
-      setSelectedVaultCardId(null);
-    }
-  }, [selectedVaultCardId, isPinConfigured, isLocked, selectedVaultCard]);
 
   // Target card for Share / QR / Print / Export modals
   const modalTargetCard: StoredCard | undefined =
-    (modalTargetCardId ? cards.find((c) => c.id === modalTargetCardId) : undefined) ||
+    (vault.modalTargetCardId
+      ? vault.cards.find((c) => c.id === vault.modalTargetCardId)
+      : undefined) ||
     (isPublicExternalView && publicCard
       ? publicCard
-      : activeTab === 'vault' && selectedVaultCard
-        ? selectedVaultCard
+      : activeTab === 'vault' && vault.selectedVaultCard
+        ? vault.selectedVaultCard
         : currentMyCard);
-
-  // Strict visitor classification:
-  // True ONLY when an unauthenticated external visitor (no local wallet/cards/PIN) visits a public shared link (/card/:slug)
-  const hasLocalUserSession =
-    cards.length > 0 || isPinConfigured || hasLocalWalletInitialized();
-  const isUnauthenticatedExternalVisitor =
-    isPublicExternalView && Boolean(publicCard) && !hasLocalUserSession;
-
-  // Print Config
-  const [printConfig, setPrintConfig] = useState<PrintConfig>({
-    layout: 'single-card',
-    size: 'kr-standard',
-    theme: 'pure_white',
-    showCropMarks: true,
-    scale: 1,
-  });
-
-  // Personal My Card Switcher (never mutates URL into a public slug route)
-  const handleSelectMyCard = (id: string) => {
-    const matchedMy = myCards.find((c) => c.id === id);
-    if (!matchedMy) return;
-    setSelectedMyCardId(matchedMy.id);
-    setIsFlipped(false);
-  };
-
-  // Create New Personal My Card (`isMyCard: true`)
-  const handleOpenCreateModal = () => {
-    setShowWelcomeIntro(false);
-    setIsSamplePreview(false);
-    requireUnlock(() => {
-      const defaultSlug = `card-${String(Date.now()).slice(-4)}`;
-      const newCardTemplate: StoredCard = {
-        id: `my-card-${Date.now()}`,
-        isMyCard: true,
-        isDefault: myCards.length === 0,
-        slug: defaultSlug,
-        owner_key: `key_${Date.now()}`,
-        theme: currentMyCard?.theme || 'pure_white',
-        layout_type: 'editorial_minimal',
-        card_features: {
-          show_en_name: true,
-          show_sub_org: true,
-          show_address: true,
-          monogram_text: '',
-        },
-        category: '글로벌 네트워크',
-        createdAt: new Date().toISOString().split('T')[0],
-        notes: '내 디지털 명함',
-        details: {
-          en_name: '',
-          sub_org: '',
-          address: '',
-          address_en: '',
-          slogan: '',
-          show_address: true,
-          show_en_name: true,
-        },
-        data: {
-          organization: '',
-          organizationKr: '',
-          subOrg: '',
-          name: '',
-          nameEn: '',
-          nameKr: '',
-          title: '',
-          titleKr: '',
-          phone: '',
-          phoneRaw: '',
-          whatsappUrl: '',
-          email: '',
-          website: `https://${APP_BASE_DOMAIN}/card/${defaultSlug}`,
-          websiteDisplay: `${APP_BASE_DOMAIN}/card/${defaultSlug}`,
-          addressLines: [],
-          addressKr: '',
-          address_en: '',
-          addressEn: '',
-          details: {
-            en_name: '',
-            sub_org: '',
-            address: '',
-            address_en: '',
-            slogan: '',
-            show_address: true,
-            show_en_name: true,
-          },
-          googleMapsUrl: '',
-          naverMapsUrl: '',
-          backTitle: '',
-          backSubtitle: '',
-          backTagline: '',
-          backHqAddress: '',
-        },
-      };
-      modals.openEditor(newCardTemplate, true);
-    });
-  };
-
-  // Create New Third-Party Vault Card via Full Editor (`isMyCard: false` — never overwrites My Card)
-  const handleOpenCreateVaultCardModal = () => {
-    requireUnlock(() => {
-      const newVaultTemplate: StoredCard = {
-        id: `vault-card-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        isMyCard: false,
-        isDefault: false,
-        theme: 'pure_white',
-        layout_type: 'editorial_minimal',
-        card_features: {
-          show_en_name: true,
-          show_sub_org: true,
-          show_address: true,
-          monogram_text: '',
-        },
-        category: 'VIP 파트너',
-        createdAt: new Date().toISOString().split('T')[0],
-        notes: '',
-        details: {
-          en_name: '',
-          sub_org: '',
-          address: '',
-          address_en: '',
-          slogan: '',
-          show_address: true,
-          show_en_name: true,
-        },
-        data: {
-          organization: '',
-          organizationKr: '',
-          subOrg: '',
-          name: '',
-          nameEn: '',
-          nameKr: '',
-          title: '',
-          titleKr: '',
-          phone: '',
-          phoneRaw: '',
-          whatsappUrl: '',
-          email: '',
-          website: '',
-          websiteDisplay: '',
-          addressLines: [],
-          addressKr: '',
-          address_en: '',
-          addressEn: '',
-          details: {
-            en_name: '',
-            sub_org: '',
-            address: '',
-            address_en: '',
-            slogan: '',
-            show_address: true,
-            show_en_name: true,
-          },
-          googleMapsUrl: '',
-          naverMapsUrl: '',
-          backTitle: '',
-          backSubtitle: '',
-          backTagline: '',
-          backHqAddress: '',
-        },
-      };
-      modals.openEditor(newVaultTemplate, true);
-    });
-  };
-
-  const handleCreateMyOwnCard = () => {
-    handleTabChange('my-card');
-    handleOpenCreateModal();
-  };
-
-  // Bulk import contacts into the Vault
-  const handleImportCards = (newCards: StoredCard[]) => {
-    requireUnlock(() => {
-      setCards((prev) => {
-        const safeImported = newCards.map((nc) => sanitizeCardForVault(nc));
-        return [...safeImported, ...prev];
-      });
-      showToast(`${newCards.length}개의 연락처가 보관함에 등록되었습니다.`);
-    });
-  };
-
-  // Register an externally shared card (/card/:slug) directly into the internal Vault and show VaultDetailView
-  const handleRegisterSharedCardToVault = (sourceCard: StoredCard) => {
-    requireUnlock(() => {
-      const existingVaultCopy = cards.find(
-        (c) =>
-          !c.isMyCard &&
-          c.data.name === sourceCard.data.name &&
-          c.data.phone === sourceCard.data.phone &&
-          c.data.email === sourceCard.data.email
-      );
-
-      const isolatedVaultId =
-        existingVaultCopy?.id ||
-        `vault-card-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-
-      const sanitized = sanitizeCardForVault(sourceCard, {
-        id: isolatedVaultId,
-        category: existingVaultCopy?.category || sourceCard.category || 'VIP 파트너',
-        notes: existingVaultCopy?.notes || sourceCard.notes || '공유 링크로 등록됨',
-      });
-
-      const isFirstEverCard = cards.length === 0;
-
-      setCards((prev) => {
-        const existsInVault = prev.some((c) => !c.isMyCard && c.id === sanitized.id);
-        if (existsInVault) {
-          return prev.map((c) => (!c.isMyCard && c.id === sanitized.id ? sanitized : c));
-        }
-        return [sanitized, ...prev];
-      });
-
-      cleanPublicUrlToRoot();
-      setIsSamplePreview(false);
-      setIsFlipped(false);
-      setActiveTab('vault');
-      setSelectedVaultCardId(sanitized.id);
-      showToast(`'${sanitized.data.name}' 명함이 보관함에 등록되었습니다.`);
-
-      if (
-        isFirstEverCard &&
-        !isPinConfigured &&
-        typeof window !== 'undefined' &&
-        localStorage.getItem('lazy_pin_dismissed') !== 'true'
-      ) {
-        setTimeout(() => {
-          modals.openLazyPin();
-        }, 450);
-      }
-    });
-  };
 
   const handleShare = async (cardToShare?: StoredCard) => {
     const targetCard = cardToShare || modalTargetCard;
@@ -678,257 +236,15 @@ export default function App() {
     const displayName = targetCard.data.name || targetCard.data.nameKr;
     const displayOrg = targetCard.data.organizationKr || targetCard.data.organization;
     const displayTitle = targetCard.data.titleKr || targetCard.data.title;
-    const shareData = {
+
+    await shareOrCopyLink({
       title: displayOrg ? `${displayName} — ${displayOrg}` : displayName,
       text: [displayOrg, displayTitle, displayName, '디지털 명함'].filter(Boolean).join(' '),
       url: targetUrl,
-    };
-
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          navigator.clipboard.writeText(targetUrl);
-          showToast(`명함 링크(${displayUrl})가 복사되었습니다`);
-        }
-      }
-    } else {
-      navigator.clipboard.writeText(targetUrl);
-      showToast(`명함 링크(${displayUrl})가 복사되었습니다`);
-    }
-  };
-
-  const handleSaveCard = (savedCard: StoredCard) => {
-    const isFirstEverCard = cards.length === 0;
-
-    if (savedCard.isMyCard) {
-      const hadNoMyCards = myCards.length === 0;
-      const shouldBeDefault = Boolean(savedCard.isDefault) || hadNoMyCards;
-      const normalizedMyCard: StoredCard = {
-        ...savedCard,
-        id: savedCard.id || `my-card-${Date.now()}`,
-        isMyCard: true,
-        isDefault: shouldBeDefault,
-        owner_key: savedCard.owner_key || `key_${Date.now()}`,
-      };
-
-      setCards((prev) => {
-        let nextCards = [...prev];
-        if (shouldBeDefault) {
-          nextCards = nextCards.map((c) =>
-            c.isMyCard ? { ...c, isDefault: false } : c
-          );
-        }
-        const exists = nextCards.some((c) => c.isMyCard && c.id === normalizedMyCard.id);
-        return exists
-          ? nextCards.map((c) =>
-              c.isMyCard && c.id === normalizedMyCard.id ? normalizedMyCard : c
-            )
-          : [normalizedMyCard, ...nextCards];
-      });
-
-      setSelectedMyCardId(normalizedMyCard.id);
-      setIsSamplePreview(false);
-      cleanPublicUrlToRoot();
-
-      if (activeTab !== 'vault') {
-        setSelectedVaultCardId(null);
-        setActiveTab('my-card');
-      }
-
-      showToast(
-        modals.isCreatingCard
-          ? '새로운 내 명함이 생성되었습니다.'
-          : '내 명함 정보가 수정되었습니다.'
-      );
-    } else {
-      // Third-party Vault card registration or update:
-      // 1. Guarantee an isolated unique ID that never collides with any existing `isMyCard: true` card
-      const existingVaultEntry = cards.find((c) => !c.isMyCard && c.id === savedCard.id);
-      const collidesWithMyCard = cards.some((c) => c.isMyCard && c.id === savedCard.id);
-      const safeVaultId =
-        existingVaultEntry && !collidesWithMyCard
-          ? existingVaultEntry.id
-          : savedCard.id &&
-              !collidesWithMyCard &&
-              (savedCard.id.startsWith('vault-card-') || savedCard.id.startsWith('photo-card-'))
-            ? savedCard.id
-            : `vault-card-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-
-      const nowIso = new Date().toISOString();
-      const sanitizedVaultCard = sanitizeCardForVault(savedCard, {
-        id: safeVaultId,
-        category: savedCard.category,
-        notes: savedCard.notes,
-        createdAt: existingVaultEntry?.createdAt || savedCard.createdAt,
-        updatedAt: nowIso,
-      });
-
-      // 2. Update/insert ONLY as a non-MyCard entry; never mutate myCards or selectedMyCardId
-      setCards((prev) => {
-        const existsInVault = prev.some((c) => !c.isMyCard && c.id === sanitizedVaultCard.id);
-        return existsInVault
-          ? prev.map((c) =>
-              !c.isMyCard && c.id === sanitizedVaultCard.id ? sanitizedVaultCard : c
-            )
-          : [sanitizedVaultCard, ...prev];
-      });
-
-      cleanPublicUrlToRoot();
-      setIsSamplePreview(false);
-      setIsFlipped(false);
-
-      // 3. Remain in Vault Detail mode (`activeTab === 'vault'` + `selectedVaultCardId`)
-      setActiveTab('vault');
-      setSelectedVaultCardId(sanitizedVaultCard.id);
-
-      showToast(
-        existingVaultEntry
-          ? '보관 명함 정보가 수정되었습니다.'
-          : `'${sanitizedVaultCard.data.name}' 명함이 보관함에 등록되었습니다.`
-      );
-    }
-
-    if (
-      isFirstEverCard &&
-      !isPinConfigured &&
-      typeof window !== 'undefined' &&
-      localStorage.getItem('lazy_pin_dismissed') !== 'true'
-    ) {
-      setTimeout(() => {
-        modals.openLazyPin();
-      }, 450);
-    }
-  };
-
-  const handleConfirmReset = () => {
-    clearAllLocalData();
-    cleanPublicUrlToRoot();
-    setCards([]);
-    setSelectedMyCardId('');
-    setSelectedVaultCardId(null);
-    setModalTargetCardId(null);
-    setIsSamplePreview(false);
-    setActiveTab('my-card');
-    refreshPinStatus();
-    unlockApp();
-    showToast('모든 로컬 데이터가 안전하게 초기화되었습니다.');
-  };
-
-  const handleRequestDeleteCard = (card: StoredCard) => {
-    requireUnlock(() => {
-      setCardPendingDelete(card);
+      onCopied: () => showToast(`명함 링크(${displayUrl})가 복사되었습니다`),
+      onCopyError: () => showToast('명함 링크 복사에 실패했습니다.'),
     });
   };
-
-  const handleDeleteCard = (cardId: string) => {
-    const target = cards.find((c) => c.id === cardId);
-    if (!target) return;
-
-    setCards((prev) => {
-      const remaining = prev.filter((c) => c.id !== cardId);
-      if (target.isMyCard && target.isDefault) {
-        const firstRemainingMy = remaining.find((c) => c.isMyCard);
-        if (firstRemainingMy) {
-          return remaining.map((c) =>
-            c.id === firstRemainingMy.id ? { ...c, isDefault: true } : c
-          );
-        }
-      }
-      return remaining;
-    });
-
-    if (target.isMyCard) {
-      const remainingMyCards = myCards.filter((c) => c.id !== cardId);
-      if (remainingMyCards.length === 0) {
-        setSelectedMyCardId('');
-        setShowWelcomeIntro(true);
-      } else if (selectedMyCardId === cardId) {
-        const nextCard = remainingMyCards.find((c) => c.isDefault) || remainingMyCards[0];
-        setSelectedMyCardId(nextCard?.id || '');
-      }
-    }
-
-    if (selectedVaultCardId === cardId) {
-      setSelectedVaultCardId(null);
-    }
-    showToast(target.isMyCard ? '내 명함이 삭제되었습니다.' : '명함이 삭제되었습니다.');
-  };
-
-  const handleRenameCategory = (oldName: string, newName: string) => {
-    const affectedCount = cards.filter((c) => c.category === oldName).length;
-    setCards((prev) =>
-      prev.map((c) => (c.category === oldName ? { ...c, category: newName } : c))
-    );
-    showToast(
-      affectedCount > 0
-        ? `'${oldName}' 분류가 '${newName}'(으)로 변경되어 명함 ${affectedCount}장에 반영되었습니다.`
-        : `'${oldName}' 카테고리가 '${newName}'(으)로 변경되었습니다.`
-    );
-  };
-
-  const handleMergeCategories = (sourceCategory: string, targetCategory: string) => {
-    const movedCount = cards.filter((c) => c.category === sourceCategory).length;
-    setCards((prev) =>
-      prev.map((c) =>
-        c.category === sourceCategory ? { ...c, category: targetCategory } : c
-      )
-    );
-    showToast(
-      movedCount > 0
-        ? `'${sourceCategory}'의 명함 ${movedCount}장이 '${targetCategory}'(으)로 병합되었습니다.`
-        : `'${sourceCategory}' 카테고리가 '${targetCategory}'(으)로 병합되었습니다.`
-    );
-  };
-
-  const handleDeleteCategory = (deletedName: string, fallbackCategory: string) => {
-    const movedCount = cards.filter((c) => c.category === deletedName).length;
-    setCards((prev) =>
-      prev.map((c) => (c.category === deletedName ? { ...c, category: fallbackCategory } : c))
-    );
-    showToast(
-      movedCount > 0
-        ? `'${deletedName}' 삭제 후 명함 ${movedCount}장이 '${fallbackCategory}'(으)로 이동되었습니다.`
-        : `'${deletedName}' 카테고리가 삭제되었습니다.`
-    );
-  };
-
-  const handleUpdateCardNotes = useCallback((cardId: string, updatedNotes: string) => {
-    const nowIso = new Date().toISOString();
-    setCards((prev) =>
-      prev.map((c) => (c.id === cardId ? { ...c, notes: updatedNotes, updatedAt: nowIso } : c))
-    );
-  }, []);
-
-  const handleMergeDuplicateCards = useCallback(
-    (mergedCard: StoredCard, duplicateCardIds: string[]) => {
-      if (isPinConfigured && isLocked) {
-        lockApp();
-        return;
-      }
-      const removeSet = new Set(duplicateCardIds);
-      const safeMerged: StoredCard = {
-        ...mergedCard,
-        isMyCard: false,
-        isDefault: false,
-      };
-      setCards((prev) =>
-        prev
-          .filter((c) => c.isMyCard || !removeSet.has(c.id))
-          .map((c) => (!c.isMyCard && c.id === safeMerged.id ? safeMerged : c))
-      );
-      if (selectedVaultCardId && removeSet.has(selectedVaultCardId)) {
-        setSelectedVaultCardId(safeMerged.id);
-      }
-      showToast(
-        `중복 연락처 ${duplicateCardIds.length}건을 '${
-          safeMerged.data.name || safeMerged.data.nameKr || '대표 명함'
-        }'(으)로 병합했습니다.`
-      );
-    },
-    [isPinConfigured, isLocked, lockApp, selectedVaultCardId, showToast]
-  );
 
   // Keyboard shortcut: Space to flip card in active single-card views
   useEffect(() => {
@@ -939,7 +255,7 @@ export default function App() {
       const isSingleCardViewport =
         isPublicExternalView ||
         activeTab === 'my-card' ||
-        (activeTab === 'vault' && Boolean(selectedVaultCard));
+        (activeTab === 'vault' && Boolean(vault.selectedVaultCard));
       if (e.code === 'Space' && isSingleCardViewport) {
         e.preventDefault();
         setIsFlipped((prev) => !prev);
@@ -947,17 +263,19 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, selectedVaultCard, isPublicExternalView]);
+  }, [activeTab, vault.selectedVaultCard, isPublicExternalView]);
 
   const isMyCardTabActive = !isPublicExternalView && activeTab === 'my-card';
   const isVaultTabActive = !isPublicExternalView && activeTab === 'vault';
   const isVaultDetailActive =
-    isVaultTabActive && Boolean(selectedVaultCardId) && (Boolean(selectedVaultCard) || (isPinConfigured && isLocked));
+    isVaultTabActive &&
+    Boolean(vault.selectedVaultCardId) &&
+    (Boolean(vault.selectedVaultCard) || (vault.isPinConfigured && vault.isLocked));
   const isIntroLandingView =
     !isPublicExternalView &&
     activeTab === 'my-card' &&
     !isSamplePreview &&
-    (showWelcomeIntro || myCards.length === 0 || !currentMyCard);
+    (showWelcomeIntro || vault.myCards.length === 0 || !currentMyCard);
 
   return (
     <>
@@ -1011,10 +329,10 @@ export default function App() {
                     <CreditCard className="w-3.5 h-3.5 text-white" />
                   )}
                 </button>
-                {isPinConfigured && (
+                {vault.isPinConfigured && (
                   <button
                     onClick={() => {
-                      lockApp();
+                      vault.lockApp();
                       showToast('화면이 보안 잠금되었습니다.');
                     }}
                     className="p-1.5 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
@@ -1058,9 +376,9 @@ export default function App() {
                 >
                   <FolderArchive className="w-3.5 h-3.5" />
                   <span>명함 보관함</span>
-                  {isPinConfigured && isLocked && <Lock className="w-3 h-3 text-white" />}
+                  {vault.isPinConfigured && vault.isLocked && <Lock className="w-3 h-3 text-white" />}
                   <span className="text-[10px] font-mono tabular-nums text-zinc-400">
-                    {vaultCards.length}
+                    {vault.vaultCards.length}
                   </span>
                 </button>
               </nav>
@@ -1070,10 +388,10 @@ export default function App() {
                 className="flex-1 flex items-center justify-end gap-1.5 sm:gap-2 min-h-[32px] relative header-full-nav"
                 ref={modals.settingsMenuRef}
               >
-                {isPinConfigured && (
+                {vault.isPinConfigured && (
                   <button
                     onClick={() => {
-                      lockApp();
+                      vault.lockApp();
                       showToast('화면이 보안 잠금되었습니다.');
                     }}
                     className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
@@ -1101,12 +419,12 @@ export default function App() {
                       <button
                         onClick={() => {
                           modals.closeSettings();
-                          modals.openPinConfig(isPinConfigured ? 'change' : 'setup');
+                          modals.openPinConfig(vault.isPinConfigured ? 'change' : 'setup');
                         }}
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer text-left"
                       >
                         <Lock className="w-3.5 h-3.5 text-white" />
-                        <span>{isPinConfigured ? 'PIN 번호 변경 / 관리' : '4자리 PIN 보안 설정'}</span>
+                        <span>{vault.isPinConfigured ? 'PIN 번호 변경 / 관리' : '4자리 PIN 보안 설정'}</span>
                       </button>
 
                       <button
@@ -1234,7 +552,7 @@ export default function App() {
                 {/* Save Shared Card to Internal Vault Action */}
                 <button
                   type="button"
-                  onClick={() => handleRegisterSharedCardToVault(publicCard)}
+                  onClick={() => vault.handleRegisterSharedCardToVault(publicCard)}
                   className="inline-flex items-center gap-2 text-xs font-medium text-neutral-950 bg-white hover:bg-zinc-200 transition-all tracking-wide py-2.5 px-5 rounded-xl active:scale-95 cursor-pointer shadow-lg"
                 >
                   <BookmarkPlus className="w-3.5 h-3.5 stroke-[1.75]" />
@@ -1263,29 +581,31 @@ export default function App() {
             /* ================= INTERNAL VAULT DETAIL VIEW (`activeTab === 'vault' && !card.isMyCard`) ================= */
             <div className="w-full flex flex-col items-center space-y-2 sm:space-y-4 animate-in fade-in duration-200">
               {/* Vault Header Rail Guard Clause: Rendered ONLY when activeTab === 'vault' and viewing a non-MyCard Vault entry */}
-              {activeTab === 'vault' && (!selectedVaultCard || !selectedVaultCard.isMyCard) && (
+              {activeTab === 'vault' && (!vault.selectedVaultCard || !vault.selectedVaultCard.isMyCard) && (
                 <div className="flex items-center justify-between w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] text-xs">
                   <button
                     type="button"
                     onClick={() => {
                       setIsFlipped(false);
                       setIsMemoOpen(false);
-                      setSelectedVaultCardId(null);
+                      vault.setSelectedVaultCardId(null);
                     }}
                     className="flex items-center gap-1.5 text-zinc-300 hover:text-white transition-colors cursor-pointer py-1.5 px-2 -ml-2 rounded-lg hover:bg-white/[0.05]"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
                     <span>보관함 목록으로</span>
                   </button>
-                  {selectedVaultCard && !selectedVaultCard.isMyCard && !(isPinConfigured && isLocked) && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-[#121318] border border-white/10 text-zinc-300 font-mono">
-                      보관 명함 ({selectedVaultCard.category})
-                    </span>
-                  )}
+                  {vault.selectedVaultCard &&
+                    !vault.selectedVaultCard.isMyCard &&
+                    !(vault.isPinConfigured && vault.isLocked) && (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-[#121318] border border-white/10 text-zinc-300 font-mono">
+                        보관 명함 ({vault.selectedVaultCard.category})
+                      </span>
+                    )}
                 </div>
               )}
 
-              {isPinConfigured && isLocked ? (
+              {vault.isPinConfigured && vault.isLocked ? (
                 <div className="w-full max-w-lg mx-auto py-16 px-6 flex flex-col items-center justify-center text-center">
                   <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-white mb-5 shadow-2xl">
                     <Lock className="w-7 h-7 stroke-[1.5]" />
@@ -1298,16 +618,16 @@ export default function App() {
                   </p>
                   <button
                     type="button"
-                    onClick={lockApp}
+                    onClick={vault.lockApp}
                     className="px-6 py-3 rounded-2xl bg-white hover:bg-neutral-200 text-black font-semibold text-xs transition-all cursor-pointer shadow-lg active:scale-95 flex items-center gap-2"
                   >
                     <KeyRound className="w-4 h-4 stroke-[1.75] text-neutral-900" />
                     <span>보안 PIN 입력하여 잠금 해제</span>
                   </button>
                 </div>
-              ) : selectedVaultCard && !selectedVaultCard.isMyCard ? (
+              ) : vault.selectedVaultCard && !vault.selectedVaultCard.isMyCard ? (
                 <div className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] flex flex-col items-center gap-3 sm:gap-4 pb-6">
-                  <LazyErrorBoundary resetKey={selectedVaultCard.id}>
+                  <LazyErrorBoundary resetKey={vault.selectedVaultCard.id}>
                     <Suspense
                       fallback={
                         <div
@@ -1317,36 +637,41 @@ export default function App() {
                       }
                     >
                       <CardContainer
-                        data={selectedVaultCard.data}
-                        theme={selectedVaultCard.theme}
-                        layout_type={selectedVaultCard.layout_type}
-                        card_features={selectedVaultCard.card_features}
+                        data={vault.selectedVaultCard.data}
+                        theme={vault.selectedVaultCard.theme}
+                        layout_type={vault.selectedVaultCard.layout_type}
+                        card_features={vault.selectedVaultCard.card_features}
                         isPhotoCard={
-                          selectedVaultCard.isPhotoCard || selectedVaultCard.creation_mode === 'photo'
+                          vault.selectedVaultCard.isPhotoCard ||
+                          vault.selectedVaultCard.creation_mode === 'photo'
                         }
-                        photoUrl={selectedVaultCard.scannedImage || selectedVaultCard.front_image_url}
+                        photoUrl={
+                          vault.selectedVaultCard.scannedImage ||
+                          vault.selectedVaultCard.front_image_url
+                        }
                         backPhotoUrl={
-                          selectedVaultCard.scannedImageBack || selectedVaultCard.back_image_url
+                          vault.selectedVaultCard.scannedImageBack ||
+                          vault.selectedVaultCard.back_image_url
                         }
-                        html_front={selectedVaultCard.html_front}
-                        html_back={selectedVaultCard.html_back}
+                        html_front={vault.selectedVaultCard.html_front}
+                        html_back={vault.selectedVaultCard.html_back}
                         isFlipped={isFlipped}
                         onFlip={() => setIsFlipped((prev) => !prev)}
                         onOpenShare={() => {
-                          setModalTargetCardId(selectedVaultCard.id);
+                          vault.setModalTargetCardId(vault.selectedVaultCard!.id);
                           modals.openShare();
                         }}
                         onOpenEdit={() => {
-                          requireUnlock(() => {
-                            modals.openEditor(selectedVaultCard, false);
+                          vault.requireUnlock(() => {
+                            modals.openEditor(vault.selectedVaultCard, false);
                           });
                         }}
                         isOwner={true}
-                        cardUrl={getCardShareUrl(selectedVaultCard)}
+                        cardUrl={getCardShareUrl(vault.selectedVaultCard)}
                         onShowToast={showToast}
                         onToggleMemo={() => setIsMemoOpen((prev) => !prev)}
                         isMemoOpen={isMemoOpen}
-                        hasMemo={Boolean(selectedVaultCard.notes?.trim())}
+                        hasMemo={Boolean(vault.selectedVaultCard.notes?.trim())}
                       />
                     </Suspense>
                   </LazyErrorBoundary>
@@ -1355,8 +680,10 @@ export default function App() {
                   {isMemoOpen && (
                     <Suspense fallback={null}>
                       <CardPersonalMemo
-                        card={selectedVaultCard}
-                        onSaveMemo={(newNotes) => handleUpdateCardNotes(selectedVaultCard.id, newNotes)}
+                        card={vault.selectedVaultCard}
+                        onSaveMemo={(newNotes) =>
+                          vault.handleUpdateCardNotes(vault.selectedVaultCard!.id, newNotes)
+                        }
                       />
                     </Suspense>
                   )}
@@ -1370,66 +697,66 @@ export default function App() {
                 fallback={<div className="w-full max-w-6xl min-h-[320px]" aria-hidden="true" />}
               >
                 <VaultView
-                  cards={vaultCards}
-                  isLocked={isPinConfigured && isLocked}
-                  onUnlockRequest={lockApp}
+                  cards={vault.vaultCards}
+                  isLocked={vault.isPinConfigured && vault.isLocked}
+                  onUnlockRequest={vault.lockApp}
                   onSelectCard={(selected) => {
                     if (selected.isMyCard) {
                       handleTabChange('my-card', selected.id);
                     } else {
                       setIsFlipped(false);
                       setIsMemoOpen(false);
-                      setSelectedVaultCardId(selected.id);
+                      vault.setSelectedVaultCardId(selected.id);
                       setActiveTab('vault');
                     }
                   }}
                   onEditCard={(cardToEdit) => {
-                    requireUnlock(() => {
+                    vault.requireUnlock(() => {
                       modals.openEditor(cardToEdit, false);
                     });
                   }}
                   onDeleteCard={(id) => {
-                    requireUnlock(() => {
-                      const c = cards.find((x) => x.id === id);
+                    vault.requireUnlock(() => {
+                      const c = vault.cards.find((x) => x.id === id);
                       if (c) {
-                        handleRequestDeleteCard(c);
+                        vault.handleRequestDeleteCard(c);
                       } else {
-                        handleDeleteCard(id);
+                        vault.handleDeleteCard(id);
                       }
                     });
                   }}
                   onExportCard={(cardToExport) => {
-                    setModalTargetCardId(cardToExport.id);
+                    vault.setModalTargetCardId(cardToExport.id);
                     modals.openExport();
                   }}
                   onOpenScan={() => {
-                    requireUnlock(() => {
+                    vault.requireUnlock(() => {
                       modals.openScan();
                     });
                   }}
                   onOpenImportContacts={() => {
-                    requireUnlock(() => {
+                    vault.requireUnlock(() => {
                       modals.openImportContacts();
                     });
                   }}
                   onOpenSync={modals.openSync}
-                  onOpenEditor={handleOpenCreateVaultCardModal}
+                  onOpenEditor={vault.handleOpenCreateVaultCardModal}
                   onRenameCategory={(oldName, newName) => {
-                    requireUnlock(() => {
-                      handleRenameCategory(oldName, newName);
+                    vault.requireUnlock(() => {
+                      vault.handleRenameCategory(oldName, newName);
                     });
                   }}
                   onMergeCategories={(sourceCategory, targetCategory) => {
-                    requireUnlock(() => {
-                      handleMergeCategories(sourceCategory, targetCategory);
+                    vault.requireUnlock(() => {
+                      vault.handleMergeCategories(sourceCategory, targetCategory);
                     });
                   }}
                   onDeleteCategory={(deletedName, fallbackCategory) => {
-                    requireUnlock(() => {
-                      handleDeleteCategory(deletedName, fallbackCategory);
+                    vault.requireUnlock(() => {
+                      vault.handleDeleteCategory(deletedName, fallbackCategory);
                     });
                   }}
-                  onMergeDuplicateCards={handleMergeDuplicateCards}
+                  onMergeDuplicateCards={vault.handleMergeDuplicateCards}
                   onShowToast={showToast}
                 />
               </Suspense>
@@ -1437,11 +764,11 @@ export default function App() {
           ) : (
             /* ================= MY CARDS STUDIO & CAROUSEL VIEW (`activeTab === 'my-card'`) ================= */
             <div className="w-full min-h-0 flex flex-col items-center justify-center">
-              {!isSamplePreview && (showWelcomeIntro || myCards.length === 0) ? (
+              {!isSamplePreview && (showWelcomeIntro || vault.myCards.length === 0) ? (
                 <WelcomeCard
                   onCreateFirstCard={() => {
                     markFirstLaunchDone();
-                    handleOpenCreateModal();
+                    vault.handleOpenCreateModal();
                   }}
                   onExploreSample={async () => {
                     markFirstLaunchDone();
@@ -1450,11 +777,15 @@ export default function App() {
                     setShowWelcomeIntro(false);
                     setIsSamplePreview(true);
                   }}
-                  onViewMyCards={myCards.length > 0 ? () => {
-                    markFirstLaunchDone();
-                    setShowWelcomeIntro(false);
-                  } : undefined}
-                  hasExistingCards={myCards.length > 0}
+                  onViewMyCards={
+                    vault.myCards.length > 0
+                      ? () => {
+                          markFirstLaunchDone();
+                          setShowWelcomeIntro(false);
+                        }
+                      : undefined
+                  }
+                  hasExistingCards={vault.myCards.length > 0}
                 />
               ) : isSamplePreview && currentMyCard ? (
                 <div className="w-full flex flex-col items-center space-y-2 sm:space-y-4">
@@ -1468,7 +799,7 @@ export default function App() {
 
                     <div className="flex items-center gap-1.5">
                       <button
-                        onClick={handleOpenCreateModal}
+                        onClick={vault.handleOpenCreateModal}
                         className="p-1.5 rounded-lg text-white hover:text-neutral-200 hover:bg-white/5 transition-all cursor-pointer active:scale-90 flex items-center justify-center"
                         title="내 명함 만들기"
                         aria-label="내 명함 만들기"
@@ -1511,11 +842,13 @@ export default function App() {
                           isFlipped={isFlipped}
                           onFlip={() => setIsFlipped((prev) => !prev)}
                           onOpenShare={() => {
-                            setModalTargetCardId(currentMyCard.id);
+                            vault.setModalTargetCardId(currentMyCard.id);
                             modals.openShare();
                           }}
-                          onOpenEdit={handleOpenCreateModal}
-                          onDelete={!isSamplePreview ? () => handleRequestDeleteCard(currentMyCard) : undefined}
+                          onOpenEdit={vault.handleOpenCreateModal}
+                          onDelete={
+                            !isSamplePreview ? () => vault.handleRequestDeleteCard(currentMyCard) : undefined
+                          }
                         />
                       </Suspense>
                     </LazyErrorBoundary>
@@ -1525,7 +858,7 @@ export default function App() {
                 <WelcomeCard
                   onCreateFirstCard={() => {
                     markFirstLaunchDone();
-                    handleOpenCreateModal();
+                    vault.handleOpenCreateModal();
                   }}
                   onExploreSample={async () => {
                     markFirstLaunchDone();
@@ -1533,11 +866,15 @@ export default function App() {
                     setSampleCard(INITIAL_CARDS[0] || null);
                     setIsSamplePreview(true);
                   }}
-                  onViewMyCards={myCards.length > 0 ? () => {
-                    markFirstLaunchDone();
-                    setShowWelcomeIntro(false);
-                  } : undefined}
-                  hasExistingCards={myCards.length > 0}
+                  onViewMyCards={
+                    vault.myCards.length > 0
+                      ? () => {
+                          markFirstLaunchDone();
+                          setShowWelcomeIntro(false);
+                        }
+                      : undefined
+                  }
+                  hasExistingCards={vault.myCards.length > 0}
                 />
               ) : (
                 <LazyErrorBoundary resetKey={currentMyCard.id}>
@@ -1550,21 +887,21 @@ export default function App() {
                     }
                   >
                     <CardNavigator
-                      cards={myCards}
+                      cards={vault.myCards}
                       activeCardId={currentMyCard.id}
-                      onSelectCard={handleSelectMyCard}
-                      onCreateNewCard={handleOpenCreateModal}
+                      onSelectCard={vault.handleSelectMyCard}
+                      onCreateNewCard={vault.handleOpenCreateModal}
                       onOpenEdit={(cardToEdit) => {
-                        requireUnlock(() => {
+                        vault.requireUnlock(() => {
                           modals.openEditor(cardToEdit, false);
                         });
                       }}
                       onOpenShare={(cardToShare) => {
-                        setModalTargetCardId(cardToShare.id);
+                        vault.setModalTargetCardId(cardToShare.id);
                         modals.openShare();
                       }}
                       onDeleteCard={(cardToDelete) => {
-                        handleRequestDeleteCard(cardToDelete);
+                        vault.handleRequestDeleteCard(cardToDelete);
                       }}
                       mode="carousel"
                     />
@@ -1641,7 +978,7 @@ export default function App() {
         )}
 
         {/* Declarative Centralized Modals Container */}
-        {((isLocked && isPinConfigured) ||
+        {((vault.isLocked && vault.isPinConfigured) ||
           modals.isShareOpen ||
           modals.isQrOpen ||
           modals.isPrintOpen ||
@@ -1659,46 +996,46 @@ export default function App() {
             <AppModals
               modals={modals}
               activeCard={modalTargetCard}
-              existingCards={cards}
-              onImportCards={handleImportCards}
+              existingCards={vault.cards}
+              onImportCards={vault.handleImportCards}
               isOwner={!isPublicExternalView}
               printConfig={printConfig}
               setPrintConfig={setPrintConfig}
-              onSaveCard={handleSaveCard}
+              onSaveCard={vault.handleSaveCard}
               onDeleteCard={(cardId) => {
-                const c = cards.find((x) => x.id === cardId);
+                const c = vault.cards.find((x) => x.id === cardId);
                 if (c) {
-                  handleRequestDeleteCard(c);
+                  vault.handleRequestDeleteCard(c);
                 }
               }}
-              onConfirmReset={handleConfirmReset}
-              isLocked={isLocked}
-              isPinConfigured={isPinConfigured}
-              unlockApp={unlockApp}
-              refreshPinStatus={refreshPinStatus}
-              setCards={setCards}
+              onConfirmReset={vault.handleConfirmReset}
+              isLocked={vault.isLocked}
+              isPinConfigured={vault.isPinConfigured}
+              unlockApp={vault.unlockApp}
+              refreshPinStatus={vault.refreshPinStatus}
+              setCards={vault.setCards}
               showToast={showToast}
-              onBiometricUnlock={handleBiometricUnlock}
+              onBiometricUnlock={vault.handleBiometricUnlock}
             />
           </Suspense>
         )}
 
         {/* Card Deletion Confirmation Modal */}
-        {cardPendingDelete && (
+        {vault.cardPendingDelete && (
           <Suspense fallback={null}>
             <DeleteConfirmModal
-              isOpen={Boolean(cardPendingDelete)}
-              onClose={() => setCardPendingDelete(null)}
+              isOpen={Boolean(vault.cardPendingDelete)}
+              onClose={() => vault.setCardPendingDelete(null)}
               onConfirm={() => {
-                if (cardPendingDelete) {
-                  handleDeleteCard(cardPendingDelete.id);
-                  setCardPendingDelete(null);
+                if (vault.cardPendingDelete) {
+                  vault.handleDeleteCard(vault.cardPendingDelete.id);
+                  vault.setCardPendingDelete(null);
                 }
               }}
-              title={cardPendingDelete?.isMyCard ? '내 명함 삭제' : '명함 삭제'}
-              cardName={cardPendingDelete?.data?.name || cardPendingDelete?.data?.nameKr}
+              title={vault.cardPendingDelete?.isMyCard ? '내 명함 삭제' : '명함 삭제'}
+              cardName={vault.cardPendingDelete?.data?.name || vault.cardPendingDelete?.data?.nameKr}
               description={
-                cardPendingDelete?.isMyCard
+                vault.cardPendingDelete?.isMyCard
                   ? '내 명함을 삭제하시겠습니까? 삭제된 명함은 복구할 수 없습니다.'
                   : '보관된 명함을 삭제하시겠습니까? 삭제된 명함은 복구할 수 없습니다.'
               }
