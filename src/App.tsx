@@ -36,6 +36,8 @@ import {
   Download,
   Upload,
   HardDriveDownload,
+  Calendar,
+  MapPin,
 } from 'lucide-react';
 
 const AppModals = lazyWithRetry(() =>
@@ -760,7 +762,12 @@ export default function App() {
                         onShowToast={showToast}
                         onToggleMemo={() => setIsMemoOpen((prev) => !prev)}
                         isMemoOpen={isMemoOpen}
-                        hasMemo={Boolean(vault.selectedVaultCard.notes?.trim())}
+                        hasMemo={Boolean(
+                          vault.selectedVaultCard.memo?.trim() ||
+                            vault.selectedVaultCard.notes?.trim() ||
+                            vault.selectedVaultCard.metAt?.trim() ||
+                            vault.selectedVaultCard.metLocation?.trim()
+                        )}
                         hasPrev={hasPrevVaultCard}
                         hasNext={hasNextVaultCard}
                         carouselIndex={Math.max(0, selectedVaultIndex)}
@@ -785,13 +792,47 @@ export default function App() {
                     </Suspense>
                   </LazyErrorBoundary>
 
-                  {/* Personal Memo Section underneath the card detail view (toggled via main card icon button) */}
+                  {/* Compact Meeting Context Summary Strip (shown when context exists and editor is collapsed) */}
+                  {!isMemoOpen &&
+                    (vault.selectedVaultCard.metAt ||
+                      vault.selectedVaultCard.metLocation ||
+                      vault.selectedVaultCard.memo ||
+                      vault.selectedVaultCard.notes) && (
+                      <button
+                        type="button"
+                        onClick={() => setIsMemoOpen(true)}
+                        className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] px-3.5 py-2.5 rounded-2xl bg-[#121214] hover:bg-[#17171a] border border-white/10 text-left flex flex-wrap items-center justify-between gap-2 cursor-pointer transition-colors"
+                      >
+                        <div className="flex flex-wrap items-center gap-2.5 min-w-0 text-xs text-zinc-300">
+                          {vault.selectedVaultCard.metAt && (
+                            <span className="inline-flex items-center gap-1 font-mono text-[11px] text-zinc-300">
+                              <Calendar className="w-3 h-3 text-zinc-400 shrink-0" />
+                              <span>{vault.selectedVaultCard.metAt}</span>
+                            </span>
+                          )}
+                          {vault.selectedVaultCard.metLocation && (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-zinc-200 truncate">
+                              <MapPin className="w-3 h-3 text-zinc-400 shrink-0" />
+                              <span className="truncate">{vault.selectedVaultCard.metLocation}</span>
+                            </span>
+                          )}
+                          {(vault.selectedVaultCard.memo || vault.selectedVaultCard.notes) && (
+                            <span className="text-[11px] text-zinc-400 truncate max-w-[260px]">
+                              {vault.selectedVaultCard.memo || vault.selectedVaultCard.notes}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-zinc-400 shrink-0">편집</span>
+                      </button>
+                    )}
+
+                  {/* Personal Memo & Meeting Context Section underneath the card detail view */}
                   {isMemoOpen && (
                     <Suspense fallback={null}>
                       <CardPersonalMemo
                         card={vault.selectedVaultCard}
-                        onSaveMemo={(newNotes) =>
-                          vault.handleUpdateCardNotes(vault.selectedVaultCard!.id, newNotes)
+                        onSaveContext={(context) =>
+                          vault.handleUpdateVaultContext(vault.selectedVaultCard!.id, context)
                         }
                       />
                     </Suspense>
@@ -1045,6 +1086,10 @@ export default function App() {
                         vault.setModalTargetCardId(cardForQuickQr.id);
                         modals.openQuickQr();
                       }}
+                      onOpenNfc={(cardForNfc) => {
+                        vault.setModalTargetCardId(cardForNfc.id);
+                        modals.openNfc();
+                      }}
                       onDeleteCard={(cardToDelete) => {
                         vault.handleRequestDeleteCard(cardToDelete);
                       }}
@@ -1127,6 +1172,8 @@ export default function App() {
           modals.isShareOpen ||
           modals.isQrOpen ||
           modals.isQuickQrOpen ||
+          modals.isNfcOpen ||
+          modals.isEmailSignatureOpen ||
           modals.isPrintOpen ||
           modals.isExportOpen ||
           modals.isScanOpen ||

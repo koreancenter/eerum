@@ -20,6 +20,7 @@ import {
 import { BusinessCardFront } from './BusinessCardFront';
 import { cropAndCompressCardImage } from '../utils/imageProcess';
 import { ParsedCardFields, parseBusinessCardText } from '../utils/parseBusinessCardText';
+import { sanitizeExternalUrl } from '../utils/sanitizeUrl';
 import {
   CardSerializer,
   parseSlugFromInput,
@@ -82,6 +83,7 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
   const [jobTitle, setJobTitle] = useState('');
   const [email, setEmail] = useState('');
   const [website, setWebsite] = useState('');
+  const [address, setAddress] = useState('');
   const [extraMemo, setExtraMemo] = useState('');
   const [category, setCategory] = useState<string>('VIP 파트너');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -347,6 +349,7 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
     setJobTitle('');
     setEmail('');
     setWebsite('');
+    setAddress('');
     setExtraMemo('');
     setCategory('VIP 파트너');
     setLinkInput('');
@@ -516,6 +519,10 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
       setWebsite(parsed.website);
       applied += 1;
     }
+    if (canSet(address, parsed.address)) {
+      setAddress(parsed.address);
+      applied += 1;
+    }
 
     if (parsed.extraNotes.length > 0) {
       const currentMemo = extraMemo.trim();
@@ -593,6 +600,7 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
       checkConflict('직함', jobTitle, parsed.title);
       checkConflict('이메일', email, parsed.email);
       checkConflict('웹사이트', website, parsed.website);
+      checkConflict('주소', address, parsed.address);
 
       if (conflicts.length > 0) {
         setOcrConflicts(conflicts);
@@ -651,7 +659,8 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
     const cleanOrg = companyAndNote.trim();
     const cleanTitle = jobTitle.trim();
     const cleanEmail = email.trim();
-    const cleanWebsite = website.trim();
+    const cleanWebsite = sanitizeExternalUrl(website) || website.trim();
+    const cleanAddress = address.trim();
     const cleanWebsiteDisplay = cleanWebsite
       ? cleanWebsite.replace(/^https?:\/\//i, '').replace(/\/$/, '')
       : '';
@@ -673,7 +682,7 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
       card_features: {
         show_en_name: Boolean(cleanNameEn),
         show_sub_org: Boolean(cleanOrg),
-        show_address: false,
+        show_address: Boolean(cleanAddress),
         monogram_text: '',
       },
       createdAt: now,
@@ -685,10 +694,10 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
       details: {
         en_name: cleanNameEn,
         sub_org: '',
-        address: '',
+        address: cleanAddress,
         address_en: '',
         slogan: '',
-        show_address: false,
+        show_address: Boolean(cleanAddress),
         show_en_name: Boolean(cleanNameEn),
       },
       data: {
@@ -706,16 +715,16 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
         email: cleanEmail,
         website: cleanWebsite,
         websiteDisplay: cleanWebsiteDisplay,
-        addressLines: [],
-        addressKr: '',
+        addressLines: cleanAddress ? [cleanAddress] : [],
+        addressKr: cleanAddress,
         address_en: '',
         details: {
           en_name: cleanNameEn,
           sub_org: '',
-          address: '',
+          address: cleanAddress,
           address_en: '',
           slogan: '',
-          show_address: false,
+          show_address: Boolean(cleanAddress),
           show_en_name: Boolean(cleanNameEn),
         },
         googleMapsUrl: '',
@@ -1351,19 +1360,36 @@ export const PhotoArchiveModal: React.FC<PhotoArchiveModalProps> = ({
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="flex items-center justify-between text-[11px]">
-                <span className="text-zinc-400 font-normal">보관 메모 (유선/팩스 등)</span>
-                <span className="text-[10px] text-zinc-500">선택</span>
-              </label>
-              <input
-                type="text"
-                value={extraMemo}
-                disabled={isProcessing}
-                onChange={(e) => setExtraMemo(e.target.value)}
-                placeholder="미팅 일시 또는 보조 연락처"
-                className={INPUT_CLASS}
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <label className="flex items-center justify-between text-[11px]">
+                  <span className="text-zinc-400 font-normal">주소</span>
+                  <span className="text-[10px] text-zinc-500">선택</span>
+                </label>
+                <input
+                  type="text"
+                  value={address}
+                  disabled={isProcessing}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="회사 또는 사무실 주소"
+                  className={INPUT_CLASS}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="flex items-center justify-between text-[11px]">
+                  <span className="text-zinc-400 font-normal">보관 메모 (유선/팩스 등)</span>
+                  <span className="text-[10px] text-zinc-500">선택</span>
+                </label>
+                <input
+                  type="text"
+                  value={extraMemo}
+                  disabled={isProcessing}
+                  onChange={(e) => setExtraMemo(e.target.value)}
+                  placeholder="미팅 일시 또는 보조 연락처"
+                  className={INPUT_CLASS}
+                />
+              </div>
             </div>
 
             {/* Category Selector */}

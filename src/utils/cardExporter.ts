@@ -5,6 +5,15 @@ import { APP_BASE_URL } from './cardSerializer';
 
 export interface VCardOptions {
   includeRevision?: boolean;
+  note?: string;
+}
+
+function escapeVCardValue(value: string): string {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/\r\n|\r|\n/g, '\\n')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,');
 }
 
 export interface HtmlExportOptions {
@@ -53,12 +62,59 @@ export class CardExporter {
     if (website) lines.push(`URL:${website}`);
     if (address) lines.push(`ADR;TYPE=WORK:;;${address};;;;`);
 
+    const noteText = (options.note || '').trim();
+    if (noteText) {
+      lines.push(`NOTE:${escapeVCardValue(noteText)}`);
+    }
+
     if (options.includeRevision) {
       lines.push(`REV:${new Date().toISOString()}`);
     }
 
     lines.push('END:VCARD');
     return lines.join('\r\n');
+  }
+
+  /**
+   * Concatenates multiple StoredCards into a single RFC-2426 multi-contact vCard 3.0 payload,
+   * preserving meeting context (`metAt`, `metLocation`, `memo`/`notes`) in the vCard NOTE field.
+   */
+  static toBatchVCard(cards: StoredCard[]): string {
+    if (!Array.isArray(cards) || cards.length === 0) return '';
+    return cards
+      .map((card) => {
+        const memoText = (card.memo ?? card.notes ?? '').trim();
+        const contextParts: string[] = [];
+        if (card.metAt?.trim()) contextParts.push(`만난 날짜: ${card.metAt.trim()}`);
+        if (card.metLocation?.trim()) contextParts.push(`만난 장소: ${card.metLocation.trim()}`);
+        if (memoText) contextParts.push(memoText);
+        return this.toVCard(card.data, {
+          includeRevision: true,
+          note: contextParts.join('\n'),
+        });
+      })
+      .join('\r\n');
+  }
+
+  /**
+   * Triggers browser download of a single multi-contact .vcf file for all given cards
+   */
+  static downloadBatchVCard(cards: StoredCard[], filename?: string): number {
+    if (!Array.isArray(cards) || cards.length === 0) return 0;
+    const vcardContent = this.toBatchVCard(cards);
+    if (!vcardContent) return 0;
+
+    const blob = new Blob([vcardContent], { type: 'text/vcard;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStamp = new Date().toISOString().split('T')[0];
+    link.download = filename || `eerum-contacts-${dateStamp}.vcf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    return cards.length;
   }
 
   /**
@@ -328,7 +384,11 @@ export class CardExporter {
   }
 }
 
-export const generateVCard = (data: CardData = CARD_DATA): string => CardExporter.toVCard(data);
+export const generateVCard = (data: CardData = CARD_DATA, options?: VCardOptions): string =>
+  CardExporter.toVCard(data, options);
 export const downloadVCard = (data: CardData = CARD_DATA): void => CardExporter.downloadVCard(data);
+export const generateBatchVCard = (cards: StoredCard[]): string => CardExporter.toBatchVCard(cards);
+export const downloadBatchVCard = (cards: StoredCard[], filename?: string): number =>
+  CardExporter.downloadBatchVCard(cards, filename);
 export const generateStandaloneHtml = (data: CardData, theme: CardTheme = 'pure_white'): string =>
   CardExporter.toStandaloneHtml(data, theme);

@@ -121,6 +121,10 @@ function enrichCard(c: StoredCard): StoredCard {
     ? (c.ownerKey || c.owner_key || generateOwnerKey())
     : undefined;
 
+  const resolvedMemo = (c.memo ?? c.notes ?? '').trim();
+  const resolvedMetAt = c.metAt ? c.metAt.trim() : undefined;
+  const resolvedMetLocation = c.metLocation ? c.metLocation.trim() : undefined;
+
   const enriched: StoredCard = {
     ...c,
     isMyCard: Boolean(c.isMyCard),
@@ -129,6 +133,10 @@ function enrichCard(c: StoredCard): StoredCard {
     owner_key: resolvedOwnerKey,
     slug: c.isMyCard ? c.slug : undefined,
     customDomain: c.isMyCard ? c.customDomain : undefined,
+    notes: resolvedMemo || undefined,
+    memo: resolvedMemo || undefined,
+    metAt: resolvedMetAt || undefined,
+    metLocation: resolvedMetLocation || undefined,
     details: canonicalDetails,
     data: rawData
       ? (() => {

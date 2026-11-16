@@ -12,9 +12,11 @@ import {
   Camera,
   MessageSquare,
   MoreVertical,
+  Calendar,
+  MapPin,
 } from 'lucide-react';
 import { resolveThemeStyles } from '../constants/templates';
-import { downloadVCard } from '@/utils/cardExporter';
+import { downloadVCard, downloadBatchVCard } from '@/utils/cardExporter';
 
 export const extractCleanPhoneNumber = (phoneRaw?: string, phone?: string): string => {
   const raw = (phoneRaw || phone || '').trim();
@@ -152,7 +154,15 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
   const handleVCard = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsOpen(false);
-    downloadVCard(card.data);
+    const hasContext = Boolean(card.metAt || card.metLocation || card.memo || card.notes);
+    if (hasContext && !card.isMyCard) {
+      const safeName = (card.data.name || card.data.nameKr || 'contact')
+        .replace(/[^a-zA-Z0-9가-힣_-]/g, '_')
+        .toLowerCase();
+      downloadBatchVCard([card], `${safeName}.vcf`);
+    } else {
+      downloadVCard(card.data);
+    }
   };
 
   const handleExport = (e: React.MouseEvent) => {
@@ -513,6 +523,31 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
                 )}
               </div>
             )}
+
+            {!card.isMyCard && (card.metAt || card.metLocation) && (
+              <div
+                className={`pt-0.5 flex items-center gap-1 text-[10px] leading-tight min-w-0 ${themeStyles.textMuted}`}
+                title={[card.metAt, card.metLocation].filter(Boolean).join(' · ')}
+              >
+                {card.metAt && (
+                  <span className="inline-flex items-center gap-0.5 font-mono tabular-nums shrink-0">
+                    <Calendar className="w-2.5 h-2.5 shrink-0 opacity-80" />
+                    <span>{card.metAt}</span>
+                  </span>
+                )}
+                {card.metAt && card.metLocation && (
+                  <span aria-hidden="true" className="shrink-0">
+                    ·
+                  </span>
+                )}
+                {card.metLocation && (
+                  <span className="inline-flex items-center gap-0.5 truncate min-w-0">
+                    {!card.metAt && <MapPin className="w-2.5 h-2.5 shrink-0 opacity-80" />}
+                    <span className="truncate">{card.metLocation}</span>
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -670,6 +705,14 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
             </span>
           )}
         </div>
+        {!card.isMyCard && (card.metAt || card.metLocation) && (
+          <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 leading-tight min-w-0">
+            <Calendar className="w-2.5 h-2.5 shrink-0" />
+            <span className="truncate font-mono tabular-nums">
+              {[card.metAt, card.metLocation].filter(Boolean).join(' · ')}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Quick Communication Actions + Kebab Dropdown Menu */}
@@ -768,7 +811,14 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
       <td className="py-2.5 px-3.5 text-zinc-300">
         {card.data.organizationKr || card.data.organization || '-'}
       </td>
-      <td className="py-2.5 px-3.5 text-zinc-400 text-[11px]">{card.category}</td>
+      <td className="py-2.5 px-3.5 text-zinc-400 text-[11px]">
+        <div>{card.category}</div>
+        {!card.isMyCard && (card.metAt || card.metLocation) && (
+          <div className="text-[10px] text-zinc-500 font-mono truncate max-w-[160px]">
+            {[card.metAt, card.metLocation].filter(Boolean).join(' · ')}
+          </div>
+        )}
+      </td>
       <td className="py-2.5 px-3.5">
         {card.scannedImage ? (
           <button

@@ -30,6 +30,10 @@ interface TemplateModeEditorProps {
   onChangeSubTab: (tab: 'visual_atelier' | 'identity_profile') => void;
   notes?: string;
   onChangeNotes?: (notes: string) => void;
+  metAt?: string;
+  onChangeMetAt?: (metAt: string) => void;
+  metLocation?: string;
+  onChangeMetLocation?: (metLocation: string) => void;
 }
 
 export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
@@ -54,6 +58,10 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
   onChangeSubTab,
   notes,
   onChangeNotes,
+  metAt,
+  onChangeMetAt,
+  metLocation,
+  onChangeMetLocation,
 }) => {
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -328,6 +336,25 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                   category={category}
                   onChangeCategory={onChangeCategory}
                 />
+                <div className="space-y-1.5">
+                  <label className="text-xs text-zinc-400 block">만난 날짜</label>
+                  <input
+                    type="date"
+                    value={metAt || ''}
+                    onChange={(e) => onChangeMetAt?.(e.target.value)}
+                    className={`${EDITOR_INPUT_CLASS} font-mono [color-scheme:dark]`}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-zinc-400 block">만난 장소 / 행사</label>
+                  <input
+                    type="text"
+                    value={metLocation || ''}
+                    onChange={(e) => onChangeMetLocation?.(e.target.value)}
+                    placeholder="예: COEX 컨퍼런스, 삼성역"
+                    className={EDITOR_INPUT_CLASS}
+                  />
+                </div>
                 <div className="sm:col-span-2 space-y-1.5 pt-1">
                   <div className="flex items-center justify-between">
                     <label className="text-xs text-zinc-400 block">개인 메모 (비공개)</label>
@@ -338,7 +365,7 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                   <textarea
                     value={notes || ''}
                     onChange={(e) => onChangeNotes?.(e.target.value)}
-                    placeholder="해당 명함에 대한 연락처 특징, 만난 날짜 등을 기록하세요 (보관함 검색 시 활용됨)"
+                    placeholder="대화 내용, 연락처 특징, 후속 미팅 계획 등을 기록하세요 (보관함 검색 시 활용됨)"
                     rows={2}
                     className={`${EDITOR_INPUT_CLASS} resize-y text-xs`}
                   />

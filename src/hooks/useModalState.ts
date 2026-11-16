@@ -9,6 +9,8 @@ export interface ModalManager {
   isShareOpen: boolean;
   isQrOpen: boolean;
   isQuickQrOpen: boolean;
+  isNfcOpen: boolean;
+  isEmailSignatureOpen: boolean;
   isPrintOpen: boolean;
   isExportOpen: boolean;
   isScanOpen: boolean;
@@ -39,6 +41,10 @@ export interface ModalManager {
   closeQr: () => void;
   openQuickQr: () => void;
   closeQuickQr: () => void;
+  openNfc: () => void;
+  closeNfc: () => void;
+  openEmailSignature: (fromShare?: boolean) => void;
+  closeEmailSignature: () => void;
   openPrint: (fromShare?: boolean) => void;
   closePrint: () => void;
   openExport: (fromShare?: boolean) => void;
@@ -77,6 +83,8 @@ export function useModalState(): ModalManager {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [isQuickQrOpen, setIsQuickQrOpen] = useState(false);
+  const [isNfcOpen, setIsNfcOpen] = useState(false);
+  const [isEmailSignatureOpen, setIsEmailSignatureOpen] = useState(false);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isScanOpen, setIsScanOpen] = useState(false);
@@ -155,6 +163,35 @@ export function useModalState(): ModalManager {
 
   const closeQuickQr = useCallback(() => {
     setIsQuickQrOpen(false);
+  }, []);
+
+  const openNfc = useCallback(() => {
+    returnToShareRef.current = false;
+    setIsFromShare(false);
+    setIsShareOpen(false);
+    setIsNfcOpen(true);
+  }, []);
+
+  const closeNfc = useCallback(() => {
+    setIsNfcOpen(false);
+  }, []);
+
+  const openEmailSignature = useCallback((fromShare?: boolean) => {
+    const shouldReturn = Boolean(fromShare || isShareOpenRef.current);
+    returnToShareRef.current = shouldReturn;
+    setIsFromShare(shouldReturn);
+    if (shouldReturn) setIsShareOpen(false);
+    setIsExportOpen(false);
+    setIsEmailSignatureOpen(true);
+  }, []);
+
+  const closeEmailSignature = useCallback(() => {
+    setIsEmailSignatureOpen(false);
+    if (returnToShareRef.current) {
+      returnToShareRef.current = false;
+      setIsFromShare(false);
+      setIsShareOpen(true);
+    }
   }, []);
 
   const openPrint = useCallback((fromShare?: boolean) => {
@@ -247,6 +284,8 @@ export function useModalState(): ModalManager {
     setIsShareOpen(false);
     setIsQrOpen(false);
     setIsQuickQrOpen(false);
+    setIsNfcOpen(false);
+    setIsEmailSignatureOpen(false);
     setIsPrintOpen(false);
     setIsExportOpen(false);
     setIsScanOpen(false);
@@ -268,6 +307,8 @@ export function useModalState(): ModalManager {
     isShareOpen,
     isQrOpen,
     isQuickQrOpen,
+    isNfcOpen,
+    isEmailSignatureOpen,
     isPrintOpen,
     isExportOpen,
     isScanOpen,
@@ -294,6 +335,10 @@ export function useModalState(): ModalManager {
     closeQr,
     openQuickQr,
     closeQuickQr,
+    openNfc,
+    closeNfc,
+    openEmailSignature,
+    closeEmailSignature,
     openPrint,
     closePrint,
     openExport,

@@ -16,6 +16,7 @@ import {
   GitMerge,
   ShieldAlert,
   Download,
+  UserPlus,
 } from 'lucide-react';
 
 export type VaultSortOption = 'newest' | 'oldest' | 'name' | 'company';
@@ -51,6 +52,7 @@ import {
   shouldShowBackupNudge,
   dismissBackupNudge,
 } from '../utils/vaultBackup';
+import { downloadBatchVCard } from '../utils/cardExporter';
 
 const parseTimestampMs = (val?: string): number => {
   if (!val) return 0;
@@ -468,6 +470,9 @@ export const VaultView: React.FC<VaultViewProps> = ({
           d.email,
           c.category,
           c.notes,
+          c.memo,
+          c.metAt,
+          c.metLocation,
         ],
         q,
         [d.phone, d.phoneRaw]
@@ -794,7 +799,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   placeholder={
                     isListening
                       ? (voiceFeedback || '말씀하세요... (음성 듣는 중)')
-                      : '이름·초성, 회사, 연락처, 메모 검색'
+                      : '이름·초성, 회사, 만남 장소, 메모 검색'
                   }
                   aria-label="명함 보관함 검색"
                   className={`w-full h-9 sm:h-9.5 pl-8.5 pr-20 rounded-xl bg-[#121214] border text-xs text-neutral-200 placeholder:text-zinc-400 focus:outline-none transition-all duration-200 ${
@@ -973,19 +978,52 @@ export const VaultView: React.FC<VaultViewProps> = ({
           </div>
         </div>
 
-        {/* Subtle Duplicate Contact Cleanup Trigger (Shown ONLY when duplicates are detected) */}
-        {duplicateGroups.length > 0 && (
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => setIsDuplicateModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/25 text-amber-200 hover:text-amber-100 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400/40"
-            >
-              <GitMerge className="w-3.5 h-3.5 stroke-[1.8] text-amber-300 shrink-0" />
-              <span className="tabular-nums">
-                중복 연락처 {duplicateGroups.length}건 정리
-              </span>
-            </button>
+        {/* Vault Utility Bar: Duplicate Cleanup & Batch .vcf Export */}
+        {(duplicateGroups.length > 0 || cards.length > 0) && (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              {duplicateGroups.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setIsDuplicateModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/25 text-amber-200 hover:text-amber-100 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400/40"
+                >
+                  <GitMerge className="w-3.5 h-3.5 stroke-[1.8] text-amber-300 shrink-0" />
+                  <span className="tabular-nums">
+                    중복 연락처 {duplicateGroups.length}건 정리
+                  </span>
+                </button>
+              ) : (
+                <span className="text-[11px] text-zinc-400 font-mono tabular-nums px-0.5">
+                  {selectedCategory !== '전체' || searchQuery.trim()
+                    ? `필터 결과 ${sortedCards.length}명 / 전체 ${cards.length}명`
+                    : `보관된 연락처 ${cards.length}명`}
+                </span>
+              )}
+            </div>
+
+            {cards.length > 0 && (
+              <button
+                type="button"
+                disabled={sortedCards.length === 0}
+                onClick={() => {
+                  const count = downloadBatchVCard(sortedCards);
+                  if (count > 0) {
+                    triggerToast(`${count}명의 연락처를 .vcf 파일로 내보냈습니다.`);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#121214] hover:bg-white/10 border border-white/10 text-zinc-200 hover:text-white text-[11px] font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/25"
+                title="현재 목록의 모든 명함을 단일 연락처(.vcf) 파일로 일괄 내보내기"
+                aria-label="전체 연락처 일괄 저장 (.vcf)"
+              >
+                <UserPlus className="w-3.5 h-3.5 stroke-[1.75] text-zinc-300 shrink-0" />
+                <span className="tabular-nums">
+                  {selectedCategory !== '전체' || searchQuery.trim()
+                    ? `필터 연락처 저장 (.vcf · ${sortedCards.length})`
+                    : `전체 연락처 저장 (.vcf · ${sortedCards.length})`}
+                </span>
+              </button>
+            )}
           </div>
         )}
 

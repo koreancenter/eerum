@@ -142,6 +142,9 @@ export interface StoredCard {
   createdAt: string;
   updatedAt?: string;
   notes?: string;
+  memo?: string;
+  metAt?: string;
+  metLocation?: string;
   scannedImage?: string; // Physical card photo archive (High-Res base64 or URL)
   scannedImageBack?: string; // Optional physical card back photo (WebP base64 or URL)
   isPhotoCard?: boolean; // When true, renders authentic physical photo as card face

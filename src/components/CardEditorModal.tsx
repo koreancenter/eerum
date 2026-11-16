@@ -219,7 +219,9 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
     const preferred = isMyCardMode ? '글로벌 네트워크' : 'VIP 파트너';
     return dynamicCats.includes(preferred) ? preferred : dynamicCats[0] || preferred;
   });
-  const [notes, setNotes] = useState<string>(() => activeCard.notes || '');
+  const [notes, setNotes] = useState<string>(() => activeCard.memo ?? activeCard.notes ?? '');
+  const [metAt, setMetAt] = useState<string>(() => activeCard.metAt || '');
+  const [metLocation, setMetLocation] = useState<string>(() => activeCard.metLocation || '');
   const [slug, setSlug] = useState<string>(() =>
     isMyCardMode ? (activeCard.slug || `card-${String(Date.now()).slice(-4)}`) : ''
   );
@@ -398,7 +400,9 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
             : currentDynamicCats[0] || preferredDefault;
       setCategory(resolvedCategory);
 
-      setNotes(safe.notes || '');
+      setNotes(safe.memo ?? safe.notes ?? '');
+      setMetAt(safe.metAt || '');
+      setMetLocation(safe.metLocation || '');
       setSlug(isMyCardMode ? defaultMySlug : '');
       setCustomDomain(isMyCardMode ? (safe.customDomain || '') : '');
       setIsDefault(isMyCardMode ? Boolean(safe.isDefault) : false);
@@ -527,7 +531,9 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
       setSlug(isMyCardMode ? (activeCard.slug || 'card') : '');
       setCustomDomain(isMyCardMode ? (activeCard.customDomain || '') : '');
       setCategory(activeCard.category || (isMyCardMode ? '글로벌 네트워크' : 'VIP 파트너'));
-      setNotes(activeCard.notes || '');
+      setNotes(activeCard.memo ?? activeCard.notes ?? '');
+      setMetAt(activeCard.metAt || '');
+      setMetLocation(activeCard.metLocation || '');
       setIsDefault(isMyCardMode ? Boolean(activeCard.isDefault) : false);
       setTheme(activeCard.theme || 'pure_white');
       setLayoutType(
@@ -617,7 +623,10 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
       template_id: layoutType,
       card_features: features,
       category,
-      notes,
+      notes: notes.trim() || undefined,
+      memo: notes.trim() || undefined,
+      metAt: !isMyCardMode ? (metAt.trim() || undefined) : undefined,
+      metLocation: !isMyCardMode ? (metLocation.trim() || undefined) : undefined,
       slug: isMyCardMode ? cleanSlug : undefined,
       customDomain: isMyCardMode ? (cleanCustomDomain || undefined) : undefined,
       isDefault: isMyCardMode ? isDefault : false,
@@ -756,6 +765,10 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                 onChangeSubTab={setTemplateSubTab}
                 notes={notes}
                 onChangeNotes={setNotes}
+                metAt={metAt}
+                onChangeMetAt={setMetAt}
+                metLocation={metLocation}
+                onChangeMetLocation={setMetLocation}
               />
             )}
 
@@ -771,6 +784,10 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                 onChangeSlug={setSlug}
                 notes={notes}
                 onChangeNotes={setNotes}
+                metAt={metAt}
+                onChangeMetAt={setMetAt}
+                metLocation={metLocation}
+                onChangeMetLocation={setMetLocation}
                 category={category}
                 onChangeCategory={setCategory}
                 isMyCardMode={isMyCardMode}

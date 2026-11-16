@@ -348,6 +348,16 @@ export function buildMergedVaultCard(
       ? notesOverride.trim()
       : mergeDuplicateNotes(primary, duplicates);
 
+  const mergedMetAt =
+    (primary.metAt || '').trim() ||
+    duplicates.map((d) => (d.metAt || '').trim()).find(Boolean) ||
+    undefined;
+
+  const mergedMetLocation =
+    (primary.metLocation || '').trim() ||
+    duplicates.map((d) => (d.metLocation || '').trim()).find(Boolean) ||
+    undefined;
+
   // Retain Primary Card's mode, theme, and front/back photos strictly
   const mergedCard: StoredCard = {
     ...primary,
@@ -359,6 +369,9 @@ export function buildMergedVaultCard(
     customDomain: undefined,
     category: mergedCategory,
     notes: mergedNotes,
+    memo: mergedNotes || undefined,
+    metAt: mergedMetAt,
+    metLocation: mergedMetLocation,
     updatedAt: new Date().toISOString(),
     data: mergedData,
     card_features: primary.card_features

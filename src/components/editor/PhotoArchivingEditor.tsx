@@ -26,6 +26,10 @@ interface PhotoArchivingEditorProps {
   onChangeSlug: (slug: string) => void;
   notes: string;
   onChangeNotes: (val: string) => void;
+  metAt?: string;
+  onChangeMetAt?: (val: string) => void;
+  metLocation?: string;
+  onChangeMetLocation?: (val: string) => void;
   category?: string;
   onChangeCategory?: (cat: string) => void;
   isMyCardMode?: boolean;
@@ -48,6 +52,10 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
   onChangeSlug,
   notes,
   onChangeNotes,
+  metAt,
+  onChangeMetAt,
+  metLocation,
+  onChangeMetLocation,
   category,
   onChangeCategory,
   isMyCardMode = false,
@@ -670,13 +678,37 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
             />
           )}
 
-          <div className="space-y-1.5">
+          {!isMyCardMode && (
+            <>
+              <div className="space-y-1.5">
+                <label className="text-xs text-zinc-400 block">만난 날짜</label>
+                <input
+                  type="date"
+                  value={metAt || ''}
+                  onChange={(e) => onChangeMetAt?.(e.target.value)}
+                  className={`${EDITOR_INPUT_CLASS} font-mono [color-scheme:dark]`}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-zinc-400 block">만난 장소 / 행사</label>
+                <input
+                  type="text"
+                  value={metLocation || ''}
+                  onChange={(e) => onChangeMetLocation?.(e.target.value)}
+                  placeholder="예: COEX 컨퍼런스"
+                  className={EDITOR_INPUT_CLASS}
+                />
+              </div>
+            </>
+          )}
+
+          <div className={`space-y-1.5 ${!isMyCardMode && onChangeCategory ? 'sm:col-span-2' : ''}`}>
             <label className="text-xs text-zinc-400 block">메모</label>
             <input
               type="text"
               value={notes}
               onChange={(e) => onChangeNotes(e.target.value)}
-              placeholder="미팅 일시 또는 메모"
+              placeholder="대화 핵심 내용 또는 후속 메모"
               className={EDITOR_INPUT_CLASS}
             />
           </div>

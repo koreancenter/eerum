@@ -150,13 +150,15 @@ export function useCardVault({
     }
   }, [selectedVaultCardId, isPinConfigured, isLocked, selectedVaultCard]);
 
-  // Clear temporary modal target card once Share/QR/QuickQR/Print/Export modals close
+  // Clear temporary modal target card once Share/QR/QuickQR/NFC/EmailSignature/Print/Export modals close
   useEffect(() => {
     if (
       modalTargetCardId &&
       !modals.isShareOpen &&
       !modals.isQrOpen &&
       !modals.isQuickQrOpen &&
+      !modals.isNfcOpen &&
+      !modals.isEmailSignatureOpen &&
       !modals.isPrintOpen &&
       !modals.isExportOpen
     ) {
@@ -167,6 +169,8 @@ export function useCardVault({
     modals.isShareOpen,
     modals.isQrOpen,
     modals.isQuickQrOpen,
+    modals.isNfcOpen,
+    modals.isEmailSignatureOpen,
     modals.isPrintOpen,
     modals.isExportOpen,
   ]);
@@ -516,10 +520,14 @@ export function useCardVault({
               : `vault-card-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
         const nowIso = new Date().toISOString();
+        const resolvedMemo = (savedCard.memo ?? savedCard.notes ?? '').trim();
         const sanitizedVaultCard = sanitizeCardForVault(savedCard, {
           id: safeVaultId,
           category: savedCard.category,
-          notes: savedCard.notes,
+          notes: resolvedMemo || undefined,
+          memo: resolvedMemo || undefined,
+          metAt: savedCard.metAt?.trim() || undefined,
+          metLocation: savedCard.metLocation?.trim() || undefined,
           createdAt: existingVaultEntry?.createdAt || savedCard.createdAt,
           updatedAt: nowIso,
         });
@@ -675,9 +683,44 @@ export function useCardVault({
   const handleUpdateCardNotes = useCallback((cardId: string, updatedNotes: string) => {
     const nowIso = new Date().toISOString();
     setCards((prev) =>
-      prev.map((c) => (c.id === cardId ? { ...c, notes: updatedNotes, updatedAt: nowIso } : c))
+      prev.map((c) =>
+        c.id === cardId
+          ? {
+              ...c,
+              notes: updatedNotes,
+              memo: updatedNotes,
+              updatedAt: nowIso,
+            }
+          : c
+      )
     );
   }, []);
+
+  const handleUpdateVaultContext = useCallback(
+    (
+      cardId: string,
+      context: { metAt?: string; metLocation?: string; memo?: string }
+    ) => {
+      const nowIso = new Date().toISOString();
+      setCards((prev) =>
+        prev.map((c) => {
+          if (c.id !== cardId || c.isMyCard) return c;
+          const nextMemo =
+            context.memo !== undefined ? context.memo : (c.memo ?? c.notes ?? '');
+          return {
+            ...c,
+            metAt: context.metAt !== undefined ? context.metAt : c.metAt,
+            metLocation:
+              context.metLocation !== undefined ? context.metLocation : c.metLocation,
+            memo: nextMemo,
+            notes: nextMemo,
+            updatedAt: nowIso,
+          };
+        })
+      );
+    },
+    []
+  );
 
   const handleMergeDuplicateCards = useCallback(
     (mergedCard: StoredCard, duplicateCardIds: string[]) => {
@@ -808,6 +851,7 @@ export function useCardVault({
     handleMergeCategories,
     handleDeleteCategory,
     handleUpdateCardNotes,
+    handleUpdateVaultContext,
     handleMergeDuplicateCards,
     handleRestoreVaultBackup,
   };

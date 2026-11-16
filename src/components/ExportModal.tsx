@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CardData, CardTheme } from '../types/card';
 import { generateStandaloneHtml } from '@/utils/cardExporter';
-import { X, Copy, Download, Check, ArrowLeft } from 'lucide-react';
+import { X, Copy, Download, Check, ArrowLeft, Mail } from 'lucide-react';
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -10,6 +10,8 @@ interface ExportModalProps {
   theme?: CardTheme;
   slug?: string;
   isSubModal?: boolean;
+  isMyCard?: boolean;
+  onOpenEmailSignature?: () => void;
 }
 
 export const ExportModal: React.FC<ExportModalProps> = ({
@@ -19,6 +21,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   theme = 'pure_white',
   slug,
   isSubModal = false,
+  isMyCard = false,
+  onOpenEmailSignature,
 }) => {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'deploy' | 'code'>('deploy');
@@ -163,6 +167,22 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <span>권장 경로</span>
                 <span className="font-mono text-zinc-300 select-all">{displaySlug}</span>
               </div>
+
+              {isMyCard && onOpenEmailSignature && (
+                <div className="pt-3.5">
+                  <button
+                    type="button"
+                    onClick={onOpenEmailSignature}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 text-zinc-200 hover:text-white text-xs font-medium flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Mail className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
+                      <span>이메일 서명 생성기 (Rich HTML)</span>
+                    </span>
+                    <span className="text-[11px] text-zinc-400">열기 →</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="h-full min-h-[220px] flex flex-col">

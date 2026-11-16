@@ -17,11 +17,17 @@ const QrModal = lazyWithRetry(() =>
 const QuickQrPassModal = lazyWithRetry(() =>
   import('./QuickQrPassModal').then((m) => ({ default: m.QuickQrPassModal }))
 );
+const NfcBeamModal = lazyWithRetry(() =>
+  import('./NfcBeamModal').then((m) => ({ default: m.NfcBeamModal }))
+);
 const PrintModal = lazyWithRetry(() =>
   import('./PrintModal').then((m) => ({ default: m.PrintModal }))
 );
 const ExportModal = lazyWithRetry(() =>
   import('./ExportModal').then((m) => ({ default: m.ExportModal }))
+);
+const EmailSignatureModal = lazyWithRetry(() =>
+  import('./EmailSignatureModal').then((m) => ({ default: m.EmailSignatureModal }))
 );
 const PhotoArchiveModal = lazyWithRetry(() =>
   import('./PhotoArchiveModal').then((m) => ({ default: m.PhotoArchiveModal }))
@@ -166,8 +172,12 @@ export const AppModals: React.FC<AppModalsProps> = ({
             onClose={modals.closeShare}
             data={activeCard.data}
             cardUrl={getCardShareUrl(activeCard)}
+            isMyCard={Boolean(activeCard.isMyCard)}
             onOpenPrint={() => modals.openPrint(true)}
             onOpenExport={() => modals.openExport(true)}
+            onOpenEmailSignature={
+              activeCard.isMyCard ? () => modals.openEmailSignature(true) : undefined
+            }
             onShowToast={showToast}
           />
         )}
@@ -177,6 +187,16 @@ export const AppModals: React.FC<AppModalsProps> = ({
             isOpen={modals.isQuickQrOpen}
             onClose={modals.closeQuickQr}
             card={activeCard}
+            onShowToast={showToast}
+          />
+        )}
+
+        {isOwner && activeCard && modals.isNfcOpen && (
+          <NfcBeamModal
+            isOpen={modals.isNfcOpen}
+            onClose={modals.closeNfc}
+            card={activeCard}
+            onOpenQuickQr={modals.openQuickQr}
             onShowToast={showToast}
           />
         )}
@@ -208,6 +228,22 @@ export const AppModals: React.FC<AppModalsProps> = ({
             theme={activeCard.theme}
             slug={activeCard.slug}
             isSubModal={modals.isFromShare}
+            isMyCard={Boolean(activeCard.isMyCard)}
+            onOpenEmailSignature={
+              activeCard.isMyCard
+                ? () => modals.openEmailSignature(modals.isFromShare)
+                : undefined
+            }
+          />
+        )}
+
+        {isOwner && activeCard && activeCard.isMyCard && modals.isEmailSignatureOpen && (
+          <EmailSignatureModal
+            isOpen={modals.isEmailSignatureOpen}
+            onClose={modals.closeEmailSignature}
+            card={activeCard}
+            isSubModal={modals.isFromShare}
+            onShowToast={showToast}
           />
         )}
 

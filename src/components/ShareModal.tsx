@@ -18,6 +18,8 @@ import {
   Wallpaper,
   Sun,
   Moon,
+  Mail,
+  ChevronRight,
 } from 'lucide-react';
 
 interface ShareModalProps {
@@ -25,8 +27,10 @@ interface ShareModalProps {
   onClose: () => void;
   data: CardData;
   cardUrl?: string;
+  isMyCard?: boolean;
   onOpenPrint?: () => void;
   onOpenExport?: () => void;
+  onOpenEmailSignature?: () => void;
   onShowToast?: (msg: string) => void;
 }
 
@@ -35,8 +39,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   onClose,
   data,
   cardUrl,
+  isMyCard = false,
   onOpenPrint,
   onOpenExport,
+  onOpenEmailSignature,
   onShowToast,
 }) => {
   const [copied, setCopied] = useState(false);
@@ -286,6 +292,20 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             </button>
           </div>
         </div>
+
+        {isMyCard && onOpenEmailSignature && (
+          <button
+            type="button"
+            onClick={onOpenEmailSignature}
+            className="w-full mt-2 px-3.5 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-zinc-200 hover:text-white text-xs font-medium flex items-center justify-between gap-2 cursor-pointer transition-colors"
+          >
+            <span className="flex items-center gap-2 min-w-0">
+              <Mail className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
+              <span className="truncate">HTML 이메일 서명 만들기 (Gmail · Mail · Outlook)</span>
+            </span>
+            <ChevronRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+          </button>
+        )}
 
         {/* 5. Accessible Labeled Bottom Action Toolbar */}
         <div

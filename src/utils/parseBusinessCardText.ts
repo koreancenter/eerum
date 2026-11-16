@@ -17,11 +17,11 @@ export interface ParsedCardFields {
 const EMAIL_REGEX = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const URL_REGEX = /(?:https?:\/\/|www\.)[^\s,;<>()[\]"']+/gi;
 const BARE_DOMAIN_REGEX =
-  /\b(?:[a-z0-9-]+\.)+(?:com|co\.kr|kr|net|org|io|ai|app|dev|biz|info|jp|cn|me|studio|design|lab)\b(?:\/[^\s,;<>()[\]"']*)?/gi;
+  /\b(?:[a-z0-9-]+\.)+(?:com|co\.kr|kr|net|org|io|ai|app|dev|biz|info|jp|cn|me|co|so|studio|design|lab)\b(?:\/[^\s,;<>()[\]"']*)?/gi;
 
-// Matches Korean mobile (010-XXXX-XXXX), landline (02-, 031-, etc.), 15xx/16xx/18xx, and international (+82, +1, etc.) formats
+// Matches Korean mobile (010-XXXX-XXXX), landline (02-, 031-, (02) ...), 15xx/16xx/18xx, and international (+82, +1, etc.) formats
 const PHONE_CANDIDATE_REGEX =
-  /(?:\+\d{1,3}[\s.-]?(?:\(?\d{1,4}\)?[\s.-]?){1,2}\d{3,4}[\s.-]?\d{4})|(?:\b(?:01[016789]|02|0[3-6][1-5]|070|080|050\d?)[-.\s]?\d{3,4}[-.\s]?\d{4}\b)|(?:\b1[568]\d{2}[-.\s]?\d{4}\b)/g;
+  /(?:\+\d{1,3}[\s.-]?(?:\(?\d{1,4}\)?[\s.-]?){1,2}\d{3,4}[\s.-]?\d{4})|(?:\(?0(?:1[016789]|2|[3-6][1-5]|70|80|50\d?)\)?[-.\s]?\d{3,4}[-.\s]?\d{4})|(?:\b1[568]\d{2}[-.\s]?\d{4}\b)/g;
 
 const FAX_LABEL_REGEX = /\b(?:fax|f)\b|팩스|f\s*[.:]/i;
 const MOBILE_LABEL_REGEX = /\b(?:mobile|cell|mob|m|hp|h\.p|c\.p)\b|휴대전화|휴대폰|모바일|핸드폰/i;

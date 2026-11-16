@@ -11,6 +11,7 @@ import {
   CreditCard,
   Check,
   QrCode,
+  Nfc,
 } from 'lucide-react';
 
 export type CardNavigationMode = 'carousel' | 'switcher';
@@ -23,6 +24,7 @@ export interface CardNavigatorProps {
   onOpenEdit?: (card: StoredCard) => void;
   onOpenShare: (card: StoredCard) => void;
   onOpenQuickQr?: (card: StoredCard) => void;
+  onOpenNfc?: (card: StoredCard) => void;
   onDeleteCard?: (card: StoredCard) => void;
   mode?: CardNavigationMode;
   onModeChange?: (mode: CardNavigationMode) => void;
@@ -42,6 +44,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
   onOpenEdit,
   onOpenShare,
   onOpenQuickQr,
+  onOpenNfc,
   onDeleteCard,
   mode = 'carousel',
   onModeChange,
@@ -576,23 +579,43 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
         </div>
       )}
 
-      {/* 2. Prominent Quick QR Trigger & Bottom Actions Bar */}
+      {/* 2. Prominent Quick QR & Web NFC Triggers & Bottom Actions Bar */}
       {activeCard && (
         <div className="w-full flex flex-col items-center px-4 mt-3 gap-2.5">
-          {onOpenQuickQr && (
-            <button
-              type="button"
-              onClick={() => {
-                triggerTactileHaptic(6);
-                onOpenQuickQr(activeCard);
-              }}
-              className="inline-flex items-center justify-center gap-2 min-h-[40px] px-5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 text-xs font-semibold tracking-tight shadow-lg active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-              title="Quick QR 명함 패스 즉시 열기 (화면 꺼짐 방지)"
-              aria-label="Quick QR"
-            >
-              <QrCode className="w-4 h-4 stroke-[2] shrink-0" />
-              <span>Quick QR</span>
-            </button>
+          {(onOpenQuickQr || onOpenNfc) && (
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {onOpenQuickQr && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerTactileHaptic(6);
+                    onOpenQuickQr(activeCard);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 min-h-[40px] px-5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 text-xs font-semibold tracking-tight shadow-lg active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                  title="Quick QR 명함 패스 즉시 열기 (화면 꺼짐 방지)"
+                  aria-label="Quick QR"
+                >
+                  <QrCode className="w-4 h-4 stroke-[2] shrink-0" />
+                  <span>Quick QR</span>
+                </button>
+              )}
+
+              {onOpenNfc && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerTactileHaptic(6);
+                    onOpenNfc(activeCard);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 min-h-[40px] px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-white text-xs font-semibold tracking-tight shadow-lg active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+                  title="Web NFC로 가까운 기기 또는 NFC 태그에 명함 전송"
+                  aria-label="NFC 전송"
+                >
+                  <Nfc className="w-4 h-4 stroke-[1.9] shrink-0" />
+                  <span>NFC 전송</span>
+                </button>
+              )}
+            </div>
           )}
 
           <div className="w-full flex justify-center min-h-[38px]">

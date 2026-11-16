@@ -1,36 +1,77 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StoredCard } from '../types/card';
-import { Check } from 'lucide-react';
+import { Check, Calendar, MapPin } from 'lucide-react';
+
+export interface VaultMeetingContextUpdate {
+  metAt?: string;
+  metLocation?: string;
+  memo?: string;
+}
 
 interface CardPersonalMemoProps {
   card: StoredCard;
-  onSaveMemo: (newNotes: string) => void;
+  onSaveMemo?: (newNotes: string) => void;
+  onSaveContext?: (context: VaultMeetingContextUpdate) => void;
+}
+
+function getTodayIsoDate(): string {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 export const CardPersonalMemo: React.FC<CardPersonalMemoProps> = ({
   card,
   onSaveMemo,
+  onSaveContext,
 }) => {
-  const [memoText, setMemoText] = useState<string>(card.notes || '');
+  const incomingMemo = card.memo ?? card.notes ?? '';
+  const incomingMetAt = card.metAt ?? '';
+  const incomingMetLocation = card.metLocation ?? '';
+
+  const [metAt, setMetAt] = useState<string>(incomingMetAt);
+  const [metLocation, setMetLocation] = useState<string>(incomingMetLocation);
+  const [memoText, setMemoText] = useState<string>(incomingMemo);
   const [justSaved, setJustSaved] = useState<boolean>(false);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const prevCardIdRef = useRef<string>(card.id);
-  const lastSavedRef = useRef<string>(card.notes || '');
+  const lastSavedRef = useRef<{ metAt: string; metLocation: string; memo: string }>({
+    metAt: incomingMetAt,
+    metLocation: incomingMetLocation,
+    memo: incomingMemo,
+  });
   const savedIndicatorTimerRef = useRef<number | null>(null);
 
-  // Sync state only when switching cards or when card.notes is modified externally
   useEffect(() => {
-    const incomingNotes = card.notes || '';
     if (prevCardIdRef.current !== card.id) {
       prevCardIdRef.current = card.id;
-      lastSavedRef.current = incomingNotes;
-      setMemoText(incomingNotes);
+      lastSavedRef.current = {
+        metAt: incomingMetAt,
+        metLocation: incomingMetLocation,
+        memo: incomingMemo,
+      };
+      setMetAt(incomingMetAt);
+      setMetLocation(incomingMetLocation);
+      setMemoText(incomingMemo);
       setJustSaved(false);
-    } else if (incomingNotes !== lastSavedRef.current) {
-      lastSavedRef.current = incomingNotes;
-      setMemoText(incomingNotes);
+    } else if (
+      incomingMemo !== lastSavedRef.current.memo ||
+      incomingMetAt !== lastSavedRef.current.metAt ||
+      incomingMetLocation !== lastSavedRef.current.metLocation
+    ) {
+      lastSavedRef.current = {
+        metAt: incomingMetAt,
+        metLocation: incomingMetLocation,
+        memo: incomingMemo,
+      };
+      setMetAt(incomingMetAt);
+      setMetLocation(incomingMetLocation);
+      setMemoText(incomingMemo);
     }
-  }, [card.id, card.notes]);
+  }, [card.id, incomingMemo, incomingMetAt, incomingMetLocation]);
 
   useEffect(() => {
     return () => {
@@ -40,12 +81,7 @@ export const CardPersonalMemo: React.FC<CardPersonalMemoProps> = ({
     };
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const nextValue = e.target.value;
-    setMemoText(nextValue);
-    lastSavedRef.current = nextValue;
-    onSaveMemo(nextValue);
-
+  const flashSaved = () => {
     setJustSaved(true);
     if (savedIndicatorTimerRef.current) {
       window.clearTimeout(savedIndicatorTimerRef.current);
@@ -55,46 +91,158 @@ export const CardPersonalMemo: React.FC<CardPersonalMemoProps> = ({
     }, 1800);
   };
 
-  const handleBlur = () => {
-    const trimmed = memoText.trim();
-    if (trimmed !== memoText) {
-      setMemoText(trimmed);
-      lastSavedRef.current = trimmed;
-      onSaveMemo(trimmed);
+  const emitSave = (next: { metAt: string; metLocation: string; memo: string }) => {
+    lastSavedRef.current = next;
+    if (onSaveContext) {
+      onSaveContext(next);
+    } else if (onSaveMemo) {
+      onSaveMemo(next.memo);
+    }
+    flashSaved();
+  };
+
+  const handleMetAtChange = (nextDate: string) => {
+    setMetAt(nextDate);
+    emitSave({
+      metAt: nextDate,
+      metLocation,
+      memo: memoText,
+    });
+  };
+
+  const handleMetLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextLocation = e.target.value;
+    setMetLocation(nextLocation);
+    emitSave({
+      metAt,
+      metLocation: nextLocation,
+      memo: memoText,
+    });
+  };
+
+  const handleMemoChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const nextMemo = e.target.value;
+    setMemoText(nextMemo);
+    emitSave({
+      metAt,
+      metLocation,
+      memo: nextMemo,
+    });
+  };
+
+  const handleBlurTrim = () => {
+    const trimmedLoc = metLocation.trim();
+    const trimmedMemo = memoText.trim();
+    if (trimmedLoc !== metLocation || trimmedMemo !== memoText) {
+      setMetLocation(trimmedLoc);
+      setMemoText(trimmedMemo);
+      emitSave({
+        metAt,
+        metLocation: trimmedLoc,
+        memo: trimmedMemo,
+      });
     }
   };
 
+  const hasAnyContent =
+    metAt.trim().length > 0 ||
+    metLocation.trim().length > 0 ||
+    memoText.trim().length > 0;
+
   return (
     <section
-      aria-label="명함 개인 메모"
+      aria-label="만남 기록 및 개인 메모"
       className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] rounded-2xl bg-[#121214] border border-white/10 p-3.5 sm:p-4.5 shadow-xl flex flex-col gap-3 transition-all duration-200 animate-in fade-in slide-in-from-top-2"
     >
       {/* Header Row */}
       <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-white/[0.08]">
-        <h4 className="text-xs font-semibold text-white tracking-tight">개인 메모</h4>
+        <div className="flex items-center gap-2">
+          <h4 className="text-xs font-semibold text-white tracking-tight">
+            만남 기록 · 개인 메모
+          </h4>
+          <span className="text-[10px] text-zinc-500">자동 저장</span>
+        </div>
 
         {/* Instant Auto-Save Checkmark Indicator */}
         <span
-          title={justSaved || memoText.trim().length > 0 ? '저장됨' : '미입력'}
-          aria-label={justSaved || memoText.trim().length > 0 ? '저장됨' : '미입력'}
-          className={`inline-flex items-center justify-center transition-colors duration-200 ${
-            justSaved || memoText.trim().length > 0 ? 'text-emerald-400' : 'text-zinc-600'
+          title={justSaved || hasAnyContent ? '저장됨' : '미입력'}
+          aria-label={justSaved || hasAnyContent ? '저장됨' : '미입력'}
+          className={`inline-flex items-center gap-1 text-[11px] transition-colors duration-200 ${
+            justSaved
+              ? 'text-emerald-400'
+              : hasAnyContent
+                ? 'text-emerald-400/80'
+                : 'text-zinc-600'
           }`}
         >
           <Check className="w-3.5 h-3.5 stroke-[2.2]" />
         </span>
       </div>
 
+      {/* Meeting Context Fields: Date & Location/Event */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <label
+              htmlFor={`vault-met-at-${card.id}`}
+              className="text-[11px] text-zinc-400 inline-flex items-center gap-1"
+            >
+              <Calendar className="w-3 h-3 text-zinc-400" />
+              <span>만난 날짜</span>
+            </label>
+            {metAt !== getTodayIsoDate() && (
+              <button
+                type="button"
+                onClick={() => handleMetAtChange(getTodayIsoDate())}
+                className="text-[10px] text-zinc-400 hover:text-white underline underline-offset-2 cursor-pointer"
+              >
+                오늘
+              </button>
+            )}
+          </div>
+          <input
+            id={`vault-met-at-${card.id}`}
+            type="date"
+            value={metAt}
+            onChange={(e) => handleMetAtChange(e.target.value)}
+            className="w-full h-9 px-3 rounded-xl bg-[#161618] border border-white/10 text-neutral-100 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-white/25 focus:border-white/25 [color-scheme:dark]"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label
+            htmlFor={`vault-met-location-${card.id}`}
+            className="text-[11px] text-zinc-400 inline-flex items-center gap-1"
+          >
+            <MapPin className="w-3 h-3 text-zinc-400" />
+            <span>만난 장소 / 행사</span>
+          </label>
+          <input
+            id={`vault-met-location-${card.id}`}
+            type="text"
+            value={metLocation}
+            onChange={handleMetLocationChange}
+            onBlur={handleBlurTrim}
+            placeholder="예: COEX AI 서밋, 강남 미팅"
+            className="w-full h-9 px-3 rounded-xl bg-[#161618] border border-white/10 text-neutral-100 text-xs placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-white/25 focus:border-white/25"
+          />
+        </div>
+      </div>
+
       {/* Textarea Editor */}
-      <div className="relative">
+      <div className="relative space-y-1">
+        <label htmlFor={`vault-memo-${card.id}`} className="text-[11px] text-zinc-400 block">
+          메모
+        </label>
         <textarea
+          id={`vault-memo-${card.id}`}
           ref={textareaRef}
           value={memoText}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          placeholder="이 명함에 대한 연락처 특징, 만난 날짜 및 장소, 주요 관심사, 후속 미팅 계획 등을 자유롭게 기록하세요. (입력 즉시 자동 저장됩니다)"
+          onChange={handleMemoChange}
+          onBlur={handleBlurTrim}
+          placeholder="대화 핵심 내용, 주요 관심사, 후속 팔로업 일정을 자유롭게 기록하세요. (보관함 검색에 포함됩니다)"
           rows={3}
-          className="w-full min-h-[96px] max-h-[240px] p-3 rounded-xl bg-[#161618] border border-white/10 text-neutral-100 text-xs sm:text-[13px] leading-relaxed placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-white/25 focus:border-white/25 transition-all resize-y font-sans"
+          className="w-full min-h-[88px] max-h-[240px] p-3 rounded-xl bg-[#161618] border border-white/10 text-neutral-100 text-xs sm:text-[13px] leading-relaxed placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-white/25 focus:border-white/25 transition-all resize-y font-sans"
         />
       </div>
     </section>
