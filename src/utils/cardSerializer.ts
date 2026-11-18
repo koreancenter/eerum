@@ -258,6 +258,13 @@ export class CardSerializer {
     const resolvedMemo = (overrides?.memo ?? overrides?.notes ?? sourceCard.memo ?? sourceCard.notes ?? '').trim();
     const resolvedMetAt = (overrides?.metAt ?? sourceCard.metAt ?? '').trim();
     const resolvedMetLocation = (overrides?.metLocation ?? sourceCard.metLocation ?? '').trim();
+    const rawCount = overrides?.interactionCount ?? sourceCard.interactionCount;
+    const resolvedInteractionCount =
+      typeof rawCount === 'number' && Number.isFinite(rawCount) && rawCount > 0
+        ? Math.floor(rawCount)
+        : undefined;
+    const resolvedLastInteractedAt =
+      (overrides?.lastInteractedAt ?? sourceCard.lastInteractedAt ?? '').trim() || undefined;
 
     return {
       ...sourceCard,
@@ -270,12 +277,14 @@ export class CardSerializer {
       slug: undefined,
       customDomain: undefined,
       category: overrides?.category || sourceCard.category || 'VIP 파트너',
+      interactionCount: resolvedInteractionCount,
+      lastInteractedAt: resolvedLastInteractedAt,
       notes: resolvedMemo || undefined,
       memo: resolvedMemo || undefined,
       metAt: resolvedMetAt || undefined,
       metLocation: resolvedMetLocation || undefined,
       createdAt: overrides?.createdAt || sourceCard.createdAt || nowDate,
-      created_at: sourceCard.created_at || nowIso,
+      created_at: overrides?.created_at || sourceCard.created_at || nowIso,
       updatedAt: overrides?.updatedAt || nowIso,
       data: {
         ...sourceCard.data,

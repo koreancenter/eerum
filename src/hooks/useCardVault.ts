@@ -400,6 +400,8 @@ export function useCardVault({
           id: isolatedVaultId,
           category: existingVaultCopy?.category || sourceCard.category || 'VIP 파트너',
           notes: existingVaultCopy?.notes || sourceCard.notes || '공유 링크로 등록됨',
+          interactionCount: existingVaultCopy?.interactionCount ?? sourceCard.interactionCount,
+          lastInteractedAt: existingVaultCopy?.lastInteractedAt ?? new Date().toISOString(),
         });
 
         const isFirstEverCard = cards.length === 0;
@@ -528,7 +530,12 @@ export function useCardVault({
           memo: resolvedMemo || undefined,
           metAt: savedCard.metAt?.trim() || undefined,
           metLocation: savedCard.metLocation?.trim() || undefined,
+          interactionCount:
+            existingVaultEntry?.interactionCount ?? savedCard.interactionCount,
+          lastInteractedAt:
+            existingVaultEntry?.lastInteractedAt ?? savedCard.lastInteractedAt ?? nowIso,
           createdAt: existingVaultEntry?.createdAt || savedCard.createdAt,
+          created_at: existingVaultEntry?.created_at || savedCard.created_at || nowIso,
           updatedAt: nowIso,
         });
 
@@ -680,6 +687,28 @@ export function useCardVault({
     [cards, showToast]
   );
 
+  const handleRecordCardInteraction = useCallback((cardId: string) => {
+    if (!cardId) return;
+    const nowIso = new Date().toISOString();
+    setCards((prev) => {
+      let changed = false;
+      const next = prev.map((c) => {
+        if (c.id !== cardId) return c;
+        changed = true;
+        const currentCount =
+          typeof c.interactionCount === 'number' && Number.isFinite(c.interactionCount)
+            ? Math.max(0, Math.floor(c.interactionCount))
+            : 0;
+        return {
+          ...c,
+          interactionCount: currentCount + 1,
+          lastInteractedAt: nowIso,
+        };
+      });
+      return changed ? next : prev;
+    });
+  }, []);
+
   const handleUpdateCardNotes = useCallback((cardId: string, updatedNotes: string) => {
     const nowIso = new Date().toISOString();
     setCards((prev) =>
@@ -690,6 +719,11 @@ export function useCardVault({
               notes: updatedNotes,
               memo: updatedNotes,
               updatedAt: nowIso,
+              interactionCount:
+                (typeof c.interactionCount === 'number' && Number.isFinite(c.interactionCount)
+                  ? Math.max(0, Math.floor(c.interactionCount))
+                  : 0) + 1,
+              lastInteractedAt: nowIso,
             }
           : c
       )
@@ -707,6 +741,10 @@ export function useCardVault({
           if (c.id !== cardId || c.isMyCard) return c;
           const nextMemo =
             context.memo !== undefined ? context.memo : (c.memo ?? c.notes ?? '');
+          const currentCount =
+            typeof c.interactionCount === 'number' && Number.isFinite(c.interactionCount)
+              ? Math.max(0, Math.floor(c.interactionCount))
+              : 0;
           return {
             ...c,
             metAt: context.metAt !== undefined ? context.metAt : c.metAt,
@@ -715,6 +753,8 @@ export function useCardVault({
             memo: nextMemo,
             notes: nextMemo,
             updatedAt: nowIso,
+            interactionCount: currentCount + 1,
+            lastInteractedAt: nowIso,
           };
         })
       );
@@ -852,6 +892,7 @@ export function useCardVault({
     handleDeleteCategory,
     handleUpdateCardNotes,
     handleUpdateVaultContext,
+    handleRecordCardInteraction,
     handleMergeDuplicateCards,
     handleRestoreVaultBackup,
   };

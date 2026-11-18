@@ -358,6 +358,19 @@ export function buildMergedVaultCard(
     duplicates.map((d) => (d.metLocation || '').trim()).find(Boolean) ||
     undefined;
 
+  const totalInteractions = [primary, ...duplicates].reduce(
+    (sum, card) =>
+      sum +
+      (typeof card.interactionCount === 'number' && Number.isFinite(card.interactionCount)
+        ? Math.max(0, Math.floor(card.interactionCount))
+        : 0),
+    0
+  );
+  const latestInteractedAt = [primary, ...duplicates]
+    .map((card) => (typeof card.lastInteractedAt === 'string' ? card.lastInteractedAt.trim() : ''))
+    .filter(Boolean)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+
   // Retain Primary Card's mode, theme, and front/back photos strictly
   const mergedCard: StoredCard = {
     ...primary,
@@ -368,6 +381,8 @@ export function buildMergedVaultCard(
     slug: undefined,
     customDomain: undefined,
     category: mergedCategory,
+    interactionCount: totalInteractions > 0 ? totalInteractions : undefined,
+    lastInteractedAt: latestInteractedAt || undefined,
     notes: mergedNotes,
     memo: mergedNotes || undefined,
     metAt: mergedMetAt,

@@ -770,6 +770,7 @@ export default function App() {
                         isFlipped={isFlipped}
                         onFlip={() => setIsFlipped((prev) => !prev)}
                         onOpenShare={() => {
+                          vault.handleRecordCardInteraction(vault.selectedVaultCard!.id);
                           vault.setModalTargetCardId(vault.selectedVaultCard!.id);
                           modals.openShare();
                         }}
@@ -781,6 +782,11 @@ export default function App() {
                         isOwner={true}
                         cardUrl={getCardShareUrl(vault.selectedVaultCard)}
                         onShowToast={showToast}
+                        onInteraction={() => {
+                          if (vault.selectedVaultCard) {
+                            vault.handleRecordCardInteraction(vault.selectedVaultCard.id);
+                          }
+                        }}
                         onToggleMemo={() => setIsMemoOpen((prev) => !prev)}
                         isMemoOpen={isMemoOpen}
                         hasMemo={Boolean(
@@ -875,6 +881,7 @@ export default function App() {
                     if (selected.isMyCard) {
                       handleTabChange('my-card', selected.id);
                     } else {
+                      vault.handleRecordCardInteraction(selected.id);
                       setIsFlipped(false);
                       setIsMemoOpen(false);
                       vault.setSelectedVaultCardId(selected.id);
@@ -897,9 +904,11 @@ export default function App() {
                     });
                   }}
                   onExportCard={(cardToExport) => {
+                    vault.handleRecordCardInteraction(cardToExport.id);
                     vault.setModalTargetCardId(cardToExport.id);
                     modals.openExport();
                   }}
+                  onRecordInteraction={vault.handleRecordCardInteraction}
                   onOpenScan={() => {
                     vault.requireUnlock(() => {
                       modals.openScan();

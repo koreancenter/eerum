@@ -224,6 +224,16 @@ export function validateBackupPayload(raw: unknown): VaultBackupPayloadV1 {
       isMyCard: Boolean(entry.isMyCard),
       category: typeof entry.category === 'string' && entry.category.trim() ? entry.category.trim() : '기타',
       theme: typeof entry.theme === 'string' && entry.theme ? entry.theme : 'pure_white',
+      interactionCount:
+        typeof entry.interactionCount === 'number' &&
+        Number.isFinite(entry.interactionCount) &&
+        entry.interactionCount > 0
+          ? Math.floor(entry.interactionCount)
+          : undefined,
+      lastInteractedAt:
+        typeof entry.lastInteractedAt === 'string' && entry.lastInteractedAt.trim()
+          ? entry.lastInteractedAt.trim()
+          : undefined,
       createdAt:
         typeof entry.createdAt === 'string' && entry.createdAt
           ? entry.createdAt

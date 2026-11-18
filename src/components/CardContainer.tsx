@@ -44,6 +44,7 @@ interface CardContainerProps {
   disableLayout?: boolean;
   showFlipBadge?: boolean;
   onCardClick?: () => void;
+  onInteraction?: () => void;
 }
 
 interface GestureState {
@@ -91,6 +92,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
   disableLayout = false,
   showFlipBadge = false,
   onCardClick,
+  onInteraction,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
@@ -645,6 +647,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
             hasMemo={hasMemo}
             cardUrl={cardUrl}
             onShowToast={onShowToast}
+            onInteraction={onInteraction}
           />
         </motion.div>
       )}

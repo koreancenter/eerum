@@ -124,6 +124,14 @@ function enrichCard(c: StoredCard): StoredCard {
   const resolvedMemo = (c.memo ?? c.notes ?? '').trim();
   const resolvedMetAt = c.metAt ? c.metAt.trim() : undefined;
   const resolvedMetLocation = c.metLocation ? c.metLocation.trim() : undefined;
+  const resolvedInteractionCount =
+    typeof c.interactionCount === 'number' && Number.isFinite(c.interactionCount) && c.interactionCount > 0
+      ? Math.floor(c.interactionCount)
+      : undefined;
+  const resolvedLastInteractedAt =
+    typeof c.lastInteractedAt === 'string' && c.lastInteractedAt.trim()
+      ? c.lastInteractedAt.trim()
+      : undefined;
 
   const enriched: StoredCard = {
     ...c,
@@ -133,6 +141,8 @@ function enrichCard(c: StoredCard): StoredCard {
     owner_key: resolvedOwnerKey,
     slug: c.isMyCard ? c.slug : undefined,
     customDomain: c.isMyCard ? c.customDomain : undefined,
+    interactionCount: resolvedInteractionCount,
+    lastInteractedAt: resolvedLastInteractedAt,
     notes: resolvedMemo || undefined,
     memo: resolvedMemo || undefined,
     metAt: resolvedMetAt || undefined,
@@ -524,6 +534,8 @@ export function clearAllLocalData(): void {
     localStorage.removeItem('eerum_first_launch_done');
     localStorage.removeItem('eerum_last_backup_at');
     localStorage.removeItem('eerum_backup_nudge_dismissed_at');
+    localStorage.removeItem('eerum_vault_sort_by');
+    localStorage.removeItem('eerum_vault_view_scope');
     sessionStorage.clear();
   } catch (e) {
     console.warn('Notice resetting local data', e);

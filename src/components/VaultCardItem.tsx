@@ -30,6 +30,7 @@ interface VaultCardKebabMenuProps {
   onExportCard: (card: StoredCard) => void;
   onDeleteCard: (cardId: string) => void;
   onOpenPhotoArchive: (card: StoredCard) => void;
+  onRecordInteraction?: (cardId: string) => void;
   buttonClassName?: string;
   menuDirection?: 'up' | 'down' | 'auto';
 }
@@ -58,6 +59,7 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
   onExportCard,
   onDeleteCard,
   onOpenPhotoArchive,
+  onRecordInteraction,
   buttonClassName,
   menuDirection = 'auto',
 }) => {
@@ -154,6 +156,7 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
   const handleVCard = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsOpen(false);
+    onRecordInteraction?.(card.id);
     const hasContext = Boolean(card.metAt || card.metLocation || card.memo || card.notes);
     if (hasContext && !card.isMyCard) {
       const safeName = (card.data.name || card.data.nameKr || 'contact')
@@ -293,6 +296,7 @@ export interface VaultCardItemProps {
   onDeleteCard: (cardId: string) => void;
   onExportCard: (card: StoredCard) => void;
   onOpenPhotoArchive: (card: StoredCard) => void;
+  onRecordInteraction?: (cardId: string) => void;
 }
 
 const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
@@ -302,6 +306,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
   onDeleteCard,
   onExportCard,
   onOpenPhotoArchive,
+  onRecordInteraction,
 }) => {
   const hasPhoto = Boolean(card.scannedImage);
   const photoPreviewUrl = card.scannedImage || card.front_image_url;
@@ -366,21 +371,23 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
   const handleCallClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      onRecordInteraction?.(card.id);
       if (cleanPhoneNumber) {
         window.location.href = `tel:${cleanPhoneNumber}`;
       }
     },
-    [cleanPhoneNumber]
+    [cleanPhoneNumber, card.id, onRecordInteraction]
   );
 
   const handleSmsClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      onRecordInteraction?.(card.id);
       if (cleanPhoneNumber) {
         window.location.href = `sms:${cleanPhoneNumber}`;
       }
     },
-    [cleanPhoneNumber]
+    [cleanPhoneNumber, card.id, onRecordInteraction]
   );
 
   const handleSelectClick = useCallback(() => {
@@ -397,9 +404,13 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
     [card, onSelectCard]
   );
 
-  const stopLinkPropagation = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-  }, []);
+  const stopLinkPropagation = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onRecordInteraction?.(card.id);
+    },
+    [card.id, onRecordInteraction]
+  );
 
   const surfaceBorderClass = themeStyles.isLight
     ? 'border-[#1C1B1A]/12 hover:border-[#1C1B1A]/30'
@@ -616,6 +627,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
           onExportCard={onExportCard}
           onDeleteCard={onDeleteCard}
           onOpenPhotoArchive={onOpenPhotoArchive}
+          onRecordInteraction={onRecordInteraction}
           buttonClassName={actionBtnClass}
           menuDirection="up"
         />
@@ -634,6 +646,7 @@ export interface VaultCardListRowProps {
   onDeleteCard: (cardId: string) => void;
   onExportCard: (card: StoredCard) => void;
   onOpenPhotoArchive: (card: StoredCard) => void;
+  onRecordInteraction?: (cardId: string) => void;
 }
 
 const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
@@ -643,6 +656,7 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
   onDeleteCard,
   onExportCard,
   onOpenPhotoArchive,
+  onRecordInteraction,
 }) => {
   const displayName = (card.data.name || card.data.nameKr || '명함').trim();
   const displayTitle = (card.data.titleKr || card.data.title || '').trim();
@@ -656,21 +670,23 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
   const handleCallClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      onRecordInteraction?.(card.id);
       if (cleanPhoneNumber) {
         window.location.href = `tel:${cleanPhoneNumber}`;
       }
     },
-    [cleanPhoneNumber]
+    [cleanPhoneNumber, card.id, onRecordInteraction]
   );
 
   const handleSmsClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      onRecordInteraction?.(card.id);
       if (cleanPhoneNumber) {
         window.location.href = `sms:${cleanPhoneNumber}`;
       }
     },
-    [cleanPhoneNumber]
+    [cleanPhoneNumber, card.id, onRecordInteraction]
   );
 
   return (
@@ -747,6 +763,7 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
           onExportCard={onExportCard}
           onDeleteCard={onDeleteCard}
           onOpenPhotoArchive={onOpenPhotoArchive}
+          onRecordInteraction={onRecordInteraction}
           buttonClassName="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           menuDirection="auto"
         />
@@ -765,6 +782,7 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
   onDeleteCard,
   onExportCard,
   onOpenPhotoArchive,
+  onRecordInteraction,
 }) => {
   const displayName = (card.data.name || card.data.nameKr || '명함').trim();
   const cleanPhoneNumber = useMemo(
@@ -775,21 +793,23 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
   const handleCallClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      onRecordInteraction?.(card.id);
       if (cleanPhoneNumber) {
         window.location.href = `tel:${cleanPhoneNumber}`;
       }
     },
-    [cleanPhoneNumber]
+    [cleanPhoneNumber, card.id, onRecordInteraction]
   );
 
   const handleSmsClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      onRecordInteraction?.(card.id);
       if (cleanPhoneNumber) {
         window.location.href = `sms:${cleanPhoneNumber}`;
       }
     },
-    [cleanPhoneNumber]
+    [cleanPhoneNumber, card.id, onRecordInteraction]
   );
 
   return (
@@ -871,6 +891,7 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
             onExportCard={onExportCard}
             onDeleteCard={onDeleteCard}
             onOpenPhotoArchive={onOpenPhotoArchive}
+            onRecordInteraction={onRecordInteraction}
             buttonClassName="p-1.5 rounded-lg hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             menuDirection="auto"
           />

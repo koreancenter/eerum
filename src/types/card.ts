@@ -141,6 +141,8 @@ export interface StoredCard {
   ownerEmail?: string;
   createdAt: string;
   updatedAt?: string;
+  interactionCount?: number;
+  lastInteractedAt?: string;
   notes?: string;
   memo?: string;
   metAt?: string;

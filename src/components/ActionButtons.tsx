@@ -32,6 +32,7 @@ interface ActionButtonsProps {
   hasMemo?: boolean;
   cardUrl?: string;
   onShowToast?: (msg: string) => void;
+  onInteraction?: () => void;
 }
 
 interface ContactChannelItem {
@@ -56,6 +57,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   hasMemo = false,
   cardUrl,
   onShowToast,
+  onInteraction,
 }) => {
   const phoneTarget = data.phoneRaw || data.phone?.replace(/[^0-9+]/g, '');
   const iconButtonClass =
@@ -99,6 +101,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 
   // Direct recipient action: download .vcf contact directly without modal
   const handleDownloadContact = () => {
+    onInteraction?.();
     downloadVCard(data);
     if (onShowToast) {
       onShowToast(`${data.name}님의 연락처(vCard)가 다운로드되었습니다.`);
@@ -107,6 +110,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 
   // Direct recipient action: share card link via Web Share API or copy URL
   const handleShareCardLink = async () => {
+    onInteraction?.();
     const targetUrl = cardUrl || (typeof window !== 'undefined' ? window.location.href : '');
     const title = `${data.name} — ${data.organization}`;
     const text = `${data.organization} ${data.title} ${data.name} 디지털 명함`;
@@ -133,6 +137,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           href={href}
           target={external ? '_blank' : undefined}
           rel={external ? 'noopener noreferrer' : undefined}
+          onClick={() => onInteraction?.()}
           className={iconButtonClass}
           title={title}
           aria-label={ariaLabel}
@@ -190,7 +195,10 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           {onToggleMemo && (
             <button
               type="button"
-              onClick={onToggleMemo}
+              onClick={() => {
+                onInteraction?.();
+                onToggleMemo();
+              }}
               aria-pressed={isMemoOpen}
               className={`relative ${
                 isMemoOpen
@@ -224,7 +232,10 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 
           {/* Share */}
           <button
-            onClick={onOpenShare}
+            onClick={() => {
+              onInteraction?.();
+              onOpenShare();
+            }}
             className={iconButtonClass}
             title="명함 공유 (QR, 링크, 인쇄, HTML 내보내기)"
             aria-label="명함 공유"

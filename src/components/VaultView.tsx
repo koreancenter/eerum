@@ -19,14 +19,6 @@ import {
   UserPlus,
 } from 'lucide-react';
 
-export type VaultSortOption = 'newest' | 'oldest' | 'name' | 'company';
-
-const SORT_OPTIONS: { id: VaultSortOption; label: string }[] = [
-  { id: 'newest', label: '최신순' },
-  { id: 'oldest', label: '오래된순' },
-  { id: 'name', label: '이름순' },
-  { id: 'company', label: '회사명순' },
-];
 import { PhotoArchiveModal } from './PhotoArchiveModal';
 import {
   VaultCardItem,
@@ -53,18 +45,17 @@ import {
   dismissBackupNudge,
 } from '../utils/vaultBackup';
 import { downloadBatchVCard } from '../utils/cardExporter';
+import {
+  type VaultViewScope,
+  type VaultSortOption,
+  SORT_OPTIONS,
+  RECENT_WINDOW_DAYS,
+  filterCardsByScope,
+  isRecentVaultCard,
+  sortVaultCards,
+} from '../utils/cardSorting';
 
-const parseTimestampMs = (val?: string): number => {
-  if (!val) return 0;
-  const ms = new Date(val).getTime();
-  return Number.isNaN(ms) ? 0 : ms;
-};
-
-const getCardSortTimestamp = (card: StoredCard): number => {
-  const createdMs = Math.max(parseTimestampMs(card.created_at), parseTimestampMs(card.createdAt));
-  const updatedMs = Math.max(parseTimestampMs(card.updated_at), parseTimestampMs(card.updatedAt));
-  return Math.max(createdMs, updatedMs);
-};
+export type { VaultSortOption, VaultViewScope };
 
 interface IWindowSpeechRecognition extends Window {
   SpeechRecognition?: any;
@@ -83,6 +74,7 @@ interface VaultViewProps {
   onEditCard: (card: StoredCard) => void;
   onDeleteCard: (cardId: string) => void;
   onExportCard: (card: StoredCard) => void;
+  onRecordInteraction?: (cardId: string) => void;
   onOpenScan: () => void;
   onOpenEditor: () => void;
   onOpenImportContacts?: () => void;
@@ -104,6 +96,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
   onEditCard,
   onDeleteCard,
   onExportCard,
+  onRecordInteraction,
   onOpenScan,
   onOpenImportContacts,
   isLocked = false,
@@ -153,11 +146,24 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   const [photoArchiveCardId, setPhotoArchiveCardId] = useState<string | null>(null);
 
-  // Sorting state persisted in localStorage
+  // Vault view scope ('all' | 'recent') persisted in localStorage
+  const [viewScope, setViewScope] = useState<VaultViewScope>(() => {
+    if (typeof window !== 'undefined') {
+      const savedScope = localStorage.getItem('eerum_vault_view_scope');
+      if (savedScope === 'recent' || savedScope === 'all') {
+        return savedScope;
+      }
+    }
+    return 'all';
+  });
+
+  // Sorting state persisted in localStorage (defaults to automated 'smart' ranking)
   const [sortBy, setSortBy] = useState<VaultSortOption>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('eerum_vault_sort_by');
       if (
+        saved === 'smart' ||
+        saved === 'frequency' ||
         saved === 'newest' ||
         saved === 'oldest' ||
         saved === 'name' ||
@@ -166,12 +172,18 @@ export const VaultView: React.FC<VaultViewProps> = ({
         return saved;
       }
     }
-    return 'newest';
+    return 'smart';
   });
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState<boolean>(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Persist sort preference
+  // Persist view scope & sort preferences
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('eerum_vault_view_scope', viewScope);
+    }
+  }, [viewScope]);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('eerum_vault_sort_by', sortBy);
@@ -245,12 +257,14 @@ export const VaultView: React.FC<VaultViewProps> = ({
     onEditCard,
     onDeleteCard,
     onExportCard,
+    onRecordInteraction,
   });
   latestHandlersRef.current = {
     onSelectCard,
     onEditCard,
     onDeleteCard,
     onExportCard,
+    onRecordInteraction,
   };
 
   const handleSelectCard = useCallback((card: StoredCard) => {
@@ -269,7 +283,12 @@ export const VaultView: React.FC<VaultViewProps> = ({
     latestHandlersRef.current.onExportCard(card);
   }, []);
 
+  const handleRecordInteraction = useCallback((cardId: string) => {
+    latestHandlersRef.current.onRecordInteraction?.(cardId);
+  }, []);
+
   const handleOpenPhotoArchive = useCallback((card: StoredCard) => {
+    latestHandlersRef.current.onRecordInteraction?.(card.id);
     setPhotoArchiveCardId(card.id);
   }, []);
 
@@ -433,16 +452,22 @@ export const VaultView: React.FC<VaultViewProps> = ({
     return counts;
   }, [cards, categories]);
 
-  // Instant multi-field + Korean choseong search & category filter
+  const recentCardsCount = useMemo(
+    () => cards.filter((c) => isRecentVaultCard(c)).length,
+    [cards]
+  );
+
+  // Instant scope ('all' | 'recent') + multi-field Korean choseong search + category filter
   const filteredCards = useMemo(() => {
+    const scopedCards = filterCardsByScope(cards, viewScope);
     const q = searchQuery.trim();
     const isAllCategories = selectedCategory === '전체';
 
     if (isAllCategories && !q) {
-      return cards;
+      return scopedCards;
     }
 
-    return cards.filter((c) => {
+    return scopedCards.filter((c) => {
       if (!isAllCategories && c.category !== selectedCategory) {
         return false;
       }
@@ -478,71 +503,13 @@ export const VaultView: React.FC<VaultViewProps> = ({
         [d.phone, d.phoneRaw]
       );
     });
-  }, [cards, selectedCategory, searchQuery]);
+  }, [cards, viewScope, selectedCategory, searchQuery]);
 
-  // Multi-criteria sorting: 'newest' (최신순), 'oldest' (오래된순), 'name' (이름순), 'company' (회사명순)
-  const sortedCards = useMemo(() => {
-    const list = [...filteredCards];
-
-    if (sortBy === 'name') {
-      return list.sort((a, b) => {
-        const nameA = (a.data.name || a.data.nameKr || '').trim();
-        const nameB = (b.data.name || b.data.nameKr || '').trim();
-        const cmp = nameA.localeCompare(nameB, 'ko', { numeric: true, sensitivity: 'base' });
-        if (cmp !== 0) return cmp;
-        const orgA = (a.data.organizationKr || a.data.organization || '').trim();
-        const orgB = (b.data.organizationKr || b.data.organization || '').trim();
-        return orgA.localeCompare(orgB, 'ko', { numeric: true, sensitivity: 'base' });
-      });
-    }
-
-    if (sortBy === 'company') {
-      return list.sort((a, b) => {
-        const orgA = (
-          a.data.organizationKr ||
-          a.data.organization ||
-          a.data.subOrg ||
-          a.data.details?.sub_org ||
-          ''
-        ).trim();
-        const orgB = (
-          b.data.organizationKr ||
-          b.data.organization ||
-          b.data.subOrg ||
-          b.data.details?.sub_org ||
-          ''
-        ).trim();
-        if (!orgA && orgB) return 1;
-        if (orgA && !orgB) return -1;
-        const cmp = orgA.localeCompare(orgB, 'ko', { numeric: true, sensitivity: 'base' });
-        if (cmp !== 0) return cmp;
-        const nameA = (a.data.name || a.data.nameKr || '').trim();
-        const nameB = (b.data.name || b.data.nameKr || '').trim();
-        return nameA.localeCompare(nameB, 'ko', { numeric: true, sensitivity: 'base' });
-      });
-    }
-
-    if (sortBy === 'oldest') {
-      return list.sort((a, b) => {
-        const timeA = getCardSortTimestamp(a);
-        const timeB = getCardSortTimestamp(b);
-        if (timeA !== timeB) {
-          return timeA - timeB;
-        }
-        return 0;
-      });
-    }
-
-    // Default 'newest' (최신순, by createdAt / updatedAt)
-    return list.sort((a, b) => {
-      const timeA = getCardSortTimestamp(a);
-      const timeB = getCardSortTimestamp(b);
-      if (timeA !== timeB) {
-        return timeB - timeA;
-      }
-      return 0;
-    });
-  }, [filteredCards, sortBy]);
+  // Automated sorting by interaction frequency, creation date, name, or company
+  const sortedCards = useMemo(
+    () => sortVaultCards(filteredCards, sortBy),
+    [filteredCards, sortBy]
+  );
 
   const currentSortOption = useMemo(
     () => SORT_OPTIONS.find((opt) => opt.id === sortBy) || SORT_OPTIONS[0],
@@ -716,24 +683,92 @@ export const VaultView: React.FC<VaultViewProps> = ({
         aria-label="명함 보관함 검색 및 필터 도구 모음"
         className="w-full max-w-full min-w-0 flex flex-col gap-2.5 sm:gap-3 pb-3 border-b border-white/10"
       >
-        {/* Row 1: Action Toolbar (Desktop: Search+Sort on Left, Actions on Right; Mobile: Actions on Top, Search+Sort Below) */}
+        {/* Row 1: Action Toolbar (Desktop: Recent/All Switcher on Left, Search+Sort+Actions on Right; Mobile: Recent/All + Actions on Top, Search+Sort Below) */}
         <div className="w-full max-w-full min-w-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3">
-          {/* Mobile-Only Action Button Cluster (< sm) */}
-          <div className="flex sm:hidden items-center justify-end gap-1.5 shrink-0 w-full">
+          {/* Desktop Recent / All View Switcher (sm+) */}
+          <div
+            role="group"
+            aria-label="보관함 명함 보기 범위"
+            className="hidden sm:grid grid-cols-2 p-0.5 h-9 sm:h-9.5 bg-[#121214] rounded-xl border border-white/10 shrink-0"
+          >
             <button
               type="button"
-              onClick={() => openCategoryPanel(false)}
-              aria-expanded={isCategoryPanelOpen}
-              aria-label="카테고리 관리"
-              title="카테고리 관리"
-              className={`w-8.5 h-8.5 rounded-xl border text-xs font-medium shrink-0 inline-flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
-                isCategoryPanelOpen
-                  ? 'bg-white text-neutral-950 border-white font-semibold'
-                  : 'bg-[#121214] hover:bg-white/10 border-white/10 text-zinc-300 hover:text-white'
+              onClick={() => setViewScope('all')}
+              aria-pressed={viewScope === 'all'}
+              title={`보관함 전체 명함 (${cards.length}명)`}
+              className={`px-3 h-full rounded-lg text-xs font-medium flex items-center justify-center cursor-pointer transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                viewScope === 'all'
+                  ? 'bg-white/12 text-white font-semibold'
+                  : 'text-zinc-400 hover:text-white'
               }`}
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
+              전체
             </button>
+            <button
+              type="button"
+              onClick={() => setViewScope('recent')}
+              aria-pressed={viewScope === 'recent'}
+              title={`최근 ${RECENT_WINDOW_DAYS}일 내 등록하거나 열람·연락한 명함 (${recentCardsCount}명)`}
+              className={`px-3 h-full rounded-lg text-xs font-medium flex items-center justify-center cursor-pointer transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                viewScope === 'recent'
+                  ? 'bg-white/12 text-white font-semibold'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              최근
+            </button>
+          </div>
+
+          {/* Mobile-Only Top Row: Recent/All Switcher on Left + Action Cluster on Right (< sm) */}
+          <div className="flex sm:hidden items-center justify-between gap-1.5 shrink-0 w-full">
+            <div
+              role="group"
+              aria-label="보관함 명함 보기 범위"
+              className="grid grid-cols-2 p-0.5 h-8.5 bg-[#121214] rounded-xl border border-white/10 shrink-0"
+            >
+              <button
+                type="button"
+                onClick={() => setViewScope('all')}
+                aria-pressed={viewScope === 'all'}
+                title={`보관함 전체 명함 (${cards.length}명)`}
+                className={`px-2.5 h-full rounded-lg text-[11px] font-medium flex items-center justify-center cursor-pointer transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                  viewScope === 'all'
+                    ? 'bg-white/12 text-white font-semibold'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                전체
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewScope('recent')}
+                aria-pressed={viewScope === 'recent'}
+                title={`최근 ${RECENT_WINDOW_DAYS}일 내 등록하거나 열람·연락한 명함 (${recentCardsCount}명)`}
+                className={`px-2.5 h-full rounded-lg text-[11px] font-medium flex items-center justify-center cursor-pointer transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                  viewScope === 'recent'
+                    ? 'bg-white/12 text-white font-semibold'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                최근
+              </button>
+            </div>
+
+            <div className="flex items-center justify-end gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => openCategoryPanel(false)}
+                aria-expanded={isCategoryPanelOpen}
+                aria-label="카테고리 관리"
+                title="카테고리 관리"
+                className={`w-8.5 h-8.5 rounded-xl border text-xs font-medium shrink-0 inline-flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                  isCategoryPanelOpen
+                    ? 'bg-white text-neutral-950 border-white font-semibold'
+                    : 'bg-[#121214] hover:bg-white/10 border-white/10 text-zinc-300 hover:text-white'
+                }`}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
+              </button>
 
             <div
               role="group"
@@ -806,13 +841,14 @@ export const VaultView: React.FC<VaultViewProps> = ({
               <Plus className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
               <span className="whitespace-nowrap">추가</span>
             </button>
+            </div>
           </div>
 
           {/* Right on Desktop / Responsive on Mobile: Search Bar + Sort Dropdown + (Desktop Action Controls) */}
-          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-2.5 md:gap-3 w-full sm:w-auto">
+          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-2.5 md:gap-3 w-full sm:w-auto sm:flex-1 sm:min-w-0">
             {/* 1. Search Bar + Sort Dropdown Cluster */}
-            <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
-              <div className="relative flex-1 sm:w-52 md:w-64 lg:w-72 sm:max-w-[300px] min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto sm:flex-1 sm:justify-end min-w-0">
+              <div className="relative flex-1 sm:w-44 md:w-56 lg:w-64 sm:max-w-[280px] min-w-0">
                 <Search
                   className={`w-3.5 h-3.5 stroke-[1.75] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-200 ${
                     isListening ? 'text-rose-400' : 'text-zinc-400'
@@ -902,10 +938,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   <div
                     role="listbox"
                     aria-label="정렬 옵션"
-                    className="absolute right-0 mt-1.5 w-36 py-1.5 rounded-2xl bg-[#121214]/95 backdrop-blur-xl border border-white/10 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150"
+                    className="absolute right-0 mt-1.5 w-48 py-1.5 rounded-2xl bg-[#121214]/95 backdrop-blur-xl border border-white/10 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150"
                   >
                     <div className="px-3 py-1 mb-1 border-b border-white/[0.06]">
-                      <p className="text-[10px] font-sans font-medium text-zinc-400">정렬 기준</p>
+                      <p className="text-[10px] font-sans font-medium text-zinc-400">자동 · 기준별 정렬</p>
                     </div>
                     {SORT_OPTIONS.map((opt) => {
                       const isSelected = sortBy === opt.id;
@@ -919,13 +955,20 @@ export const VaultView: React.FC<VaultViewProps> = ({
                             setSortBy(opt.id);
                             setIsSortDropdownOpen(false);
                           }}
-                          className={`w-full flex items-center justify-between px-3 py-2 text-xs transition-colors cursor-pointer text-left ${
+                          className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-xs transition-colors cursor-pointer text-left ${
                             isSelected
                               ? 'bg-white/10 text-white font-medium'
                               : 'text-zinc-400 hover:text-white hover:bg-white/[0.06]'
                           }`}
                         >
-                          <span>{opt.label}</span>
+                          <div className="min-w-0">
+                            <div className="leading-snug">{opt.label}</div>
+                            {opt.description && (
+                              <div className="text-[10px] text-zinc-500 leading-tight mt-0.5">
+                                {opt.description}
+                              </div>
+                            )}
+                          </div>
                           {isSelected && <Check className="w-3.5 h-3.5 stroke-[2] text-white shrink-0" />}
                         </button>
                       );
@@ -1201,22 +1244,42 @@ export const VaultView: React.FC<VaultViewProps> = ({
 
       {/* Content Rendering: Cards Grid or List Table */}
       {sortedCards.length === 0 ? (
-        <div className="py-20 text-center space-y-3 p-8 rounded-3xl bg-neutral-900/40 border border-neutral-800/60">
-          <p className="text-sm font-semibold text-neutral-300">
-            {selectedCategory !== '전체' && !searchQuery.trim()
-              ? `'${selectedCategory}' 카테고리에 등록된 명함이 없습니다.`
-              : '검색 조건에 일치하는 명함이 없습니다.'}
-          </p>
-          <p className="text-xs text-zinc-400">실물 명함 사진을 촬영하거나 새 명함을 등록해 보세요.</p>
-          <button
-            type="button"
-            onClick={onOpenScan}
-            className="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-white text-neutral-950 text-xs font-semibold hover:bg-zinc-200 cursor-pointer"
-          >
-            <Plus className="w-4 h-4 stroke-[2]" />
-            <span>실물 명함 등록</span>
-          </button>
-        </div>
+        viewScope === 'recent' && cards.length > 0 && !searchQuery.trim() ? (
+          <div className="py-20 text-center space-y-3 p-8 rounded-3xl bg-neutral-900/40 border border-neutral-800/60">
+            <p className="text-sm font-semibold text-neutral-300">
+              {selectedCategory !== '전체'
+                ? `'${selectedCategory}' 카테고리에 최근 ${RECENT_WINDOW_DAYS}일 내 활동한 명함이 없습니다.`
+                : `최근 ${RECENT_WINDOW_DAYS}일 내 등록하거나 교류한 명함이 없습니다.`}
+            </p>
+            <p className="text-xs text-zinc-400">
+              명함을 열람하거나 전화·문자·메모 기록을 남기면 최근 명함에 자동으로 모입니다.
+            </p>
+            <button
+              type="button"
+              onClick={() => setViewScope('all')}
+              className="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-white text-neutral-950 text-xs font-semibold hover:bg-zinc-200 cursor-pointer"
+            >
+              <span>전체 명함 보기</span>
+            </button>
+          </div>
+        ) : (
+          <div className="py-20 text-center space-y-3 p-8 rounded-3xl bg-neutral-900/40 border border-neutral-800/60">
+            <p className="text-sm font-semibold text-neutral-300">
+              {selectedCategory !== '전체' && !searchQuery.trim()
+                ? `'${selectedCategory}' 카테고리에 등록된 명함이 없습니다.`
+                : '검색 조건에 일치하는 명함이 없습니다.'}
+            </p>
+            <p className="text-xs text-zinc-400">실물 명함 사진을 촬영하거나 새 명함을 등록해 보세요.</p>
+            <button
+              type="button"
+              onClick={onOpenScan}
+              className="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-white text-neutral-950 text-xs font-semibold hover:bg-zinc-200 cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[2]" />
+              <span>실물 명함 등록</span>
+            </button>
+          </div>
+        )
       ) : viewMode === 'cards' ? (
         /* ================= CARDS GALLERY VIEW (2-Column Mobile Grid, 3-Column Desktop) ================= */
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3.5 min-w-0">
@@ -1229,6 +1292,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
               onDeleteCard={handleDeleteCard}
               onExportCard={handleExportCard}
               onOpenPhotoArchive={handleOpenPhotoArchive}
+              onRecordInteraction={handleRecordInteraction}
             />
           ))}
         </div>
@@ -1246,6 +1310,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 onDeleteCard={handleDeleteCard}
                 onExportCard={handleExportCard}
                 onOpenPhotoArchive={handleOpenPhotoArchive}
+                onRecordInteraction={handleRecordInteraction}
               />
             ))}
           </div>
@@ -1274,6 +1339,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                     onDeleteCard={handleDeleteCard}
                     onExportCard={handleExportCard}
                     onOpenPhotoArchive={handleOpenPhotoArchive}
+                    onRecordInteraction={handleRecordInteraction}
                   />
                 ))}
               </tbody>
