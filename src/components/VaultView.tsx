@@ -657,19 +657,19 @@ export const VaultView: React.FC<VaultViewProps> = ({
   if (isLocked) {
     return (
       <div className="w-full max-w-lg mx-auto py-16 px-6 flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-200">
-        <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-white mb-5 shadow-2xl">
+        <div className="w-16 h-16 rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text)] mb-5 shadow-[var(--app-shadow)]">
           <Lock className="w-7 h-7 stroke-[1.5]" />
         </div>
-        <h3 className="text-xl font-bold text-white mb-2 tracking-tight">명함 보관함이 잠겨 있습니다</h3>
-        <p className="text-xs text-zinc-400 max-w-sm mb-6 leading-relaxed">
+        <h3 className="text-xl font-bold text-[var(--app-text)] mb-2 tracking-tight">명함 보관함이 잠겨 있습니다</h3>
+        <p className="text-xs text-[var(--app-text-muted)] max-w-sm mb-6 leading-relaxed">
           공용 기기 및 타인의 무단 열람을 방지하기 위해 보관함이 4자리 보안 PIN으로 보호되고 있습니다.
         </p>
         <button
           type="button"
           onClick={onUnlockRequest}
-          className="px-6 py-3 rounded-2xl bg-white hover:bg-neutral-200 text-black font-semibold text-xs transition-all cursor-pointer shadow-lg active:scale-95 flex items-center gap-2"
+          className="px-6 py-3 rounded-2xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] font-semibold text-xs transition-all cursor-pointer shadow-[var(--app-shadow)] active:scale-95 flex items-center gap-2"
         >
-          <KeyRound className="w-4 h-4 stroke-[1.75] text-neutral-900" />
+          <KeyRound className="w-4 h-4 stroke-[1.75]" />
           <span>보안 PIN 입력하여 잠금 해제</span>
         </button>
       </div>
@@ -681,7 +681,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
       {/* 2-Row Header Layout (Row 1: Section Title & Combined Action Bar with Search, Row 2: Category Filter Chips) */}
       <header
         aria-label="명함 보관함 검색 및 필터 도구 모음"
-        className="w-full max-w-full min-w-0 flex flex-col gap-2.5 sm:gap-3 pb-3 border-b border-white/10"
+        className="w-full max-w-full min-w-0 flex flex-col gap-2.5 sm:gap-3 pb-3 border-b border-[var(--app-border)]"
       >
         {/* Row 1: Action Toolbar (Desktop: Recent/All Switcher on Left, Search+Sort+Actions on Right; Mobile: Recent/All + Actions on Top, Search+Sort Below) */}
         <div className="w-full max-w-full min-w-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3">
@@ -689,17 +689,17 @@ export const VaultView: React.FC<VaultViewProps> = ({
           <div
             role="group"
             aria-label="보관함 명함 보기 범위"
-            className="hidden sm:grid grid-cols-2 p-0.5 h-9 sm:h-9.5 bg-[#121214] rounded-xl border border-white/10 shrink-0"
+            className="hidden sm:grid grid-cols-2 p-0.5 h-9 sm:h-9.5 bg-[var(--app-surface)] rounded-xl border border-[var(--app-border)] shrink-0"
           >
             <button
               type="button"
               onClick={() => setViewScope('all')}
               aria-pressed={viewScope === 'all'}
               title={`보관함 전체 명함 (${cards.length}명)`}
-              className={`px-3 h-full rounded-lg text-xs font-medium flex items-center justify-center cursor-pointer transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+              className={`px-3 h-full rounded-lg text-xs font-medium flex items-center justify-center cursor-pointer transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                 viewScope === 'all'
-                  ? 'bg-white/12 text-white font-semibold'
-                  : 'text-zinc-400 hover:text-white'
+                  ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] font-semibold'
+                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
               }`}
             >
               전체
@@ -709,10 +709,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
               onClick={() => setViewScope('recent')}
               aria-pressed={viewScope === 'recent'}
               title={`최근 ${RECENT_WINDOW_DAYS}일 내 등록하거나 열람·연락한 명함 (${recentCardsCount}명)`}
-              className={`px-3 h-full rounded-lg text-xs font-medium flex items-center justify-center cursor-pointer transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+              className={`px-3 h-full rounded-lg text-xs font-medium flex items-center justify-center cursor-pointer transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                 viewScope === 'recent'
-                  ? 'bg-white/12 text-white font-semibold'
-                  : 'text-zinc-400 hover:text-white'
+                  ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] font-semibold'
+                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
               }`}
             >
               최근
@@ -724,17 +724,17 @@ export const VaultView: React.FC<VaultViewProps> = ({
             <div
               role="group"
               aria-label="보관함 명함 보기 범위"
-              className="grid grid-cols-2 p-0.5 h-8.5 bg-[#121214] rounded-xl border border-white/10 shrink-0"
+              className="grid grid-cols-2 p-0.5 h-8.5 bg-[var(--app-surface)] rounded-xl border border-[var(--app-border)] shrink-0"
             >
               <button
                 type="button"
                 onClick={() => setViewScope('all')}
                 aria-pressed={viewScope === 'all'}
                 title={`보관함 전체 명함 (${cards.length}명)`}
-                className={`px-2.5 h-full rounded-lg text-[11px] font-medium flex items-center justify-center cursor-pointer transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                className={`px-2.5 h-full rounded-lg text-[11px] font-medium flex items-center justify-center cursor-pointer transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                   viewScope === 'all'
-                    ? 'bg-white/12 text-white font-semibold'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] font-semibold'
+                    : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
                 }`}
               >
                 전체
@@ -744,10 +744,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 onClick={() => setViewScope('recent')}
                 aria-pressed={viewScope === 'recent'}
                 title={`최근 ${RECENT_WINDOW_DAYS}일 내 등록하거나 열람·연락한 명함 (${recentCardsCount}명)`}
-                className={`px-2.5 h-full rounded-lg text-[11px] font-medium flex items-center justify-center cursor-pointer transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                className={`px-2.5 h-full rounded-lg text-[11px] font-medium flex items-center justify-center cursor-pointer transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                   viewScope === 'recent'
-                    ? 'bg-white/12 text-white font-semibold'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] font-semibold'
+                    : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
                 }`}
               >
                 최근
@@ -761,10 +761,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 aria-expanded={isCategoryPanelOpen}
                 aria-label="카테고리 관리"
                 title="카테고리 관리"
-                className={`w-8.5 h-8.5 rounded-xl border text-xs font-medium shrink-0 inline-flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                className={`w-8.5 h-8.5 rounded-xl border text-xs font-medium shrink-0 inline-flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                   isCategoryPanelOpen
-                    ? 'bg-white text-neutral-950 border-white font-semibold'
-                    : 'bg-[#121214] hover:bg-white/10 border-white/10 text-zinc-300 hover:text-white'
+                    ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] border-transparent font-semibold'
+                    : 'bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
                 }`}
               >
                 <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
@@ -773,7 +773,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
             <div
               role="group"
               aria-label="보관함 보기 방식"
-              className="grid grid-cols-2 p-0.5 h-8.5 bg-[#121214] rounded-xl border border-white/10 shrink-0"
+              className="grid grid-cols-2 p-0.5 h-8.5 bg-[var(--app-surface)] rounded-xl border border-[var(--app-border)] shrink-0"
             >
               <button
                 type="button"
@@ -781,10 +781,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 aria-pressed={viewMode === 'cards'}
                 aria-label="카드 뷰"
                 title="카드 뷰"
-                className={`w-7.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                className={`w-7.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                   viewMode === 'cards'
-                    ? 'bg-white/12 text-white'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)]'
+                    : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
                 }`}
               >
                 <LayoutGrid className="w-3.5 h-3.5 stroke-[1.5]" />
@@ -795,10 +795,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 aria-pressed={viewMode === 'list'}
                 aria-label="리스트 뷰"
                 title="리스트 뷰"
-                className={`w-7.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                className={`w-7.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                   viewMode === 'list'
-                    ? 'bg-white/12 text-white'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)]'
+                    : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
                 }`}
               >
                 <List className="w-3.5 h-3.5 stroke-[1.5]" />
@@ -825,7 +825,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                     ? `필터 연락처 저장 (.vcf · ${sortedCards.length}명)`
                     : `전체 연락처 저장 (.vcf · ${sortedCards.length}명)`
                 }
-                className="w-8.5 h-8.5 rounded-xl border border-white/10 bg-[#121214] hover:bg-white/10 text-zinc-300 hover:text-white inline-flex items-center justify-center cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="w-8.5 h-8.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] inline-flex items-center justify-center cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
               >
                 <UserPlus className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
               </button>
@@ -836,7 +836,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
               onClick={onOpenScan}
               aria-label="실물 명함 사진 등록"
               title="실물 명함 사진 등록"
-              className="h-8.5 px-2.5 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 inline-flex items-center justify-center gap-1 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+              className="h-8.5 px-2.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] inline-flex items-center justify-center gap-1 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
               <span className="whitespace-nowrap">추가</span>
@@ -851,7 +851,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
               <div className="relative flex-1 sm:w-44 md:w-56 lg:w-64 sm:max-w-[280px] min-w-0">
                 <Search
                   className={`w-3.5 h-3.5 stroke-[1.75] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-200 ${
-                    isListening ? 'text-rose-400' : 'text-zinc-400'
+                    isListening ? 'text-rose-500' : 'text-[var(--app-text-muted)]'
                   }`}
                 />
                 <input
@@ -864,20 +864,20 @@ export const VaultView: React.FC<VaultViewProps> = ({
                       : '이름·초성, 회사, 만남 장소, 메모 검색'
                   }
                   aria-label="명함 보관함 검색"
-                  className={`w-full h-9 sm:h-9.5 pl-8.5 pr-20 rounded-xl bg-[#121214] border text-xs text-neutral-200 placeholder:text-zinc-400 focus:outline-none transition-all duration-200 ${
+                  className={`w-full h-9 sm:h-9.5 pl-8.5 pr-20 rounded-xl bg-[var(--app-surface)] border text-xs text-[var(--app-text)] placeholder:text-[var(--app-text-muted)] focus:outline-none transition-all duration-200 ${
                     isListening
-                      ? 'border-rose-500/50 ring-2 ring-rose-500/20 placeholder:text-rose-300/80 shadow-[0_0_16px_rgba(244,63,94,0.18)]'
-                      : 'border-white/10 focus:ring-1 focus:ring-white/20 focus:border-white/20'
+                      ? 'border-rose-500/50 ring-2 ring-rose-500/20 placeholder:text-rose-500 shadow-[0_0_16px_rgba(244,63,94,0.18)]'
+                      : 'border-[var(--app-border)] focus:ring-2 focus:ring-[var(--app-accent)]/30 focus:border-[var(--app-accent)]'
                   }`}
                 />
 
-                {/* Right Controls: Clear Query + Web Speech Voice Search Button (🎙️) */}
+                {/* Right Controls: Clear Query + Web Speech Voice Search Button */}
                 <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
                   {searchQuery && (
                     <button
                       type="button"
                       onClick={handleClearSearch}
-                      className="w-5 h-5 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
+                      className="w-5 h-5 flex items-center justify-center rounded-md text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer transition-colors"
                       aria-label="검색어 지우기"
                       title="검색어 지우기"
                     >
@@ -894,19 +894,19 @@ export const VaultView: React.FC<VaultViewProps> = ({
                         ? '음성 인식 중 (클릭하여 중지)'
                         : '음성 검색 (클릭하여 한국어 음성으로 검색)'
                     }
-                    className={`h-6.5 ${isListening ? 'px-2' : 'w-6.5'} rounded-lg inline-flex items-center justify-center gap-1 text-[11px] cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                    className={`h-6.5 ${isListening ? 'px-2' : 'w-6.5'} rounded-lg inline-flex items-center justify-center gap-1 text-[11px] cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                       isListening
-                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 ring-2 ring-rose-500/30 animate-pulse shadow-[0_0_12px_rgba(244,63,94,0.35)] font-medium'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95'
+                        ? 'bg-rose-500/15 text-rose-500 border border-rose-500/40 ring-2 ring-rose-500/25 animate-pulse font-medium'
+                        : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95'
                     }`}
                   >
                     <Mic
                       className={`w-3.5 h-3.5 stroke-[1.75] ${
-                        isListening ? 'text-rose-400 animate-bounce' : ''
+                        isListening ? 'text-rose-500 animate-bounce' : ''
                       }`}
                     />
                     {isListening && (
-                      <span className="text-[9px] font-semibold text-rose-300 pl-0.5 animate-pulse hidden sm:inline">
+                      <span className="text-[9px] font-semibold text-rose-500 pl-0.5 animate-pulse hidden sm:inline">
                         듣는 중
                       </span>
                     )}
@@ -914,7 +914,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 </div>
               </div>
 
-              {/* Sort Dropdown Menu (등록순 / 이름순 / 카테고리별) */}
+              {/* Sort Dropdown Menu */}
               <div className="relative shrink-0" ref={sortDropdownRef}>
                 <button
                   type="button"
@@ -923,12 +923,12 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   aria-haspopup="listbox"
                   aria-label={`명함 정렬: ${currentSortOption.label}`}
                   title="명함 정렬 기준 변경"
-                  className="h-9 sm:h-9.5 px-2.5 sm:px-3 rounded-xl bg-[#121214] hover:bg-white/10 border border-white/10 text-neutral-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 transition-colors text-xs font-medium cursor-pointer inline-flex items-center gap-1.5 active:scale-95 whitespace-nowrap"
+                  className="h-9 sm:h-9.5 px-2.5 sm:px-3 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] transition-colors text-xs font-medium cursor-pointer inline-flex items-center gap-1.5 active:scale-95 whitespace-nowrap"
                 >
-                  <ArrowUpDown className="w-3.5 h-3.5 stroke-[1.75] text-zinc-400 shrink-0" />
-                  <span className="text-zinc-200">{currentSortOption.label}</span>
+                  <ArrowUpDown className="w-3.5 h-3.5 stroke-[1.75] text-[var(--app-text-muted)] shrink-0" />
+                  <span>{currentSortOption.label}</span>
                   <ChevronDown
-                    className={`w-3 h-3 stroke-[2] text-zinc-400 transition-transform duration-200 shrink-0 ${
+                    className={`w-3 h-3 stroke-[2] text-[var(--app-text-muted)] transition-transform duration-200 shrink-0 ${
                       isSortDropdownOpen ? 'rotate-180' : ''
                     }`}
                   />
@@ -938,10 +938,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   <div
                     role="listbox"
                     aria-label="정렬 옵션"
-                    className="absolute right-0 mt-1.5 w-48 py-1.5 rounded-2xl bg-[#121214]/95 backdrop-blur-xl border border-white/10 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150"
+                    className="absolute right-0 mt-1.5 w-48 py-1.5 rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] z-50 animate-in fade-in zoom-in-95 duration-150"
                   >
-                    <div className="px-3 py-1 mb-1 border-b border-white/[0.06]">
-                      <p className="text-[10px] font-sans font-medium text-zinc-400">자동 · 기준별 정렬</p>
+                    <div className="px-3 py-1 mb-1 border-b border-[var(--app-border)]">
+                      <p className="text-[10px] font-sans font-medium text-[var(--app-text-muted)]">자동 · 기준별 정렬</p>
                     </div>
                     {SORT_OPTIONS.map((opt) => {
                       const isSelected = sortBy === opt.id;
@@ -957,19 +957,23 @@ export const VaultView: React.FC<VaultViewProps> = ({
                           }}
                           className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-xs transition-colors cursor-pointer text-left ${
                             isSelected
-                              ? 'bg-white/10 text-white font-medium'
-                              : 'text-zinc-400 hover:text-white hover:bg-white/[0.06]'
+                              ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] font-semibold'
+                              : 'text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)]'
                           }`}
                         >
                           <div className="min-w-0">
                             <div className="leading-snug">{opt.label}</div>
                             {opt.description && (
-                              <div className="text-[10px] text-zinc-500 leading-tight mt-0.5">
+                              <div
+                                className={`text-[10px] leading-tight mt-0.5 ${
+                                  isSelected ? 'opacity-80' : 'text-[var(--app-text-muted)]'
+                                }`}
+                              >
                                 {opt.description}
                               </div>
                             )}
                           </div>
-                          {isSelected && <Check className="w-3.5 h-3.5 stroke-[2] text-white shrink-0" />}
+                          {isSelected && <Check className="w-3.5 h-3.5 stroke-[2] shrink-0" />}
                         </button>
                       );
                     })}
@@ -987,10 +991,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 aria-expanded={isCategoryPanelOpen}
                 aria-label="카테고리 관리"
                 title="카테고리 관리"
-                className={`w-9 sm:w-9.5 h-9 sm:h-9.5 rounded-xl border text-xs font-medium shrink-0 inline-flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                className={`w-9 sm:w-9.5 h-9 sm:h-9.5 rounded-xl border text-xs font-medium shrink-0 inline-flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                   isCategoryPanelOpen
-                    ? 'bg-white text-neutral-950 border-white font-semibold'
-                    : 'bg-[#121214] hover:bg-white/10 border-white/10 text-zinc-300 hover:text-white'
+                    ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] border-transparent font-semibold'
+                    : 'bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
                 }`}
               >
                 <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
@@ -1000,7 +1004,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
               <div
                 role="group"
                 aria-label="보관함 보기 방식"
-                className="grid grid-cols-2 p-0.5 h-9 sm:h-9.5 bg-[#121214] rounded-xl border border-white/10 shrink-0"
+                className="grid grid-cols-2 p-0.5 h-9 sm:h-9.5 bg-[var(--app-surface)] rounded-xl border border-[var(--app-border)] shrink-0"
               >
                 <button
                   type="button"
@@ -1008,10 +1012,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   aria-pressed={viewMode === 'cards'}
                   aria-label="카드 뷰"
                   title="카드 뷰"
-                  className={`w-8 sm:w-8.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                  className={`w-8 sm:w-8.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                     viewMode === 'cards'
-                      ? 'bg-white/12 text-white'
-                      : 'text-zinc-400 hover:text-white'
+                      ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)]'
+                      : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
                   }`}
                 >
                   <LayoutGrid className="w-3.5 h-3.5 stroke-[1.5]" />
@@ -1022,10 +1026,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   aria-pressed={viewMode === 'list'}
                   aria-label="리스트 뷰"
                   title="리스트 뷰"
-                  className={`w-8 sm:w-8.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                  className={`w-8 sm:w-8.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                     viewMode === 'list'
-                      ? 'bg-white/12 text-white'
-                      : 'text-zinc-400 hover:text-white'
+                      ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)]'
+                      : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
                   }`}
                 >
                   <List className="w-3.5 h-3.5 stroke-[1.5]" />
@@ -1053,19 +1057,19 @@ export const VaultView: React.FC<VaultViewProps> = ({
                       ? `필터 연락처 저장 (.vcf · ${sortedCards.length}명)`
                       : `전체 연락처 저장 (.vcf · ${sortedCards.length}명)`
                   }
-                  className="w-9 sm:w-9.5 h-9 sm:h-9.5 rounded-xl border border-white/10 bg-[#121214] hover:bg-white/10 text-zinc-300 hover:text-white inline-flex items-center justify-center cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                  className="w-9 sm:w-9.5 h-9 sm:h-9.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] inline-flex items-center justify-center cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                 >
                   <UserPlus className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
                 </button>
               )}
 
-              {/* 5. "+ Add Card" Button */}
+              {/* 5. "+ Add Card" Primary CTA Button */}
               <button
                 type="button"
                 onClick={onOpenScan}
                 aria-label="실물 명함 사진 등록"
                 title="실물 명함 사진 등록"
-                className="h-9 sm:h-9.5 px-3 sm:px-3.5 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+                className="h-9 sm:h-9.5 px-3 sm:px-3.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
                 <span className="whitespace-nowrap">명함 추가</span>
@@ -1080,9 +1084,9 @@ export const VaultView: React.FC<VaultViewProps> = ({
             <button
               type="button"
               onClick={() => setIsDuplicateModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/25 text-amber-200 hover:text-amber-100 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400/40"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--app-highlight)] hover:opacity-90 border border-[var(--app-border)] text-[var(--app-highlight-fg)] text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
             >
-              <GitMerge className="w-3.5 h-3.5 stroke-[1.8] text-amber-300 shrink-0" />
+              <GitMerge className="w-3.5 h-3.5 stroke-[1.8] shrink-0" />
               <span className="tabular-nums">
                 중복 연락처 {duplicateGroups.length}건 정리
               </span>
@@ -1115,10 +1119,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
                       block: 'nearest',
                     });
                   }}
-                  className={`min-h-[36px] px-3.5 py-1.5 rounded-full whitespace-nowrap shrink-0 text-xs transition-colors cursor-pointer font-medium touch-pan-x touch-pinch-zoom focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                  className={`min-h-[36px] px-3.5 py-1.5 rounded-full whitespace-nowrap shrink-0 text-xs transition-colors cursor-pointer font-medium touch-pan-x touch-pinch-zoom focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                     isSelected
-                      ? 'bg-white text-neutral-950 font-semibold shadow-sm'
-                      : 'bg-[#121214] text-zinc-400 hover:text-white hover:bg-white/10 border border-white/10'
+                      ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] font-semibold shadow-xs border border-transparent'
+                      : 'bg-[var(--app-surface)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)]'
                   }`}
                 >
                   <span>{cat}</span>
@@ -1130,7 +1134,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
             {isInlineAdding ? (
               <form
                 onSubmit={handleCommitInlineAdd}
-                className="min-h-[36px] pl-3 pr-1.5 py-1 rounded-full bg-[#161618] border border-white/25 inline-flex items-center gap-1 shrink-0 touch-pan-x touch-pinch-zoom"
+                className="min-h-[36px] pl-3 pr-1.5 py-1 rounded-full bg-[var(--app-surface)] border border-[var(--app-accent)] inline-flex items-center gap-1 shrink-0 touch-pan-x touch-pinch-zoom"
               >
                 <input
                   ref={inlineInputRef}
@@ -1149,14 +1153,14 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   }}
                   placeholder="새 카테고리명"
                   aria-label="새 카테고리 이름 입력"
-                  className="w-28 sm:w-32 bg-transparent text-xs text-white placeholder:text-zinc-500 focus:outline-none touch-pan-x touch-pinch-zoom"
+                  className="w-28 sm:w-32 bg-transparent text-xs text-[var(--app-text)] placeholder:text-[var(--app-text-muted)] focus:outline-none touch-pan-x touch-pinch-zoom"
                 />
                 <button
                   type="submit"
                   disabled={!inlineCategoryName.trim()}
                   aria-label="카테고리 저장"
                   title="저장"
-                  className="w-6 h-6 rounded-full bg-white hover:bg-zinc-200 disabled:opacity-35 text-neutral-950 flex items-center justify-center cursor-pointer shrink-0 touch-pan-x touch-pinch-zoom"
+                  className="w-6 h-6 rounded-full bg-[var(--app-accent)] hover:opacity-90 disabled:opacity-35 text-[var(--app-accent-fg)] flex items-center justify-center cursor-pointer shrink-0 touch-pan-x touch-pinch-zoom"
                 >
                   <Check className="w-3.5 h-3.5 stroke-[2.2]" />
                 </button>
@@ -1165,7 +1169,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   onClick={handleCancelInlineAdd}
                   aria-label="추가 취소"
                   title="취소"
-                  className="w-6 h-6 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center cursor-pointer shrink-0 touch-pan-x touch-pinch-zoom"
+                  className="w-6 h-6 rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] flex items-center justify-center cursor-pointer shrink-0 touch-pan-x touch-pinch-zoom"
                 >
                   <X className="w-3.5 h-3.5 stroke-[1.75]" />
                 </button>
@@ -1176,7 +1180,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 onClick={handleStartInlineAdd}
                 aria-label="새 카테고리 추가"
                 title="새 카테고리 추가"
-                className="min-h-[36px] px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 text-xs text-zinc-300 hover:text-white bg-[#121214] hover:bg-white/10 border border-dashed border-white/20 hover:border-white/35 transition-colors cursor-pointer inline-flex items-center gap-1 touch-pan-x touch-pinch-zoom focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="min-h-[36px] px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 text-xs text-[var(--app-text-muted)] hover:text-[var(--app-text)] bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-dashed border-[var(--app-border)] transition-colors cursor-pointer inline-flex items-center gap-1 touch-pan-x touch-pinch-zoom focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[2]" />
                 <span>추가</span>
@@ -1188,7 +1192,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
           </div>
 
           {inlineAddError && (
-            <p role="alert" className="mt-1 text-[11px] text-amber-300/90 pl-1">
+            <p role="alert" className="mt-1 text-[11px] text-rose-500 pl-1">
               {inlineAddError}
             </p>
           )}
@@ -1199,19 +1203,19 @@ export const VaultView: React.FC<VaultViewProps> = ({
       {showBackupNudge && onOpenBackup && (
         <aside
           aria-label="보관함 안전 백업 안내"
-          className="w-full rounded-2xl bg-[#121214] border border-white/10 px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-lg animate-in fade-in duration-200"
+          className="w-full rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-[var(--app-shadow)] animate-in fade-in duration-200"
         >
           <div className="flex items-start sm:items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center shrink-0 text-zinc-200 mt-0.5 sm:mt-0">
+            <div className="w-7 h-7 rounded-xl bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
               <ShieldAlert className="w-3.5 h-3.5 stroke-[1.75]" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-zinc-100 leading-snug">
+              <p className="text-xs font-semibold text-[var(--app-text)] leading-snug">
                 {lastBackupTimestamp
                   ? '마지막 백업 이후 30일이 지났습니다.'
                   : `소중한 명함 ${effectiveTotalCardsCount}장을 기기 분실·초기화에 대비해 백업해 두세요.`}
               </p>
-              <p className="text-[11px] text-zinc-400 leading-snug mt-0.5">
+              <p className="text-[11px] text-[var(--app-text-muted)] leading-snug mt-0.5">
                 계정 없이 암호화된 로컬 백업 파일(.eerum)로 언제든 안전하게 복원할 수 있습니다.
               </p>
             </div>
@@ -1221,7 +1225,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
             <button
               type="button"
               onClick={() => onOpenBackup('export')}
-              className="h-8 px-3 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 text-[11px] font-semibold inline-flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+              className="h-8 px-3 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-[11px] font-semibold inline-flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
             >
               <Download className="w-3.5 h-3.5 stroke-[2]" />
               <span>백업 저장</span>
@@ -1234,7 +1238,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
               }}
               aria-label="백업 안내 닫기"
               title="나중에 하기"
-              className="w-8 h-8 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 inline-flex items-center justify-center cursor-pointer shrink-0"
+              className="w-8 h-8 rounded-xl text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] inline-flex items-center justify-center cursor-pointer shrink-0"
             >
               <X className="w-3.5 h-3.5 stroke-[1.75]" />
             </button>
@@ -1245,35 +1249,35 @@ export const VaultView: React.FC<VaultViewProps> = ({
       {/* Content Rendering: Cards Grid or List Table */}
       {sortedCards.length === 0 ? (
         viewScope === 'recent' && cards.length > 0 && !searchQuery.trim() ? (
-          <div className="py-20 text-center space-y-3 p-8 rounded-3xl bg-neutral-900/40 border border-neutral-800/60">
-            <p className="text-sm font-semibold text-neutral-300">
+          <div className="py-20 text-center space-y-3 p-8 rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)]">
+            <p className="text-sm font-semibold text-[var(--app-text)]">
               {selectedCategory !== '전체'
                 ? `'${selectedCategory}' 카테고리에 최근 ${RECENT_WINDOW_DAYS}일 내 활동한 명함이 없습니다.`
                 : `최근 ${RECENT_WINDOW_DAYS}일 내 등록하거나 교류한 명함이 없습니다.`}
             </p>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-[var(--app-text-muted)]">
               명함을 열람하거나 전화·문자·메모 기록을 남기면 최근 명함에 자동으로 모입니다.
             </p>
             <button
               type="button"
               onClick={() => setViewScope('all')}
-              className="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-white text-neutral-950 text-xs font-semibold hover:bg-zinc-200 cursor-pointer"
+              className="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[var(--app-accent)] text-[var(--app-accent-fg)] text-xs font-semibold hover:opacity-90 cursor-pointer"
             >
               <span>전체 명함 보기</span>
             </button>
           </div>
         ) : (
-          <div className="py-20 text-center space-y-3 p-8 rounded-3xl bg-neutral-900/40 border border-neutral-800/60">
-            <p className="text-sm font-semibold text-neutral-300">
+          <div className="py-20 text-center space-y-3 p-8 rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)]">
+            <p className="text-sm font-semibold text-[var(--app-text)]">
               {selectedCategory !== '전체' && !searchQuery.trim()
                 ? `'${selectedCategory}' 카테고리에 등록된 명함이 없습니다.`
                 : '검색 조건에 일치하는 명함이 없습니다.'}
             </p>
-            <p className="text-xs text-zinc-400">실물 명함 사진을 촬영하거나 새 명함을 등록해 보세요.</p>
+            <p className="text-xs text-[var(--app-text-muted)]">실물 명함 사진을 촬영하거나 새 명함을 등록해 보세요.</p>
             <button
               type="button"
               onClick={onOpenScan}
-              className="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-white text-neutral-950 text-xs font-semibold hover:bg-zinc-200 cursor-pointer"
+              className="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[var(--app-accent)] text-[var(--app-accent-fg)] text-xs font-semibold hover:opacity-90 cursor-pointer"
             >
               <Plus className="w-4 h-4 stroke-[2]" />
               <span>실물 명함 등록</span>
@@ -1298,9 +1302,9 @@ export const VaultView: React.FC<VaultViewProps> = ({
         </div>
       ) : (
         /* ================= EDITORIAL LIST VIEW (Compact Mobile Rows + Desktop Table) ================= */
-        <div className="rounded-xl sm:rounded-2xl border border-zinc-800/80 bg-[#121214] overflow-hidden shadow-xl">
+        <div className="rounded-xl sm:rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] overflow-hidden shadow-[var(--app-shadow)]">
           {/* Mobile Compact Horizontal List Items (< md) */}
-          <div className="md:hidden divide-y divide-zinc-800/80">
+          <div className="md:hidden divide-y divide-[var(--app-border)]">
             {sortedCards.map((card) => (
               <VaultCardMobileListItem
                 key={card.id}
@@ -1319,7 +1323,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-zinc-800/80 bg-[#0A0A0B] text-zinc-400 font-mono text-[10px] uppercase tracking-wider">
+                <tr className="border-b border-[var(--app-border)] bg-[var(--app-surface-subtle)] text-[var(--app-text-muted)] font-mono text-[10px] uppercase tracking-wider">
                   <th className="py-2.5 px-3.5">성명</th>
                   <th className="py-2.5 px-3.5">직함</th>
                   <th className="py-2.5 px-3.5">소속 회사/기관</th>
@@ -1329,7 +1333,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   <th className="py-2.5 px-3.5 text-right">액션</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/80 text-neutral-300">
+              <tbody className="divide-y divide-[var(--app-border)] text-[var(--app-text)]">
                 {sortedCards.map((card) => (
                   <VaultCardListRow
                     key={card.id}
@@ -1385,9 +1389,9 @@ export const VaultView: React.FC<VaultViewProps> = ({
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-[#161618]/95 border border-white/15 text-white text-xs font-medium shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-200 flex items-center gap-2 pointer-events-none"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-medium shadow-[var(--app-shadow)] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-200 flex items-center gap-2 pointer-events-none"
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0 animate-ping" />
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 animate-ping" />
           <span>{localToast}</span>
         </div>
       )}

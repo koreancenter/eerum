@@ -661,25 +661,25 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-[#0B0B0D]/80 backdrop-blur-xl animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-[var(--app-overlay)] backdrop-blur-xl animate-in fade-in duration-200"
       onClick={onClose}
     >
       <style>{`
         .editor-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .editor-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .editor-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 9999px; }
-        .editor-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); }
-        .editor-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.08) transparent; }
+        .editor-scrollbar::-webkit-scrollbar-thumb { background: var(--app-scrollbar-thumb); border-radius: 9999px; }
+        .editor-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--app-scrollbar-thumb-hover); }
+        .editor-scrollbar { scrollbar-width: thin; scrollbar-color: var(--app-scrollbar-thumb) transparent; }
       `}</style>
 
       <div
-        className="CardEditorModal relative w-full max-w-6xl h-[90vh] max-h-[880px] flex flex-col rounded-2xl bg-[#121214] border border-white/[0.08] text-[#E8E8EC] shadow-[0_32px_80px_-20px_rgba(0,0,0,0.75)] overflow-hidden"
+        className="CardEditorModal relative w-full max-w-6xl h-[90vh] max-h-[880px] flex flex-col rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] shadow-[var(--app-shadow)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header & Typographic Mode Tab Strip */}
-        <header className="px-4 sm:px-9 pt-3.5 sm:pt-6 border-b border-white/[0.06] bg-[#121214] shrink-0">
+        <header className="px-4 sm:px-9 pt-3.5 sm:pt-6 border-b border-[var(--app-border)] bg-[var(--app-surface)] shrink-0">
           <div className="flex items-center justify-between gap-3 pb-3 sm:pb-5">
-            <h3 className="text-[15px] sm:text-[17px] font-medium text-[#F2F2F5] tracking-tight">
+            <h3 className="text-[15px] sm:text-[17px] font-medium text-[var(--app-text)] tracking-tight">
               {isCreating
                 ? isMyCardMode
                   ? '새 내 명함 만들기'
@@ -693,7 +693,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
               <button
                 type="button"
                 onClick={handleResetSample}
-                className="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="p-1.5 sm:p-2 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/40"
                 title="초기화"
                 aria-label="초기화"
               >
@@ -702,7 +702,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="p-1.5 sm:p-2 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/40"
                 title="닫기"
                 aria-label="닫기"
               >
@@ -724,13 +724,13 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                   onClick={() => setCreationMode(mode.id)}
                   className={`relative pb-2 sm:pb-3.5 text-xs sm:text-[13px] tracking-wide whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none ${
                     isActive
-                      ? 'text-[#F2F2F5] font-medium'
-                      : 'text-zinc-400 hover:text-zinc-300 font-normal'
+                      ? 'text-[var(--app-text)] font-medium'
+                      : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-normal'
                   }`}
                 >
                   {mode.label}
                   {isActive && (
-                    <span className="absolute inset-x-0 bottom-0 h-[1.5px] bg-[#E4E4E7]" />
+                    <span className="absolute inset-x-0 bottom-0 h-[1.5px] bg-[var(--app-accent)]" />
                   )}
                 </button>
               );
@@ -829,7 +829,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         </div>
 
         {/* Restrained Footer */}
-        <footer className="px-4 sm:px-9 py-2.5 sm:py-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-white/[0.06] bg-[#121214] flex items-center justify-between gap-2.5 sm:gap-3 shrink-0">
+        <footer className="px-4 sm:px-9 py-2.5 sm:py-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-[var(--app-border)] bg-[var(--app-surface)] flex items-center justify-between gap-2.5 sm:gap-3 shrink-0">
           <div>
             {!isCreating && onDelete && activeCard.id && (
               <button
@@ -838,7 +838,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                   onClose();
                   onDelete(activeCard.id);
                 }}
-                className="px-3 py-2 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="px-3 py-2 rounded-lg text-[var(--app-text-muted)] hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                 title="이 명함 삭제"
                 aria-label="이 명함 삭제"
               >
@@ -852,7 +852,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
             <button
               type="button"
               onClick={() => setIsMobilePreviewOpen(true)}
-              className="lg:hidden px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg border border-white/10 bg-white/[0.05] hover:bg-white/10 text-zinc-200 text-xs sm:text-[13px] font-medium inline-flex items-center justify-center transition-colors cursor-pointer active:scale-95"
+              className="lg:hidden px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-subtle)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] text-[var(--app-text)] text-xs sm:text-[13px] font-medium inline-flex items-center justify-center transition-colors cursor-pointer active:scale-95"
             >
               미리보기
             </button>
@@ -860,7 +860,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] cursor-pointer text-xs sm:text-[13px] font-normal whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+              className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer text-xs sm:text-[13px] font-normal whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/40"
             >
               취소
             </button>
@@ -868,7 +868,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
             <button
               type="button"
               onClick={handleSave}
-              className="px-5 py-2 sm:px-6 sm:py-2.5 rounded-lg bg-[#EAEAE6] hover:bg-[#F3F3F0] text-[#121214] font-medium text-xs sm:text-[13px] tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+              className="px-5 py-2 sm:px-6 sm:py-2.5 rounded-lg bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] font-medium text-xs sm:text-[13px] tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/40 transition-opacity"
             >
               {isCreating ? '등록' : '저장'}
             </button>
@@ -882,19 +882,19 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
           role="dialog"
           aria-modal="true"
           aria-label="명함 전체 미리보기"
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200 lg:hidden"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-[var(--app-overlay)] backdrop-blur-xl animate-in fade-in duration-200 lg:hidden"
           onClick={() => setIsMobilePreviewOpen(false)}
         >
           <div
-            className="relative w-full max-w-sm sm:max-w-md max-h-[92vh] flex flex-col rounded-3xl bg-[#0E0E11] border border-white/10 text-[#E8E8EC] shadow-[0_30px_70px_-15px_rgba(0,0,0,0.9)] overflow-hidden animate-in zoom-in-95 duration-150"
+            className="relative w-full max-w-sm sm:max-w-md max-h-[92vh] flex flex-col rounded-3xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] shadow-[var(--app-shadow)] overflow-hidden animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Minimal Header */}
-            <div className="px-4 sm:px-5 py-2.5 sm:py-3 border-b border-white/[0.06] flex items-center justify-end shrink-0 bg-[#131317]/90 backdrop-blur-md">
+            <div className="px-4 sm:px-5 py-2.5 sm:py-3 border-b border-[var(--app-border)] flex items-center justify-end shrink-0 bg-[var(--app-surface)]/95 backdrop-blur-md">
               <button
                 type="button"
                 onClick={() => setIsMobilePreviewOpen(false)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
                 title="닫기"
                 aria-label="닫기"
               >
@@ -902,8 +902,8 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
               </button>
             </div>
 
-            {/* Preview Stage with atmospheric radial gallery glow */}
-            <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center p-4 sm:p-6 bg-[radial-gradient(circle_at_50%_35%,_rgba(255,255,255,0.06)_0%,_rgba(15,15,18,0.98)_55%,_#0B0B0E_100%)]">
+            {/* Preview Stage */}
+            <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center p-4 sm:p-6 bg-[var(--app-surface-subtle)]">
               <EditorPreviewPanel
                 isMobileModal={true}
                 creationMode={creationMode}
@@ -922,12 +922,12 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
               />
             </div>
 
-            {/* Luxury Footer */}
-            <div className="px-5 sm:px-6 py-3.5 border-t border-white/[0.07] flex items-center justify-between gap-3 shrink-0 bg-[#131317]/95 backdrop-blur-md">
+            {/* Footer */}
+            <div className="px-5 sm:px-6 py-3.5 border-t border-[var(--app-border)] flex items-center justify-between gap-3 shrink-0 bg-[var(--app-surface)]/95 backdrop-blur-md">
               <button
                 type="button"
                 onClick={() => setIsMobilePreviewOpen(false)}
-                className="px-4 py-2.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                className="px-4 py-2.5 rounded-xl text-xs font-medium text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer inline-flex items-center gap-1.5"
               >
                 <span>← 편집 계속하기</span>
               </button>
@@ -937,7 +937,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                   setIsMobilePreviewOpen(false);
                   handleSave();
                 }}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-b from-white to-[#EAEAE6] hover:from-white hover:to-white text-neutral-950 text-xs font-semibold tracking-wide transition-all cursor-pointer shadow-[0_4px_16px_rgba(255,255,255,0.2)] active:scale-95"
+                className="px-6 py-2.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-xs font-semibold tracking-wide transition-all cursor-pointer shadow-[var(--app-shadow)] active:scale-95"
               >
                 {isCreating ? '이 명함으로 등록' : '저장하기'}
               </button>

@@ -447,7 +447,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
               e.stopPropagation();
               triggerPrevCard();
             }}
-            className="hidden sm:flex absolute -left-11 md:-left-13 z-30 p-2 rounded-full bg-black/70 hover:bg-black/90 border border-white/10 text-white/70 hover:text-white backdrop-blur-md active:scale-90 cursor-pointer shadow-xl"
+            className="hidden sm:flex absolute -left-11 md:-left-13 z-30 p-2 rounded-full bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] backdrop-blur-md active:scale-90 cursor-pointer shadow-[var(--app-shadow)] transition-colors"
             title="이전 명함 보기"
             aria-label="이전 명함"
           >
@@ -462,7 +462,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
               e.stopPropagation();
               triggerNextCard();
             }}
-            className="hidden sm:flex absolute -right-11 md:-right-13 z-30 p-2 rounded-full bg-black/70 hover:bg-black/90 border border-white/10 text-white/70 hover:text-white backdrop-blur-md active:scale-90 cursor-pointer shadow-xl"
+            className="hidden sm:flex absolute -right-11 md:-right-13 z-30 p-2 rounded-full bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] backdrop-blur-md active:scale-90 cursor-pointer shadow-[var(--app-shadow)] transition-colors"
             title="다음 명함 보기"
             aria-label="다음 명함"
           >
@@ -491,7 +491,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
               : '100%',
             maxHeight: isPortrait ? 'calc(100vh - 240px)' : 'none',
           }}
-          className="relative w-full cursor-pointer group shadow-[0_24px_64px_rgba(0,0,0,0.6)] rounded-2xl transition-shadow duration-300 hover:shadow-[0_32px_80px_rgba(0,0,0,0.75)]"
+          className="relative w-full cursor-pointer group shadow-[var(--app-shadow)] rounded-2xl transition-shadow duration-300"
         >
           {/* Optional Top-Right Discreet Flip Trigger Badge */}
           {showFlipBadge && (
@@ -570,7 +570,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
             onClick={triggerPrevCard}
             disabled={!canGoPrev}
             aria-label="이전 명함"
-            className="sm:hidden p-1 rounded-lg text-zinc-400 hover:text-white disabled:opacity-25 cursor-pointer disabled:cursor-default"
+            className="sm:hidden p-1 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] disabled:opacity-25 cursor-pointer disabled:cursor-default transition-colors"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
@@ -597,8 +597,8 @@ export const CardContainer: React.FC<CardContainerProps> = ({
                     <span
                       className={`block h-1 rounded-full transition-all duration-200 ${
                         isActive
-                          ? 'w-5 bg-white/90'
-                          : 'w-1.5 bg-white/20 hover:bg-white/45'
+                          ? 'w-5 bg-[var(--app-accent)]'
+                          : 'w-1.5 bg-[var(--app-border)] hover:bg-[var(--app-text-muted)]'
                       }`}
                     />
                   </button>
@@ -606,7 +606,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
               })}
             </div>
           ) : (
-            <span className="text-[11px] font-mono tabular-nums text-zinc-400 tracking-wider">
+            <span className="text-[11px] font-mono tabular-nums text-[var(--app-text-muted)] tracking-wider">
               {carouselIndex + 1} / {carouselTotal}
             </span>
           )}
@@ -616,7 +616,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
             onClick={triggerNextCard}
             disabled={!canGoNext}
             aria-label="다음 명함"
-            className="sm:hidden p-1 rounded-lg text-zinc-400 hover:text-white disabled:opacity-25 cursor-pointer disabled:cursor-default"
+            className="sm:hidden p-1 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] disabled:opacity-25 cursor-pointer disabled:cursor-default transition-colors"
           >
             <ChevronRight className="w-3.5 h-3.5" />
           </button>

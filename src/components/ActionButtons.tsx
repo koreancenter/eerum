@@ -61,7 +61,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 }) => {
   const phoneTarget = data.phoneRaw || data.phone?.replace(/[^0-9+]/g, '');
   const iconButtonClass =
-    'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-200 cursor-pointer';
+    'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]';
 
   const safeWebsiteUrl = sanitizeExternalUrl(data.website);
 
@@ -148,7 +148,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 
       {/* 1px Vertical Divider */}
       {contactChannels.length > 0 && (
-        <span className="border-r border-white/10 h-3.5 mx-1 self-center" />
+        <span className="border-r border-[var(--app-border)] h-3.5 mx-1 self-center" />
       )}
 
       {!isOwner ? (
@@ -202,7 +202,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
               aria-pressed={isMemoOpen}
               className={`relative ${
                 isMemoOpen
-                  ? 'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center bg-white/15 text-white ring-1 ring-white/25 active:scale-95 transition-all duration-200 cursor-pointer'
+                  ? 'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] ring-1 ring-[var(--app-border)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]'
                   : iconButtonClass
               }`}
               title={isMemoOpen ? '개인 메모 닫기' : '개인 메모 열기'}
@@ -212,7 +212,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
               {!isMemoOpen && hasMemo && (
                 <span
                   aria-hidden="true"
-                  className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-400"
+                  className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500"
                 />
               )}
             </button>
@@ -247,7 +247,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           {onDelete && (
             <button
               onClick={onDelete}
-              className={`${iconButtonClass} hover:text-rose-400 hover:bg-rose-500/10 text-white/50`}
+              className={`${iconButtonClass} hover:text-rose-500 hover:bg-rose-500/10`}
               title="내 명함 삭제"
               aria-label="내 명함 삭제"
             >

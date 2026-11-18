@@ -16,6 +16,8 @@ import { useModalState } from './hooks/useModalState';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { useCardVault, type ActiveTab } from './hooks/useCardVault';
 import { usePublicCardRoute } from './hooks/usePublicCardRoute';
+import { AppThemeSelector } from './components/AppThemeSelector';
+import { applyAppTheme, loadStoredAppTheme } from './constants/appThemes';
 import {
   Check,
   CreditCard,
@@ -108,6 +110,10 @@ export default function App() {
     } catch {
       // ignore
     }
+  }, []);
+
+  useEffect(() => {
+    applyAppTheme(loadStoredAppTheme(), false);
   }, []);
 
   const showToast = useCallback((msg: string) => {
@@ -351,31 +357,31 @@ export default function App() {
           isIntroLandingView
             ? 'h-screen supports-[height:100dvh]:h-[100dvh] overflow-hidden'
             : 'min-h-[100dvh] overflow-x-clip'
-        } w-full max-w-[100vw] bg-[#0A0A0B] text-neutral-100 flex flex-col justify-between selection:bg-neutral-100 selection:text-neutral-950 font-sans pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]`}
+        } w-full max-w-[100vw] bg-[var(--app-bg)] text-[var(--app-text)] flex flex-col justify-between selection:bg-[var(--app-accent)] selection:text-[var(--app-accent-fg)] font-sans pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]`}
       >
-        {/* Top Minimalist Luxury Header */}
-        <header className="shrink-0 sticky top-0 z-40 w-full border-b border-white/[0.08] bg-[#0A0A0B]/90 backdrop-blur-xl px-4 sm:px-8 py-2 sm:py-2.5 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] sm:pt-[calc(0.625rem+env(safe-area-inset-top,0px))] pl-[calc(1rem+env(safe-area-inset-left,0px))] pr-[calc(1rem+env(safe-area-inset-right,0px))] flex items-center justify-between main-app-header">
+        {/* Top Minimalist Header */}
+        <header className="shrink-0 sticky top-0 z-40 w-full border-b border-[var(--app-border)] bg-[var(--app-header-bg)] backdrop-blur-xl px-4 sm:px-8 py-2 sm:py-2.5 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] sm:pt-[calc(0.625rem+env(safe-area-inset-top,0px))] pl-[calc(1rem+env(safe-area-inset-left,0px))] pr-[calc(1rem+env(safe-area-inset-right,0px))] flex items-center justify-between gap-2 main-app-header">
           {isUnauthenticatedExternalVisitor ? (
             /* Public Unauthenticated Visitor Header: Muted Brand Watermark Only */
             <>
               <div className="w-full flex items-center justify-center py-0.5 header-brand-mark">
-                <span className="text-xs text-zinc-400 tracking-widest uppercase font-medium select-none font-sans">
+                <span className="text-xs text-[var(--app-text-muted)] tracking-widest uppercase font-medium select-none font-sans">
                   GOGUMA CARD STUDIO
                 </span>
               </div>
-              <div className="hidden header-landscape-mini items-center bg-[#121214]/90 backdrop-blur-md border border-white/10 rounded-full px-3 py-1 shadow-2xl">
-                <span className="text-[10px] font-semibold text-white/80 tracking-widest uppercase">
+              <div className="hidden header-landscape-mini items-center bg-[var(--app-surface)] border border-[var(--app-border)] rounded-full px-3 py-1 shadow-[var(--app-shadow)]">
+                <span className="text-[10px] font-semibold text-[var(--app-text)] tracking-widest uppercase">
                   GOGUMA
                 </span>
               </div>
             </>
           ) : (
             <>
-              {/* Left Spacer for Header Balance */}
-              <div className="flex-1 flex items-center justify-start header-full-nav" />
+              {/* Left Spacer for Header Balance on sm+ */}
+              <div className="hidden sm:flex sm:flex-1 items-center justify-start header-full-nav" />
 
               {/* Compressed Mini Icon in Landscape Mode */}
-              <div className="hidden header-landscape-mini items-center gap-1 bg-[#121214]/90 backdrop-blur-md border border-white/10 rounded-full p-1 shadow-2xl">
+              <div className="hidden header-landscape-mini items-center gap-1 bg-[var(--app-surface)] border border-[var(--app-border)] rounded-full p-1 shadow-[var(--app-shadow)]">
                 <button
                   onClick={() => {
                     if (isMyCardTabActive) {
@@ -384,14 +390,14 @@ export default function App() {
                       handleTabChange('my-card');
                     }
                   }}
-                  className="p-1.5 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  className="p-1.5 rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
                   title={isMyCardTabActive ? '보관함으로 전환' : '내 명함으로 전환'}
                   aria-label="화면 전환"
                 >
                   {isMyCardTabActive ? (
-                    <FolderArchive className="w-3.5 h-3.5 text-white" />
+                    <FolderArchive className="w-3.5 h-3.5" />
                   ) : (
-                    <CreditCard className="w-3.5 h-3.5 text-white" />
+                    <CreditCard className="w-3.5 h-3.5" />
                   )}
                 </button>
                 {vault.isPinConfigured && (
@@ -400,16 +406,16 @@ export default function App() {
                       vault.lockApp();
                       showToast('화면이 보안 잠금되었습니다.');
                     }}
-                    className="p-1.5 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                    className="p-1.5 rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
                     title="즉시 화면 잠금"
                     aria-label="화면 잠금"
                   >
-                    <Lock className="w-3.5 h-3.5 text-white" />
+                    <Lock className="w-3.5 h-3.5" />
                   </button>
                 )}
                 <button
                   onClick={modals.toggleSettings}
-                  className="p-1.5 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  className="p-1.5 rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
                   title="설정"
                   aria-label="설정"
                 >
@@ -421,10 +427,10 @@ export default function App() {
               <nav aria-label="주요 메뉴" className="flex items-center gap-1 sm:gap-1.5 header-full-nav">
                 <button
                   onClick={() => handleTabChange('my-card')}
-                  className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer whitespace-nowrap shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer whitespace-nowrap shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                     isMyCardTabActive
-                      ? 'bg-white/10 text-white shadow-sm ring-1 ring-white/20'
-                      : 'text-zinc-400 hover:text-white hover:bg-white/10'
+                      ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] shadow-sm'
+                      : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)]'
                   }`}
                 >
                   <CreditCard className="w-3.5 h-3.5" />
@@ -433,46 +439,49 @@ export default function App() {
 
                 <button
                   onClick={() => handleTabChange('vault')}
-                  className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer whitespace-nowrap shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer whitespace-nowrap shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                     isVaultTabActive
-                      ? 'bg-white/10 text-white shadow-sm ring-1 ring-white/20'
-                      : 'text-zinc-400 hover:text-white hover:bg-white/10'
+                      ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] shadow-sm'
+                      : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)]'
                   }`}
                 >
                   <FolderArchive className="w-3.5 h-3.5" />
                   <span>명함 보관함</span>
-                  {vault.isPinConfigured && vault.isLocked && <Lock className="w-3 h-3 text-white" />}
-                  <span className="text-[10px] font-mono tabular-nums text-zinc-400">
+                  {vault.isPinConfigured && vault.isLocked && <Lock className="w-3 h-3" />}
+                  <span
+                    className={`text-[10px] font-mono tabular-nums ${
+                      isVaultTabActive ? 'opacity-85' : 'text-[var(--app-text-muted)]'
+                    }`}
+                  >
                     {vault.vaultCards.length}
                   </span>
                 </button>
               </nav>
 
-              {/* Right Header: Minimal Security Lock & Consolidated Settings */}
-              <div
-                className="flex-1 flex items-center justify-end gap-1.5 sm:gap-2 min-h-[32px] relative header-full-nav"
-                ref={modals.settingsMenuRef}
-              >
+              {/* Right Header: App Theme Selector, Security Lock & Settings */}
+              <div className="sm:flex-1 flex items-center justify-end gap-1.5 sm:gap-2 min-h-[32px] relative header-full-nav">
+                <AppThemeSelector />
+
                 {vault.isPinConfigured && (
                   <button
                     onClick={() => {
                       vault.lockApp();
                       showToast('화면이 보안 잠금되었습니다.');
                     }}
-                    className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                    className="p-2 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-all cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                     title="즉시 화면 잠금 (Lock Screen)"
                     aria-label="화면 잠금"
                   >
-                    <Lock className="w-4 h-4 text-white" />
+                    <Lock className="w-4 h-4" />
                   </button>
                 )}
 
-                <div className="relative">
+                <div className="relative" ref={modals.settingsMenuRef}>
                   <button
                     onClick={modals.toggleSettings}
                     aria-expanded={modals.isSettingsOpen}
                     aria-haspopup="menu"
-                    className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 border border-white/10 transition-all cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                    className="p-2 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-all cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                     title="보안 및 기기 설정"
                     aria-label="설정 메뉴"
                   >
@@ -480,15 +489,15 @@ export default function App() {
                   </button>
 
                   {modals.isSettingsOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-[#121214] border border-white/10 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 text-xs">
+                    <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 text-xs text-[var(--app-text)]">
                       <button
                         onClick={() => {
                           modals.closeSettings();
                           modals.openPinConfig(vault.isPinConfigured ? 'change' : 'setup');
                         }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer text-left"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                       >
-                        <Lock className="w-3.5 h-3.5 text-white" />
+                        <Lock className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
                         <span>{vault.isPinConfigured ? 'PIN 번호 변경 / 관리' : '4자리 PIN 보안 설정'}</span>
                       </button>
 
@@ -497,13 +506,13 @@ export default function App() {
                           modals.closeSettings();
                           modals.openBiometrics();
                         }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer text-left"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                       >
-                        <Fingerprint className="w-3.5 h-3.5 text-white" />
+                        <Fingerprint className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
                         <span>생체 인증 (Face ID / 지문)</span>
                       </button>
 
-                      <div className="my-1 border-t border-white/10" />
+                      <div className="my-1 border-t border-[var(--app-border)]" />
 
                       <button
                         onClick={() => {
@@ -512,9 +521,9 @@ export default function App() {
                             modals.openBackup('export');
                           });
                         }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer text-left"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                       >
-                        <HardDriveDownload className="w-3.5 h-3.5 text-white" />
+                        <HardDriveDownload className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
                         <span>보관함 백업 내보내기 (.eerum)</span>
                       </button>
 
@@ -525,9 +534,9 @@ export default function App() {
                             modals.openBackup('restore');
                           });
                         }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer text-left"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                       >
-                        <Upload className="w-3.5 h-3.5 text-white" />
+                        <Upload className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
                         <span>백업 파일에서 복원</span>
                       </button>
 
@@ -536,9 +545,9 @@ export default function App() {
                           modals.closeSettings();
                           modals.openSync();
                         }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer text-left"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                       >
-                        <Smartphone className="w-3.5 h-3.5 text-white" />
+                        <Smartphone className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
                         <span>기기 연결 및 동기화</span>
                       </button>
 
@@ -560,29 +569,29 @@ export default function App() {
                             setIsPWAInstallOpen(true);
                           }
                         }}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer text-left"
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                       >
                         <div className="flex items-center gap-2.5">
-                          <Download className="w-3.5 h-3.5 text-white" />
+                          <Download className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
                           <span>홈 화면에 앱 설치 (PWA)</span>
                         </div>
                         {pwa.isInstalled && (
-                          <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded font-medium border border-emerald-500/20">
+                          <span className="text-[10px] text-emerald-600 bg-emerald-500/15 px-1.5 py-0.5 rounded font-medium border border-emerald-500/25">
                             설치됨
                           </span>
                         )}
                       </button>
 
-                      <div className="my-1 border-t border-white/10" />
+                      <div className="my-1 border-t border-[var(--app-border)]" />
 
                       <button
                         onClick={() => {
                           modals.closeSettings();
                           modals.openAbout('philosophy');
                         }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer text-left"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                       >
-                        <Compass className="w-3.5 h-3.5 text-white" />
+                        <Compass className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
                         <span>앱 소개 · Net to Dot 철학</span>
                       </button>
 
@@ -593,9 +602,9 @@ export default function App() {
                           setIsSamplePreview(false);
                           setActiveTab('my-card');
                         }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer text-left"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                       >
-                        <RotateCcw className="w-3.5 h-3.5 text-white" />
+                        <RotateCcw className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
                         <span>시작 화면으로 돌아가기</span>
                       </button>
                     </div>
@@ -624,7 +633,7 @@ export default function App() {
                   <Suspense
                     fallback={
                       <div
-                        className="w-full aspect-[9/5] rounded-2xl bg-[#121214] border border-white/10"
+                        className="w-full aspect-[9/5] rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)]"
                         aria-hidden="true"
                       />
                     }
@@ -655,7 +664,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => vault.handleRegisterSharedCardToVault(publicCard)}
-                  className="inline-flex items-center gap-2 text-xs font-medium text-neutral-950 bg-white hover:bg-zinc-200 transition-all tracking-wide py-2.5 px-5 rounded-xl active:scale-95 cursor-pointer shadow-lg"
+                  className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--app-accent-fg)] bg-[var(--app-accent)] hover:opacity-90 transition-all tracking-wide py-2.5 px-5 rounded-xl active:scale-95 cursor-pointer shadow-[var(--app-shadow)]"
                 >
                   <BookmarkPlus className="w-3.5 h-3.5 stroke-[1.75]" />
                   <span>명함 보관함에 등록</span>
@@ -669,7 +678,7 @@ export default function App() {
                       e.preventDefault();
                       handleCreateMyOwnCard();
                     }}
-                    className="inline-flex items-center gap-2 text-xs text-zinc-200 hover:text-white transition-all tracking-wide py-2.5 px-5 rounded-full border border-white/20 hover:border-white/40 hover:bg-white/[0.04] active:scale-95 group cursor-pointer shadow-lg"
+                    className="inline-flex items-center gap-2 text-xs text-[var(--app-text)] bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] transition-all tracking-wide py-2.5 px-5 rounded-full border border-[var(--app-border)] active:scale-95 group cursor-pointer shadow-sm"
                   >
                     <span>나만의 럭셔리 디지털 명함 만들기</span>
                     <span className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 font-sans">
@@ -682,7 +691,7 @@ export default function App() {
                   href="https://nettodot.org/pages/chapter01/abstract"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="pt-1 text-[10px] font-mono tracking-[0.14em] text-zinc-500 hover:text-zinc-300 transition-colors"
+                  className="pt-1 text-[10px] font-mono tracking-[0.14em] text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-colors"
                 >
                   eerum · Net to Dot Movement ↗
                 </a>
@@ -701,7 +710,7 @@ export default function App() {
                       setIsMemoOpen(false);
                       vault.setSelectedVaultCardId(null);
                     }}
-                    className="flex items-center gap-1.5 text-zinc-300 hover:text-white transition-colors cursor-pointer py-1.5 px-2 -ml-2 rounded-lg hover:bg-white/[0.05]"
+                    className="flex items-center gap-1.5 text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-colors cursor-pointer py-1.5 px-2 -ml-2 rounded-lg hover:bg-[var(--app-surface-subtle)]"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
                     <span>보관함 목록으로</span>
@@ -709,7 +718,7 @@ export default function App() {
                   {vault.selectedVaultCard &&
                     !vault.selectedVaultCard.isMyCard &&
                     !(vault.isPinConfigured && vault.isLocked) && (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-[#121318] border border-white/10 text-zinc-300 font-mono">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] font-mono font-medium">
                         보관 명함 ({vault.selectedVaultCard.category})
                       </span>
                     )}
@@ -718,21 +727,21 @@ export default function App() {
 
               {vault.isPinConfigured && vault.isLocked ? (
                 <div className="w-full max-w-lg mx-auto py-16 px-6 flex flex-col items-center justify-center text-center">
-                  <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-white mb-5 shadow-2xl">
+                  <div className="w-16 h-16 rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text)] mb-5 shadow-[var(--app-shadow)]">
                     <Lock className="w-7 h-7 stroke-[1.5]" />
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-2 tracking-tight">
+                  <h3 className="text-xl font-bold text-[var(--app-text)] mb-2 tracking-tight">
                     명함 보관함이 잠겨 있습니다
                   </h3>
-                  <p className="text-xs text-zinc-400 max-w-sm mb-6 leading-relaxed">
+                  <p className="text-xs text-[var(--app-text-muted)] max-w-sm mb-6 leading-relaxed">
                     공용 기기 및 타인의 무단 열람을 방지하기 위해 보관함이 4자리 보안 PIN으로 보호되고 있습니다.
                   </p>
                   <button
                     type="button"
                     onClick={vault.lockApp}
-                    className="px-6 py-3 rounded-2xl bg-white hover:bg-neutral-200 text-black font-semibold text-xs transition-all cursor-pointer shadow-lg active:scale-95 flex items-center gap-2"
+                    className="px-6 py-3 rounded-2xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] font-semibold text-xs transition-all cursor-pointer shadow-[var(--app-shadow)] active:scale-95 flex items-center gap-2"
                   >
-                    <KeyRound className="w-4 h-4 stroke-[1.75] text-neutral-900" />
+                    <KeyRound className="w-4 h-4 stroke-[1.75]" />
                     <span>보안 PIN 입력하여 잠금 해제</span>
                   </button>
                 </div>
@@ -742,7 +751,7 @@ export default function App() {
                     <Suspense
                       fallback={
                         <div
-                          className="w-full aspect-[9/5] rounded-2xl bg-[#121214] border border-white/10"
+                          className="w-full aspect-[9/5] rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)]"
                           aria-hidden="true"
                         />
                       }
@@ -828,28 +837,28 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setIsMemoOpen(true)}
-                        className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] px-3.5 py-2.5 rounded-2xl bg-[#121214] hover:bg-[#17171a] border border-white/10 text-left flex flex-wrap items-center justify-between gap-2 cursor-pointer transition-colors"
+                        className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] px-3.5 py-2.5 rounded-2xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] shadow-xs text-left flex flex-wrap items-center justify-between gap-2 cursor-pointer transition-colors"
                       >
-                        <div className="flex flex-wrap items-center gap-2.5 min-w-0 text-xs text-zinc-300">
+                        <div className="flex flex-wrap items-center gap-2.5 min-w-0 text-xs text-[var(--app-text)]">
                           {vault.selectedVaultCard.metAt && (
-                            <span className="inline-flex items-center gap-1 font-mono text-[11px] text-zinc-300">
-                              <Calendar className="w-3 h-3 text-zinc-400 shrink-0" />
+                            <span className="inline-flex items-center gap-1 font-mono text-[11px] text-[var(--app-text)]">
+                              <Calendar className="w-3 h-3 text-[var(--app-text-muted)] shrink-0" />
                               <span>{vault.selectedVaultCard.metAt}</span>
                             </span>
                           )}
                           {vault.selectedVaultCard.metLocation && (
-                            <span className="inline-flex items-center gap-1 text-[11px] text-zinc-200 truncate">
-                              <MapPin className="w-3 h-3 text-zinc-400 shrink-0" />
+                            <span className="inline-flex items-center gap-1 text-[11px] text-[var(--app-text)] truncate">
+                              <MapPin className="w-3 h-3 text-[var(--app-text-muted)] shrink-0" />
                               <span className="truncate">{vault.selectedVaultCard.metLocation}</span>
                             </span>
                           )}
                           {(vault.selectedVaultCard.memo || vault.selectedVaultCard.notes) && (
-                            <span className="text-[11px] text-zinc-400 truncate max-w-[260px]">
+                            <span className="text-[11px] text-[var(--app-text-muted)] truncate max-w-[260px]">
                               {vault.selectedVaultCard.memo || vault.selectedVaultCard.notes}
                             </span>
                           )}
                         </div>
-                        <span className="text-[11px] text-zinc-400 shrink-0">편집</span>
+                        <span className="text-[11px] text-[var(--app-text-muted)] shrink-0">편집</span>
                       </button>
                     )}
 
@@ -978,8 +987,8 @@ export default function App() {
               ) : isSamplePreview && currentMyCard ? (
                 <div className="w-full flex flex-col items-center space-y-2 sm:space-y-4">
                   <div className="w-full max-w-[540px] px-1 py-0.5 flex items-center justify-between text-xs animate-in fade-in duration-200">
-                    <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-normal">
-                      <span className="text-white text-[8px] leading-none" aria-hidden="true">
+                    <div className="flex items-center gap-1.5 text-xs text-[var(--app-text-muted)] font-normal">
+                      <span className="text-[var(--app-accent)] text-[8px] leading-none" aria-hidden="true">
                         ●
                       </span>
                       <span>샘플 모드</span>
@@ -988,7 +997,7 @@ export default function App() {
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={vault.handleOpenCreateModal}
-                        className="p-1.5 rounded-lg text-white hover:text-neutral-200 hover:bg-white/5 transition-all cursor-pointer active:scale-90 flex items-center justify-center"
+                        className="p-1.5 rounded-lg text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-all cursor-pointer active:scale-90 flex items-center justify-center"
                         title="내 명함 만들기"
                         aria-label="내 명함 만들기"
                       >
@@ -1000,7 +1009,7 @@ export default function App() {
                           setIsSamplePreview(false);
                           setShowWelcomeIntro(true);
                         }}
-                        className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-all cursor-pointer active:scale-90 flex items-center justify-center"
+                        className="p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-all cursor-pointer active:scale-90 flex items-center justify-center"
                         title="시작 화면으로"
                         aria-label="시작 화면으로"
                       >
@@ -1014,7 +1023,7 @@ export default function App() {
                       <Suspense
                         fallback={
                           <div
-                            className="w-full aspect-[9/5] rounded-2xl bg-[#121214] border border-white/10"
+                            className="w-full aspect-[9/5] rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)]"
                             aria-hidden="true"
                           />
                         }
@@ -1093,7 +1102,7 @@ export default function App() {
                   <Suspense
                     fallback={
                       <div
-                        className="w-full max-w-[540px] aspect-[9/5] rounded-2xl bg-[#121214] border border-white/10"
+                        className="w-full max-w-[540px] aspect-[9/5] rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)]"
                         aria-hidden="true"
                       />
                     }
@@ -1138,7 +1147,7 @@ export default function App() {
         </main>
 
         {/* Footer */}
-        <footer className="shrink-0 border-t border-white/[0.08] py-2 sm:py-2.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(0.625rem+env(safe-area-inset-bottom,0px))] px-4 sm:px-8 font-sans text-xs">
+        <footer className="shrink-0 border-t border-[var(--app-border)] py-2 sm:py-2.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(0.625rem+env(safe-area-inset-bottom,0px))] px-4 sm:px-8 font-sans text-xs">
           <div className="max-w-5xl mx-auto w-full flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
               {isUnauthenticatedExternalVisitor ? (
@@ -1146,7 +1155,7 @@ export default function App() {
                   href="https://nettodot.org/pages/chapter01/abstract"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[10px] sm:text-[11px] text-white/55 hover:text-white tracking-wider font-light font-sans whitespace-nowrap transition-colors"
+                  className="text-[10px] sm:text-[11px] text-[var(--app-text-muted)] hover:text-[var(--app-text)] tracking-wider font-normal font-sans whitespace-nowrap transition-colors"
                 >
                   eerum · Net to Dot Movement ↗
                 </a>
@@ -1154,7 +1163,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => modals.openAbout('philosophy')}
-                  className="text-[10px] sm:text-[11px] text-white/55 hover:text-white tracking-wider font-light font-sans whitespace-nowrap cursor-pointer transition-colors text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 rounded"
+                  className="text-[10px] sm:text-[11px] text-[var(--app-text-muted)] hover:text-[var(--app-text)] tracking-wider font-normal font-sans whitespace-nowrap cursor-pointer transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] rounded"
                   title="앱 소개 · Net to Dot 철학 보기"
                 >
                   eerum · Net to Dot Movement
@@ -1166,7 +1175,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => modals.openLegal('privacy')}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/[0.02] hover:bg-white/[0.08] border border-white/10 hover:border-white/25 flex items-center justify-center text-white/60 hover:text-white cursor-pointer active:scale-95 group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] cursor-pointer active:scale-95 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                 title="개인정보처리방침"
                 aria-label="개인정보처리방침"
               >
@@ -1176,7 +1185,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => modals.openLegal('terms')}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/[0.02] hover:bg-white/[0.08] border border-white/10 hover:border-white/25 flex items-center justify-center text-white/60 hover:text-white cursor-pointer active:scale-95 group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] cursor-pointer active:scale-95 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                 title="서비스 이용약관"
                 aria-label="서비스 이용약관"
               >
@@ -1186,7 +1195,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => modals.openLegal('licenses')}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/[0.02] hover:bg-white/[0.08] border border-white/10 hover:border-white/25 flex items-center justify-center text-white/60 hover:text-white cursor-pointer active:scale-95 group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] cursor-pointer active:scale-95 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                 title="오픈소스 라이선스"
                 aria-label="오픈소스 라이선스"
               >
@@ -1197,7 +1206,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={modals.openReset}
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/[0.02] hover:bg-white/[0.08] border border-white/10 hover:border-white/25 flex items-center justify-center text-white/50 hover:text-white cursor-pointer active:scale-95 group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] cursor-pointer active:scale-95 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                   title="로컬 데이터 초기화"
                   aria-label="로컬 데이터 초기화"
                 >
@@ -1213,9 +1222,9 @@ export default function App() {
           <div
             role="status"
             aria-live="polite"
-            className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full bg-[#121214] border border-white/15 text-white text-xs font-medium shadow-2xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200"
+            className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-medium shadow-[var(--app-shadow)] flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200"
           >
-            <Check className="w-4 h-4 text-white shrink-0" />
+            <Check className="w-4 h-4 text-[var(--app-accent)] shrink-0" />
             <span>{toastMessage}</span>
           </div>
         )}

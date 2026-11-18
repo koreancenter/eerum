@@ -152,15 +152,15 @@ export const CardPersonalMemo: React.FC<CardPersonalMemoProps> = ({
   return (
     <section
       aria-label="만남 기록 및 개인 메모"
-      className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] rounded-2xl bg-[#121214] border border-white/10 p-3.5 sm:p-4.5 shadow-xl flex flex-col gap-3 transition-all duration-200 animate-in fade-in slide-in-from-top-2"
+      className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] p-3.5 sm:p-4.5 shadow-[var(--app-shadow)] flex flex-col gap-3 transition-all duration-200 animate-in fade-in slide-in-from-top-2"
     >
       {/* Header Row */}
-      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-white/[0.08]">
+      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-[var(--app-border)]">
         <div className="flex items-center gap-2">
-          <h4 className="text-xs font-semibold text-white tracking-tight">
+          <h4 className="text-xs font-semibold text-[var(--app-text)] tracking-tight">
             만남 기록 · 개인 메모
           </h4>
-          <span className="text-[10px] text-zinc-500">자동 저장</span>
+          <span className="text-[10px] text-[var(--app-text-muted)]">자동 저장</span>
         </div>
 
         {/* Instant Auto-Save Checkmark Indicator */}
@@ -169,10 +169,10 @@ export const CardPersonalMemo: React.FC<CardPersonalMemoProps> = ({
           aria-label={justSaved || hasAnyContent ? '저장됨' : '미입력'}
           className={`inline-flex items-center gap-1 text-[11px] transition-colors duration-200 ${
             justSaved
-              ? 'text-emerald-400'
+              ? 'text-emerald-500'
               : hasAnyContent
-                ? 'text-emerald-400/80'
-                : 'text-zinc-600'
+                ? 'text-emerald-500/80'
+                : 'text-[var(--app-text-muted)] opacity-50'
           }`}
         >
           <Check className="w-3.5 h-3.5 stroke-[2.2]" />
@@ -185,16 +185,16 @@ export const CardPersonalMemo: React.FC<CardPersonalMemoProps> = ({
           <div className="flex items-center justify-between">
             <label
               htmlFor={`vault-met-at-${card.id}`}
-              className="text-[11px] text-zinc-400 inline-flex items-center gap-1"
+              className="text-[11px] text-[var(--app-text-muted)] inline-flex items-center gap-1"
             >
-              <Calendar className="w-3 h-3 text-zinc-400" />
+              <Calendar className="w-3 h-3 text-[var(--app-text-muted)]" />
               <span>만난 날짜</span>
             </label>
             {metAt !== getTodayIsoDate() && (
               <button
                 type="button"
                 onClick={() => handleMetAtChange(getTodayIsoDate())}
-                className="text-[10px] text-zinc-400 hover:text-white underline underline-offset-2 cursor-pointer"
+                className="text-[10px] text-[var(--app-text-muted)] hover:text-[var(--app-text)] underline underline-offset-2 cursor-pointer"
               >
                 오늘
               </button>
@@ -205,16 +205,16 @@ export const CardPersonalMemo: React.FC<CardPersonalMemoProps> = ({
             type="date"
             value={metAt}
             onChange={(e) => handleMetAtChange(e.target.value)}
-            className="w-full h-9 px-3 rounded-xl bg-[#161618] border border-white/10 text-neutral-100 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-white/25 focus:border-white/25 [color-scheme:dark]"
+            className="w-full h-9 px-3 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]/35 focus:border-[var(--app-accent)]"
           />
         </div>
 
         <div className="space-y-1">
           <label
             htmlFor={`vault-met-location-${card.id}`}
-            className="text-[11px] text-zinc-400 inline-flex items-center gap-1"
+            className="text-[11px] text-[var(--app-text-muted)] inline-flex items-center gap-1"
           >
-            <MapPin className="w-3 h-3 text-zinc-400" />
+            <MapPin className="w-3 h-3 text-[var(--app-text-muted)]" />
             <span>만난 장소 / 행사</span>
           </label>
           <input
@@ -224,14 +224,14 @@ export const CardPersonalMemo: React.FC<CardPersonalMemoProps> = ({
             onChange={handleMetLocationChange}
             onBlur={handleBlurTrim}
             placeholder="예: COEX AI 서밋, 강남 미팅"
-            className="w-full h-9 px-3 rounded-xl bg-[#161618] border border-white/10 text-neutral-100 text-xs placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-white/25 focus:border-white/25"
+            className="w-full h-9 px-3 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text)] text-xs placeholder:text-[var(--app-text-muted)]/70 focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]/35 focus:border-[var(--app-accent)]"
           />
         </div>
       </div>
 
       {/* Textarea Editor */}
       <div className="relative space-y-1">
-        <label htmlFor={`vault-memo-${card.id}`} className="text-[11px] text-zinc-400 block">
+        <label htmlFor={`vault-memo-${card.id}`} className="text-[11px] text-[var(--app-text-muted)] block">
           메모
         </label>
         <textarea
@@ -242,7 +242,7 @@ export const CardPersonalMemo: React.FC<CardPersonalMemoProps> = ({
           onBlur={handleBlurTrim}
           placeholder="대화 핵심 내용, 주요 관심사, 후속 팔로업 일정을 자유롭게 기록하세요. (보관함 검색에 포함됩니다)"
           rows={3}
-          className="w-full min-h-[88px] max-h-[240px] p-3 rounded-xl bg-[#161618] border border-white/10 text-neutral-100 text-xs sm:text-[13px] leading-relaxed placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-white/25 focus:border-white/25 transition-all resize-y font-sans"
+          className="w-full min-h-[88px] max-h-[240px] p-3 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text)] text-xs sm:text-[13px] leading-relaxed placeholder:text-[var(--app-text-muted)]/70 focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]/35 focus:border-[var(--app-accent)] transition-all resize-y font-sans"
         />
       </div>
     </section>

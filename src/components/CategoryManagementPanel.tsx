@@ -237,23 +237,23 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/75 backdrop-blur-sm animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex justify-end bg-[var(--app-overlay)] backdrop-blur-sm animate-in fade-in duration-150"
       onClick={onClose}
     >
       <aside
         role="dialog"
         aria-modal="true"
         aria-label="카테고리 관리 패널"
-        className="relative w-full max-w-md h-full bg-[#111113] border-l border-white/10 text-neutral-100 shadow-2xl flex flex-col overflow-hidden"
+        className="relative w-full max-w-md h-full bg-[var(--app-surface)] border-l border-[var(--app-border)] text-[var(--app-text)] shadow-[var(--app-shadow)] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Panel Header */}
-        <div className="px-6 pt-5 pb-4 border-b border-white/[0.07] flex items-start justify-between gap-4 shrink-0">
+        <div className="px-6 pt-5 pb-4 border-b border-[var(--app-border)] flex items-start justify-between gap-4 shrink-0">
           <div className="space-y-1 min-w-0">
-            <h3 className="text-base font-semibold text-white tracking-tight">
+            <h3 className="text-base font-semibold text-[var(--app-text)] tracking-tight">
               카테고리 관리
             </h3>
-            <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+            <div className="flex items-center gap-1.5 text-xs text-[var(--app-text-muted)]">
               <span className="tabular-nums">{categories.length}개 분류</span>
               <span aria-hidden="true">·</span>
               <span className="tabular-nums">명함 총 {totalCardCount}장</span>
@@ -263,7 +263,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
           <button
             type="button"
             onClick={onClose}
-            className="min-w-[40px] min-h-[40px] -mr-2 -mt-1 flex items-center justify-center rounded-full text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+            className="min-w-[40px] min-h-[40px] -mr-2 -mt-1 flex items-center justify-center rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
             aria-label="패널 닫기"
             title="닫기"
           >
@@ -274,7 +274,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
         {/* Add New Category Bar */}
         <form
           onSubmit={handleAddSubmit}
-          className="px-6 py-4 border-b border-white/[0.07] space-y-2.5 shrink-0"
+          className="px-6 py-4 border-b border-[var(--app-border)] space-y-2.5 shrink-0"
         >
           <div className="flex items-center gap-2">
             <input
@@ -288,12 +288,12 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
               }}
               placeholder="새 카테고리 추가 (예: 디자인·브랜딩)"
               aria-label="새 카테고리 이름"
-              className="flex-1 min-w-0 h-10 px-3.5 rounded-xl bg-white/[0.03] border border-white/10 focus:border-white/25 focus:bg-white/[0.05] focus:outline-none text-xs text-white placeholder:text-zinc-500"
+              className="flex-1 min-w-0 h-10 px-3.5 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] focus:border-[var(--app-accent)] focus:outline-none text-xs text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]/70"
             />
             <button
               type="submit"
               disabled={!newCategoryName.trim()}
-              className="h-10 px-4 rounded-xl bg-white hover:bg-zinc-200 disabled:opacity-35 disabled:pointer-events-none text-neutral-950 font-semibold text-xs whitespace-nowrap shrink-0 inline-flex items-center gap-1 cursor-pointer transition-colors"
+              className="h-10 px-4 rounded-xl bg-[var(--app-accent)] hover:opacity-90 disabled:opacity-35 disabled:pointer-events-none text-[var(--app-accent-fg)] font-semibold text-xs whitespace-nowrap shrink-0 inline-flex items-center gap-1 cursor-pointer transition-all"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2]" />
               <span>추가</span>
@@ -304,7 +304,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
             <p
               role="status"
               className={`text-[11px] leading-relaxed ${
-                feedback.type === 'error' ? 'text-amber-300/90' : 'text-zinc-300'
+                feedback.type === 'error' ? 'text-amber-600 dark:text-amber-300' : 'text-[var(--app-text-muted)]'
               }`}
             >
               {feedback.message}
@@ -313,13 +313,13 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
         </form>
 
         {/* Section Guide Line */}
-        <div className="px-6 py-2.5 border-b border-white/[0.05] flex items-center justify-between text-[11px] text-zinc-400 shrink-0">
+        <div className="px-6 py-2.5 border-b border-[var(--app-border)] flex items-center justify-between text-[11px] text-[var(--app-text-muted)] shrink-0">
           <span>분류 목록</span>
           <span>이름 변경 및 병합 시 소속 명함에 즉시 반영</span>
         </div>
 
         {/* Category Hairline List (Zero Nested Card Borders) */}
-        <div className="px-6 overflow-y-auto flex-1 divide-y divide-white/[0.06]">
+        <div className="px-6 overflow-y-auto flex-1 divide-y divide-[var(--app-border)]">
           {categories.map((cat) => {
             const count = categoryCounts[cat] ?? 0;
             const isEditing = editingCategory === cat;
@@ -334,7 +334,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                 {isEditing ? (
                   /* ================= INLINE RENAME FLOW ================= */
                   <div className="space-y-2.5">
-                    <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                    <div className="flex items-center justify-between text-[11px] text-[var(--app-text-muted)]">
                       <span>&lsquo;{cat}&rsquo; 이름 변경</span>
                       <span className="tabular-nums">
                         {count > 0 ? `소속 명함 ${count}장 동시 변경` : '할당된 명함 없음'}
@@ -360,13 +360,13 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                           }
                         }}
                         aria-label={`${cat} 새 이름 입력`}
-                        className="flex-1 min-w-0 h-10 px-3.5 rounded-xl bg-white/[0.05] border border-white/20 focus:border-white/35 focus:outline-none text-xs text-white"
+                        className="flex-1 min-w-0 h-10 px-3.5 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] focus:border-[var(--app-accent)] focus:outline-none text-xs text-[var(--app-text)]"
                       />
                       <button
                         type="button"
                         onClick={() => handleSaveRename(cat)}
                         disabled={!editingValue.trim()}
-                        className="h-10 px-3.5 rounded-xl bg-white hover:bg-zinc-200 disabled:opacity-35 text-neutral-950 font-semibold text-xs inline-flex items-center gap-1 cursor-pointer shrink-0"
+                        className="h-10 px-3.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 disabled:opacity-35 text-[var(--app-accent-fg)] font-semibold text-xs inline-flex items-center gap-1 cursor-pointer shrink-0"
                       >
                         <Check className="w-3.5 h-3.5 stroke-[2]" />
                         <span>저장</span>
@@ -374,7 +374,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                       <button
                         type="button"
                         onClick={clearRowModes}
-                        className="h-10 px-3 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 text-xs cursor-pointer shrink-0"
+                        className="h-10 px-3 rounded-xl text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] text-xs cursor-pointer shrink-0"
                       >
                         취소
                       </button>
@@ -382,13 +382,13 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
 
                     {renameConflictTarget && (
                       <div className="flex items-center justify-between gap-2 pt-1 text-[11px]">
-                        <span className="text-zinc-300">
+                        <span className="text-[var(--app-text-muted)]">
                           &lsquo;{renameConflictTarget}&rsquo; 카테고리로 바로 통합할까요?
                         </span>
                         <button
                           type="button"
                           onClick={() => handleExecuteMerge(cat, renameConflictTarget)}
-                          className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white font-medium cursor-pointer shrink-0 inline-flex items-center gap-1"
+                          className="px-3 py-1.5 rounded-lg bg-[var(--app-highlight)] hover:opacity-90 text-[var(--app-highlight-fg)] font-medium cursor-pointer shrink-0 inline-flex items-center gap-1"
                         >
                           <GitMerge className="w-3 h-3 stroke-[1.75]" />
                           <span>병합하기</span>
@@ -400,10 +400,10 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                   /* ================= INLINE MERGE FLOW ================= */
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-zinc-200 font-medium">
+                      <span className="text-[var(--app-text)] font-medium">
                         &lsquo;{cat}&rsquo; ({count}장) 병합 대상 선택
                       </span>
-                      <span className="text-zinc-400 tabular-nums inline-flex items-center gap-1">
+                      <span className="text-[var(--app-text-muted)] tabular-nums inline-flex items-center gap-1">
                         <span>{count}장</span>
                         <ArrowRight className="w-3 h-3 stroke-[1.5]" />
                         <span>총 {count + targetCount}장</span>
@@ -415,13 +415,13 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                         value={mergeTarget}
                         onChange={(e) => setMergeTarget(e.target.value)}
                         aria-label={`${cat} 병합 대상 카테고리`}
-                        className="flex-1 min-w-0 h-10 px-3 rounded-xl bg-[#161618] border border-white/15 focus:border-white/30 focus:outline-none text-xs text-white cursor-pointer"
+                        className="flex-1 min-w-0 h-10 px-3 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] focus:border-[var(--app-accent)] focus:outline-none text-xs text-[var(--app-text)] cursor-pointer"
                       >
                         {availableMergeTargets.map((target) => (
                           <option
                             key={target}
                             value={target}
-                            className="bg-[#161618] text-neutral-100"
+                            className="bg-[var(--app-surface)] text-[var(--app-text)]"
                           >
                             {target} ({categoryCounts[target] ?? 0}장)
                           </option>
@@ -432,7 +432,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                         type="button"
                         onClick={() => handleExecuteMerge(cat, mergeTarget)}
                         disabled={!mergeTarget}
-                        className="h-10 px-3.5 rounded-xl bg-white hover:bg-zinc-200 disabled:opacity-35 text-neutral-950 font-semibold text-xs inline-flex items-center gap-1 cursor-pointer shrink-0"
+                        className="h-10 px-3.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 disabled:opacity-35 text-[var(--app-accent-fg)] font-semibold text-xs inline-flex items-center gap-1 cursor-pointer shrink-0"
                       >
                         <GitMerge className="w-3.5 h-3.5 stroke-[1.75]" />
                         <span>병합 적용</span>
@@ -441,13 +441,13 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                       <button
                         type="button"
                         onClick={clearRowModes}
-                        className="h-10 px-3 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 text-xs cursor-pointer shrink-0"
+                        className="h-10 px-3 rounded-xl text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] text-xs cursor-pointer shrink-0"
                       >
                         취소
                       </button>
                     </div>
 
-                    <p className="text-[11px] text-zinc-400 leading-relaxed">
+                    <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
                       {count > 0
                         ? `'${cat}' 카테고리는 목록에서 통합 제거되며, 소속된 명함 ${count}장이 모두 '${mergeTarget}' 분류로 이동합니다.`
                         : `'${cat}' 카테고리가 '${mergeTarget}' 분류로 통합 제거됩니다.`}
@@ -456,7 +456,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                 ) : isConfirmingDelete ? (
                   /* ================= INLINE DELETE CONFIRMATION ================= */
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[11px] text-zinc-300 leading-snug">
+                    <span className="text-[11px] text-[var(--app-text)] leading-snug">
                       {count > 0
                         ? `삭제 시 명함 ${count}장이 '${deleteFallback}' 분류로 이동합니다.`
                         : `'${cat}' 카테고리를 삭제할까요?`}
@@ -465,14 +465,14 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                       <button
                         type="button"
                         onClick={() => handleExecuteDelete(cat)}
-                        className="h-9 px-3 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-200 text-xs font-medium cursor-pointer"
+                        className="h-9 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium cursor-pointer"
                       >
                         삭제
                       </button>
                       <button
                         type="button"
                         onClick={clearRowModes}
-                        className="h-9 px-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 text-xs cursor-pointer"
+                        className="h-9 px-2.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] text-xs cursor-pointer"
                       >
                         취소
                       </button>
@@ -482,11 +482,11 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                   /* ================= DEFAULT CATEGORY ROW ================= */
                   <div className="flex items-center justify-between gap-2 min-h-[36px]">
                     <div className="min-w-0 flex items-center gap-2 text-xs">
-                      <span className="font-medium text-neutral-100 truncate">{cat}</span>
-                      <span className="text-zinc-600" aria-hidden="true">
+                      <span className="font-medium text-[var(--app-text)] truncate">{cat}</span>
+                      <span className="text-[var(--app-text-muted)] opacity-50" aria-hidden="true">
                         ·
                       </span>
-                      <span className="text-[11px] text-zinc-400 font-mono tabular-nums shrink-0">
+                      <span className="text-[11px] text-[var(--app-text-muted)] font-mono tabular-nums shrink-0">
                         {count}장
                       </span>
                     </div>
@@ -495,7 +495,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                       <button
                         type="button"
                         onClick={() => handleStartRename(cat)}
-                        className="h-8 px-2.5 rounded-lg text-[11px] text-zinc-300 hover:text-white hover:bg-white/10 inline-flex items-center gap-1 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                        className="h-8 px-2.5 rounded-lg text-[11px] text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] inline-flex items-center gap-1 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                         aria-label={`${cat} 이름 변경`}
                         title="이름 변경"
                       >
@@ -507,7 +507,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                         type="button"
                         disabled={!canMergeOrDelete}
                         onClick={() => handleStartMerge(cat)}
-                        className="h-8 px-2.5 rounded-lg text-[11px] text-zinc-300 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:pointer-events-none inline-flex items-center gap-1 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                        className="h-8 px-2.5 rounded-lg text-[11px] text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] disabled:opacity-35 disabled:pointer-events-none inline-flex items-center gap-1 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                         aria-label={`${cat} 다른 카테고리로 병합`}
                         title="다른 카테고리로 병합"
                       >
@@ -519,7 +519,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                         type="button"
                         disabled={!canMergeOrDelete}
                         onClick={() => handleStartDelete(cat)}
-                        className="w-8 h-8 rounded-lg text-zinc-500 hover:text-rose-300 hover:bg-white/10 disabled:opacity-35 disabled:pointer-events-none flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                        className="w-8 h-8 rounded-lg text-[var(--app-text-muted)] hover:text-rose-500 hover:bg-[var(--app-surface-subtle)] disabled:opacity-35 disabled:pointer-events-none flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                         aria-label={`${cat} 삭제`}
                         title="삭제"
                       >
@@ -534,11 +534,11 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
         </div>
 
         {/* Panel Footer */}
-        <div className="px-6 py-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-white/[0.07] flex items-center justify-between gap-3 shrink-0 bg-[#111113]">
+        <div className="px-6 py-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-[var(--app-border)] flex items-center justify-between gap-3 shrink-0 bg-[var(--app-surface)]">
           <button
             type="button"
             onClick={handleReset}
-            className="min-h-[40px] px-3 py-2 -ml-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/[0.06] text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+            className="min-h-[40px] px-3 py-2 -ml-2 rounded-xl text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
           >
             <RotateCcw className="w-3.5 h-3.5 stroke-[1.5]" />
             <span>기본값 복원</span>
@@ -547,7 +547,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
           <button
             type="button"
             onClick={onClose}
-            className="min-h-[40px] px-5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 font-semibold text-xs cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+            className="min-h-[40px] px-5 py-2 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] font-semibold text-xs cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
           >
             완료
           </button>

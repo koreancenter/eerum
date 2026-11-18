@@ -204,16 +204,16 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-label="Quick QR 명함 패스"
-      className="fixed inset-0 z-50 bg-[#0A0A0B] text-neutral-100 flex flex-col justify-between overflow-y-auto pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 bg-[var(--app-bg)] text-[var(--app-text)] flex flex-col justify-between overflow-y-auto pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] animate-in fade-in duration-150"
     >
       {/* Top Pass Header */}
       <div className="w-full max-w-md mx-auto px-5 pt-4 pb-2 flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-[11px] font-mono uppercase tracking-[0.22em] text-white/90 font-semibold">
+          <span className="text-[11px] font-mono uppercase tracking-[0.22em] text-[var(--app-text)] font-semibold">
             QUICK QR PASS
           </span>
           {isWakeLockActive && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-[10px] text-emerald-300 font-medium whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-[10px] text-emerald-700 dark:text-emerald-300 font-medium whitespace-nowrap">
               <Sparkles className="w-2.5 h-2.5 shrink-0" />
               <span>화면 켜짐 유지</span>
             </span>
@@ -223,7 +223,7 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="min-w-[44px] min-h-[44px] -mr-2 rounded-xl flex items-center justify-center text-zinc-300 hover:text-white hover:bg-white/10 cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/25"
+          className="min-w-[44px] min-h-[44px] -mr-2 rounded-xl flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
           title="Quick QR 닫기"
           aria-label="Quick QR 닫기"
         >
@@ -235,16 +235,16 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
       <div className="w-full max-w-md mx-auto px-5 py-3 flex-1 flex flex-col items-center justify-center gap-4">
         {/* Identity Summary */}
         <div className="w-full text-center space-y-1">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight truncate">
+          <h2 className="text-2xl sm:text-3xl font-bold text-[var(--app-text)] tracking-tight truncate">
             {primaryName}
           </h2>
           {showSecondaryName && (
-            <p className="text-xs font-mono tracking-wider text-zinc-400 truncate">
+            <p className="text-xs font-mono tracking-wider text-[var(--app-text-muted)] truncate">
               {secondaryName}
             </p>
           )}
           {subtitle && (
-            <p className="text-sm text-zinc-300 font-medium truncate pt-0.5">
+            <p className="text-sm text-[var(--app-text-muted)] font-medium truncate pt-0.5">
               {subtitle}
             </p>
           )}
@@ -254,7 +254,7 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
         <div
           role="tablist"
           aria-label="Quick QR 코드 유형"
-          className="w-full max-w-[290px] grid grid-cols-2 p-1 rounded-xl bg-white/[0.06] border border-white/10"
+          className="w-full max-w-[290px] grid grid-cols-2 p-1 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)]"
         >
           <button
             type="button"
@@ -263,8 +263,8 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
             onClick={() => setQrType('url')}
             className={`py-2 px-3 rounded-lg text-xs cursor-pointer whitespace-nowrap ${
               qrType === 'url'
-                ? 'bg-white text-neutral-950 font-semibold shadow-sm'
-                : 'text-zinc-400 hover:text-white font-medium'
+                ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] font-semibold shadow-sm'
+                : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
             }`}
           >
             웹 링크 QR
@@ -276,8 +276,8 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
             onClick={() => setQrType('vcard')}
             className={`py-2 px-3 rounded-lg text-xs cursor-pointer whitespace-nowrap ${
               qrType === 'vcard'
-                ? 'bg-white text-neutral-950 font-semibold shadow-sm'
-                : 'text-zinc-400 hover:text-white font-medium'
+                ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] font-semibold shadow-sm'
+                : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
             }`}
           >
             연락처(.vcf) QR
@@ -285,7 +285,7 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
         </div>
 
         {/* High-Contrast Scannable QR Plate */}
-        <div className="w-full max-w-[290px] aspect-square bg-white rounded-xl p-4 shadow-sm flex items-center justify-center">
+        <div className="w-full max-w-[290px] aspect-square bg-white rounded-xl p-4 shadow-[var(--app-shadow)] ring-1 ring-black/5 flex items-center justify-center">
           {qrDataUrl ? (
             <img
               src={qrDataUrl}
@@ -297,7 +297,7 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
           )}
         </div>
 
-        <p className="text-xs text-zinc-400 font-mono truncate max-w-full px-2">
+        <p className="text-xs text-[var(--app-text-muted)] font-mono truncate max-w-full px-2">
           {qrType === 'url' ? displayUrl : data.phone || data.email || displayUrl}
         </p>
 
@@ -306,7 +306,7 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
           <button
             type="button"
             onClick={handleSaveVCard}
-            className="min-h-[48px] px-4 py-3 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] shadow-lg"
+            className="min-h-[48px] px-4 py-3 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] shadow-md"
           >
             <UserPlus className="w-4 h-4 stroke-[2] shrink-0" />
             <span>연락처 저장 (.vcf)</span>
@@ -315,11 +315,11 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
           <button
             type="button"
             onClick={handleWebShare}
-            className="min-h-[48px] px-4 py-3 rounded-xl bg-[#161619] hover:bg-white/10 border border-white/15 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+            className="min-h-[48px] px-4 py-3 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text)] font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
           >
             {copied ? (
               <>
-                <Check className="w-4 h-4 stroke-[2] shrink-0 text-emerald-400" />
+                <Check className="w-4 h-4 stroke-[2] shrink-0 text-emerald-600 dark:text-emerald-400" />
                 <span>링크 복사됨</span>
               </>
             ) : (
@@ -332,11 +332,11 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
         </div>
 
         {/* Lockscreen QR Wallpaper Generator Bar */}
-        <div className="w-full rounded-2xl bg-[#121214] border border-white/10 p-3 flex flex-col gap-2.5">
+        <div className="w-full rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] p-3 flex flex-col gap-2.5 shadow-sm">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-white">잠금화면 QR 배경화면</p>
-              <p className="text-[11px] text-zinc-400 truncate">
+              <p className="text-xs font-semibold text-[var(--app-text)]">잠금화면 QR 배경화면</p>
+              <p className="text-[11px] text-[var(--app-text-muted)] truncate">
                 시계 영역을 피한 1170×2532 고해상도 PNG
               </p>
             </div>
@@ -344,15 +344,15 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
             <div
               role="group"
               aria-label="배경화면 테마 선택"
-              className="flex items-center p-0.5 rounded-lg bg-white/[0.05] border border-white/10 shrink-0"
+              className="flex items-center p-0.5 rounded-lg bg-[var(--app-surface-subtle)] border border-[var(--app-border)] shrink-0"
             >
               <button
                 type="button"
                 onClick={() => setWallpaperTheme('dark')}
                 className={`px-2.5 py-1.5 rounded-md text-[11px] font-medium flex items-center gap-1 cursor-pointer ${
                   wallpaperTheme === 'dark'
-                    ? 'bg-white text-neutral-950 font-semibold'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] font-semibold'
+                    : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
                 }`}
               >
                 <Moon className="w-3 h-3" />
@@ -363,8 +363,8 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
                 onClick={() => setWallpaperTheme('light')}
                 className={`px-2.5 py-1.5 rounded-md text-[11px] font-medium flex items-center gap-1 cursor-pointer ${
                   wallpaperTheme === 'light'
-                    ? 'bg-white text-neutral-950 font-semibold'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] font-semibold'
+                    : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
                 }`}
               >
                 <Sun className="w-3 h-3" />
@@ -377,7 +377,7 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
             type="button"
             onClick={handleDownloadWallpaper}
             disabled={isGeneratingWallpaper}
-            className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 text-white text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-[0.99]"
+            className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-[var(--app-surface-subtle)] hover:bg-[var(--app-border)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-[0.99]"
           >
             <Wallpaper className="w-4 h-4 stroke-[1.75] shrink-0" />
             <span>
@@ -390,7 +390,7 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
       </div>
 
       {/* Bottom Safe Hint */}
-      <div className="w-full max-w-md mx-auto px-5 pb-4 pt-1 flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 shrink-0">
+      <div className="w-full max-w-md mx-auto px-5 pb-4 pt-1 flex items-center justify-center gap-1.5 text-[11px] text-[var(--app-text-muted)] shrink-0">
         <QrCode className="w-3 h-3 opacity-60" />
         <span>네트워킹 현장에서 상대방 카메라로 바로 스캔하세요</span>
       </div>

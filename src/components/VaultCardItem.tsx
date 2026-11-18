@@ -202,16 +202,16 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
               bottom: menuCoords?.bottom !== undefined ? `${menuCoords.bottom}px` : undefined,
               right: menuCoords ? `${menuCoords.right}px` : '8px',
             }}
-            className="w-44 rounded-xl bg-[#161618]/95 backdrop-blur-xl border border-white/12 shadow-2xl p-1 z-[9999] animate-in fade-in zoom-in-95 duration-150 divide-y divide-white/5 text-xs text-neutral-200 select-none"
+            className="w-44 rounded-xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] p-1 z-[9999] animate-in fade-in zoom-in-95 duration-150 divide-y divide-[var(--app-border)] text-xs text-[var(--app-text)] select-none"
           >
             <div className="py-0.5 space-y-0.5">
               <button
                 type="button"
                 role="menuitem"
                 onClick={handleEdit}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
               >
-                <Edit3 className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <Edit3 className="w-3.5 h-3.5 text-[var(--app-text-muted)] shrink-0" />
                 <span>명함 수정</span>
               </button>
 
@@ -219,9 +219,9 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
                 type="button"
                 role="menuitem"
                 onClick={handleVCard}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
               >
-                <UserPlus className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <UserPlus className="w-3.5 h-3.5 text-[var(--app-text-muted)] shrink-0" />
                 <span>연락처 저장 (.vcf)</span>
               </button>
 
@@ -229,9 +229,9 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
                 type="button"
                 role="menuitem"
                 onClick={handleExport}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
               >
-                <Download className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <Download className="w-3.5 h-3.5 text-[var(--app-text-muted)] shrink-0" />
                 <span>HTML 내보내기</span>
               </button>
 
@@ -240,9 +240,9 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
                   type="button"
                   role="menuitem"
                   onClick={handlePhoto}
-                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
                 >
-                  <Camera className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                  <Camera className="w-3.5 h-3.5 text-[var(--app-text-muted)] shrink-0" />
                   <span>실물 사진 원본</span>
                 </button>
               )}
@@ -254,7 +254,7 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
                   type="button"
                   role="menuitem"
                   onClick={handleDelete}
-                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-rose-400 hover:text-rose-300 hover:bg-rose-500/15 transition-colors cursor-pointer"
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5 shrink-0" />
                   <span>명함 삭제</span>
@@ -278,7 +278,7 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
         title="명함 관리 메뉴 (수정, 삭제, 주소록, HTML)"
         className={
           buttonClassName ||
-          'p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20'
+          'p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]'
         }
       >
         <MoreVertical className="w-3.5 h-3.5 stroke-[1.75]" />
@@ -428,7 +428,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
 
   return (
     <article
-      className={`group relative rounded-xl border ${surfaceBorderClass} ${themeStyles.cardBg} p-2.5 sm:p-3.5 shadow-sm transition-colors duration-150 flex flex-col justify-between gap-2 min-w-0`}
+      className={`group relative rounded-xl border ${surfaceBorderClass} ${themeStyles.cardBg} p-2.5 sm:p-3.5 shadow-[var(--app-shadow)] transition-colors duration-150 flex flex-col justify-between gap-2 min-w-0`}
     >
       {/* Self-Contained Clickable Card Body (No outer or top category/date header) */}
       <div
@@ -690,7 +690,7 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
   );
 
   return (
-    <div className="px-3 py-2.5 flex justify-between items-center gap-3 hover:bg-white/[0.03] transition-colors relative">
+    <div className="px-3 py-2.5 flex justify-between items-center gap-3 hover:bg-[var(--app-surface-subtle)] transition-colors relative">
       <div
         role="button"
         tabIndex={0}
@@ -701,28 +701,28 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
             onSelectCard(card);
           }
         }}
-        className="min-w-0 flex-1 cursor-pointer leading-tight space-y-0.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30 rounded"
+        className="min-w-0 flex-1 cursor-pointer leading-tight space-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] rounded"
       >
         <div className="flex items-baseline gap-1.5 min-w-0">
-          <span className="text-[13.5px] font-semibold text-white truncate">{displayName}</span>
+          <span className="text-[13.5px] font-semibold text-[var(--app-text)] truncate">{displayName}</span>
           {displayTitle && (
-            <span className="text-[11px] text-zinc-400 truncate">{displayTitle}</span>
+            <span className="text-[11px] text-[var(--app-text-muted)] truncate">{displayTitle}</span>
           )}
           {card.isMyCard && (
-            <span className="text-[10px] text-zinc-300 font-medium shrink-0">· 내 명함</span>
+            <span className="text-[10px] text-[var(--app-text-muted)] font-medium shrink-0">· 내 명함</span>
           )}
         </div>
-        <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 leading-tight min-w-0">
+        <div className="flex items-center gap-1.5 text-[11px] text-[var(--app-text-muted)] leading-tight min-w-0">
           {displayOrg && <span className="truncate">{displayOrg}</span>}
           {displayOrg && displayContact && <span aria-hidden="true">·</span>}
           {displayContact && (
-            <span className="font-mono tabular-nums text-zinc-500 truncate">
+            <span className="font-mono tabular-nums text-[var(--app-text-muted)] truncate">
               {displayContact}
             </span>
           )}
         </div>
         {!card.isMyCard && (card.metAt || card.metLocation) && (
-          <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 leading-tight min-w-0">
+          <div className="flex items-center gap-1.5 text-[10px] text-[var(--app-text-muted)] leading-tight min-w-0">
             <Calendar className="w-2.5 h-2.5 shrink-0" />
             <span className="truncate font-mono tabular-nums">
               {[card.metAt, card.metLocation].filter(Boolean).join(' · ')}
@@ -732,13 +732,13 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
       </div>
 
       {/* Quick Communication Actions + Kebab Dropdown Menu */}
-      <div className="flex items-center gap-1 shrink-0 text-zinc-400">
+      <div className="flex items-center gap-1 shrink-0 text-[var(--app-text-muted)]">
         {cleanPhoneNumber ? (
           <>
             <button
               type="button"
               onClick={handleCallClick}
-              className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
               title={`전화 걸기 (${cleanPhoneNumber})`}
               aria-label={`${displayName}에게 즉시 전화 걸기`}
             >
@@ -747,7 +747,7 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
             <button
               type="button"
               onClick={handleSmsClick}
-              className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
               title={`문자 보내기 (${cleanPhoneNumber})`}
               aria-label={`${displayName}에게 즉시 문자 보내기`}
             >
@@ -764,7 +764,7 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
           onDeleteCard={onDeleteCard}
           onOpenPhotoArchive={onOpenPhotoArchive}
           onRecordInteraction={onRecordInteraction}
-          buttonClassName="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+          buttonClassName="p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
           menuDirection="auto"
         />
       </div>
@@ -814,27 +814,27 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
 
   return (
     <tr
-      className="hover:bg-white/[0.04] transition-colors cursor-pointer group"
+      className="hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer group"
       onClick={() => onSelectCard(card)}
     >
       <td className="py-2.5 px-3.5">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-white group-hover:underline underline-offset-2">
+          <span className="font-semibold text-[var(--app-text)] group-hover:underline underline-offset-2">
             {displayName}
           </span>
           {card.isMyCard && (
-            <span className="text-[10px] text-zinc-400 font-medium">· 내 명함</span>
+            <span className="text-[10px] text-[var(--app-text-muted)] font-medium">· 내 명함</span>
           )}
         </div>
       </td>
-      <td className="py-2.5 px-3.5 text-zinc-400">{card.data.titleKr || card.data.title || '-'}</td>
-      <td className="py-2.5 px-3.5 text-zinc-300">
+      <td className="py-2.5 px-3.5 text-[var(--app-text-muted)]">{card.data.titleKr || card.data.title || '-'}</td>
+      <td className="py-2.5 px-3.5 text-[var(--app-text)]">
         {card.data.organizationKr || card.data.organization || '-'}
       </td>
-      <td className="py-2.5 px-3.5 text-zinc-400 text-[11px]">
+      <td className="py-2.5 px-3.5 text-[var(--app-text-muted)] text-[11px]">
         <div>{card.category}</div>
         {!card.isMyCard && (card.metAt || card.metLocation) && (
-          <div className="text-[10px] text-zinc-500 font-mono truncate max-w-[160px]">
+          <div className="text-[10px] text-[var(--app-text-muted)] opacity-80 font-mono truncate max-w-[160px]">
             {[card.metAt, card.metLocation].filter(Boolean).join(' · ')}
           </div>
         )}
@@ -847,26 +847,26 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
               e.stopPropagation();
               onOpenPhotoArchive(card);
             }}
-            className="flex items-center gap-1 text-[10px] text-zinc-200 hover:text-white hover:underline cursor-pointer"
+            className="flex items-center gap-1 text-[10px] text-[var(--app-text)] hover:underline cursor-pointer"
           >
             <Camera className="w-3 h-3 stroke-[1.5]" />
             <span>사진 보기</span>
           </button>
         ) : (
-          <span className="text-[10px] text-zinc-400">-</span>
+          <span className="text-[10px] text-[var(--app-text-muted)]">-</span>
         )}
       </td>
-      <td className="py-2.5 px-3.5 text-zinc-400 font-mono tabular-nums text-[11px]">
+      <td className="py-2.5 px-3.5 text-[var(--app-text-muted)] font-mono tabular-nums text-[11px]">
         {card.data.phone || card.data.email || '-'}
       </td>
       <td className="py-2.5 px-3.5 text-right relative" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-end gap-1 text-zinc-400">
+        <div className="flex items-center justify-end gap-1 text-[var(--app-text-muted)]">
           {cleanPhoneNumber ? (
             <>
               <button
                 type="button"
                 onClick={handleCallClick}
-                className="p-1.5 rounded-lg hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
                 title={`전화 걸기 (${cleanPhoneNumber})`}
                 aria-label={`${displayName}에게 즉시 전화 걸기`}
               >
@@ -875,7 +875,7 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
               <button
                 type="button"
                 onClick={handleSmsClick}
-                className="p-1.5 rounded-lg hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
                 title={`문자 보내기 (${cleanPhoneNumber})`}
                 aria-label={`${displayName}에게 즉시 문자 보내기`}
               >
@@ -892,7 +892,7 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
             onDeleteCard={onDeleteCard}
             onOpenPhotoArchive={onOpenPhotoArchive}
             onRecordInteraction={onRecordInteraction}
-            buttonClassName="p-1.5 rounded-lg hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            buttonClassName="p-1.5 rounded-lg hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
             menuDirection="auto"
           />
         </div>
