@@ -285,7 +285,7 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
         </div>
 
         {/* High-Contrast Scannable QR Plate */}
-        <div className="w-full max-w-[290px] aspect-square bg-white rounded-2xl p-4 shadow-[0_24px_64px_rgba(0,0,0,0.65)] border border-white/20 flex items-center justify-center">
+        <div className="w-full max-w-[290px] aspect-square bg-white rounded-xl p-4 shadow-sm flex items-center justify-center">
           {qrDataUrl ? (
             <img
               src={qrDataUrl}

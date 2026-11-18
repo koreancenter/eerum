@@ -770,6 +770,32 @@ export const VaultView: React.FC<VaultViewProps> = ({
               </button>
             </div>
 
+            {cards.length > 0 && (
+              <button
+                type="button"
+                disabled={sortedCards.length === 0}
+                onClick={() => {
+                  const count = downloadBatchVCard(sortedCards);
+                  if (count > 0) {
+                    triggerToast(`${count}명의 연락처를 .vcf 파일로 내보냈습니다.`);
+                  }
+                }}
+                aria-label={
+                  selectedCategory !== '전체' || searchQuery.trim()
+                    ? `필터 연락처 저장 (.vcf · ${sortedCards.length}명)`
+                    : `전체 연락처 저장 (.vcf · ${sortedCards.length}명)`
+                }
+                title={
+                  selectedCategory !== '전체' || searchQuery.trim()
+                    ? `필터 연락처 저장 (.vcf · ${sortedCards.length}명)`
+                    : `전체 연락처 저장 (.vcf · ${sortedCards.length}명)`
+                }
+                className="w-8.5 h-8.5 rounded-xl border border-white/10 bg-[#121214] hover:bg-white/10 text-zinc-300 hover:text-white inline-flex items-center justify-center cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+              >
+                <UserPlus className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onOpenScan}
@@ -963,7 +989,34 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 </button>
               </div>
 
-              {/* 4. "+ Add Card" Button */}
+              {/* 4. Icon-only Batch .vcf Export Button */}
+              {cards.length > 0 && (
+                <button
+                  type="button"
+                  disabled={sortedCards.length === 0}
+                  onClick={() => {
+                    const count = downloadBatchVCard(sortedCards);
+                    if (count > 0) {
+                      triggerToast(`${count}명의 연락처를 .vcf 파일로 내보냈습니다.`);
+                    }
+                  }}
+                  aria-label={
+                    selectedCategory !== '전체' || searchQuery.trim()
+                      ? `필터 연락처 저장 (.vcf · ${sortedCards.length}명)`
+                      : `전체 연락처 저장 (.vcf · ${sortedCards.length}명)`
+                  }
+                  title={
+                    selectedCategory !== '전체' || searchQuery.trim()
+                      ? `필터 연락처 저장 (.vcf · ${sortedCards.length}명)`
+                      : `전체 연락처 저장 (.vcf · ${sortedCards.length}명)`
+                  }
+                  className="w-9 sm:w-9.5 h-9 sm:h-9.5 rounded-xl border border-white/10 bg-[#121214] hover:bg-white/10 text-zinc-300 hover:text-white inline-flex items-center justify-center cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                >
+                  <UserPlus className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
+                </button>
+              )}
+
+              {/* 5. "+ Add Card" Button */}
               <button
                 type="button"
                 onClick={onOpenScan}
@@ -978,52 +1031,19 @@ export const VaultView: React.FC<VaultViewProps> = ({
           </div>
         </div>
 
-        {/* Vault Utility Bar: Duplicate Cleanup & Batch .vcf Export */}
-        {(duplicateGroups.length > 0 || cards.length > 0) && (
+        {/* Duplicate Contact Cleanup Bar (only shown when duplicates exist) */}
+        {duplicateGroups.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              {duplicateGroups.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => setIsDuplicateModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/25 text-amber-200 hover:text-amber-100 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400/40"
-                >
-                  <GitMerge className="w-3.5 h-3.5 stroke-[1.8] text-amber-300 shrink-0" />
-                  <span className="tabular-nums">
-                    중복 연락처 {duplicateGroups.length}건 정리
-                  </span>
-                </button>
-              ) : (
-                <span className="text-[11px] text-zinc-400 font-mono tabular-nums px-0.5">
-                  {selectedCategory !== '전체' || searchQuery.trim()
-                    ? `필터 결과 ${sortedCards.length}명 / 전체 ${cards.length}명`
-                    : `보관된 연락처 ${cards.length}명`}
-                </span>
-              )}
-            </div>
-
-            {cards.length > 0 && (
-              <button
-                type="button"
-                disabled={sortedCards.length === 0}
-                onClick={() => {
-                  const count = downloadBatchVCard(sortedCards);
-                  if (count > 0) {
-                    triggerToast(`${count}명의 연락처를 .vcf 파일로 내보냈습니다.`);
-                  }
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#121214] hover:bg-white/10 border border-white/10 text-zinc-200 hover:text-white text-[11px] font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/25"
-                title="현재 목록의 모든 명함을 단일 연락처(.vcf) 파일로 일괄 내보내기"
-                aria-label="전체 연락처 일괄 저장 (.vcf)"
-              >
-                <UserPlus className="w-3.5 h-3.5 stroke-[1.75] text-zinc-300 shrink-0" />
-                <span className="tabular-nums">
-                  {selectedCategory !== '전체' || searchQuery.trim()
-                    ? `필터 연락처 저장 (.vcf · ${sortedCards.length})`
-                    : `전체 연락처 저장 (.vcf · ${sortedCards.length})`}
-                </span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setIsDuplicateModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/25 text-amber-200 hover:text-amber-100 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400/40"
+            >
+              <GitMerge className="w-3.5 h-3.5 stroke-[1.8] text-amber-300 shrink-0" />
+              <span className="tabular-nums">
+                중복 연락처 {duplicateGroups.length}건 정리
+              </span>
+            </button>
           </div>
         )}
 

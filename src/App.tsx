@@ -1111,9 +1111,14 @@ export default function App() {
                         vault.setModalTargetCardId(cardForNfc.id);
                         modals.openNfc();
                       }}
+                      onOpenPrint={(cardForPrint) => {
+                        vault.setModalTargetCardId(cardForPrint.id);
+                        modals.openPrint();
+                      }}
                       onDeleteCard={(cardToDelete) => {
                         vault.handleRequestDeleteCard(cardToDelete);
                       }}
+                      onShowToast={showToast}
                       mode="carousel"
                     />
                   </Suspense>

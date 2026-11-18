@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { StoredCard, CardOrientation } from '../types/card';
 import { isVerticalLayout } from '../constants/templates';
+import { getCardShareUrl } from '../utils/cardSerializer';
+import { shareOrCopyLink } from '../utils/share';
 import { CardContainer } from './CardContainer';
-import { ActionButtons } from './ActionButtons';
 import { 
   Plus, 
   ChevronLeft, 
@@ -12,6 +13,10 @@ import {
   Check,
   QrCode,
   Nfc,
+  Share2,
+  Link2,
+  Edit3,
+  Printer,
 } from 'lucide-react';
 
 export type CardNavigationMode = 'carousel' | 'switcher';
@@ -25,7 +30,9 @@ export interface CardNavigatorProps {
   onOpenShare: (card: StoredCard) => void;
   onOpenQuickQr?: (card: StoredCard) => void;
   onOpenNfc?: (card: StoredCard) => void;
+  onOpenPrint?: (card: StoredCard) => void;
   onDeleteCard?: (card: StoredCard) => void;
+  onShowToast?: (msg: string) => void;
   mode?: CardNavigationMode;
   onModeChange?: (mode: CardNavigationMode) => void;
   allowModeToggle?: boolean;
@@ -45,13 +52,24 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
   onOpenShare,
   onOpenQuickQr,
   onOpenNfc,
-  onDeleteCard,
+  onOpenPrint,
+  onShowToast,
   mode = 'carousel',
   onModeChange,
   allowModeToggle = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  const [copiedCardId, setCopiedCardId] = useState<string | null>(null);
+  const copyTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+    };
+  }, []);
   
   // Defense-in-depth: strictly restrict My Cards Navigator to cards with isMyCard === true
   const personalCards = useMemo(() => cards.filter((c) => c.isMyCard), [cards]);
@@ -579,56 +597,129 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
         </div>
       )}
 
-      {/* 2. Prominent Quick QR & Web NFC Triggers & Bottom Actions Bar */}
+      {/* 2. Minimalist Single-Row Icon-Only Action Bar */}
       {activeCard && (
-        <div className="w-full flex flex-col items-center px-4 mt-3 gap-2.5">
-          {(onOpenQuickQr || onOpenNfc) && (
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {onOpenQuickQr && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerTactileHaptic(6);
-                    onOpenQuickQr(activeCard);
-                  }}
-                  className="inline-flex items-center justify-center gap-2 min-h-[40px] px-5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 text-xs font-semibold tracking-tight shadow-lg active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-                  title="Quick QR 명함 패스 즉시 열기 (화면 꺼짐 방지)"
-                  aria-label="Quick QR"
-                >
-                  <QrCode className="w-4 h-4 stroke-[2] shrink-0" />
-                  <span>Quick QR</span>
-                </button>
-              )}
+        <div
+          role="toolbar"
+          aria-label="내 명함 빠른 작업"
+          className="w-full flex items-center justify-center gap-1.5 sm:gap-2.5 mt-4 px-2"
+        >
+          <button
+            type="button"
+            onClick={() => {
+              triggerTactileHaptic(6);
+              if (onOpenQuickQr) {
+                onOpenQuickQr(activeCard);
+              } else {
+                onOpenShare(activeCard);
+              }
+            }}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white/65 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/25"
+            title="Quick QR"
+            aria-label="Quick QR"
+          >
+            <QrCode className="w-4 h-4 stroke-[1.75]" />
+          </button>
 
-              {onOpenNfc && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerTactileHaptic(6);
-                    onOpenNfc(activeCard);
-                  }}
-                  className="inline-flex items-center justify-center gap-2 min-h-[40px] px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-white text-xs font-semibold tracking-tight shadow-lg active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-                  title="Web NFC로 가까운 기기 또는 NFC 태그에 명함 전송"
-                  aria-label="NFC 전송"
-                >
-                  <Nfc className="w-4 h-4 stroke-[1.9] shrink-0" />
-                  <span>NFC 전송</span>
-                </button>
-              )}
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              triggerTactileHaptic(6);
+              if (onOpenNfc) {
+                onOpenNfc(activeCard);
+              } else {
+                onOpenShare(activeCard);
+              }
+            }}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white/65 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/25"
+            title="NFC 전송"
+            aria-label="NFC 전송"
+          >
+            <Nfc className="w-4 h-4 stroke-[1.75]" />
+          </button>
 
-          <div className="w-full flex justify-center min-h-[38px]">
-            <ActionButtons
-              data={activeCard.data}
-              onOpenEdit={() => onOpenEdit && onOpenEdit(activeCard)}
-              onOpenShare={() => onOpenShare(activeCard)}
-              onDelete={onDeleteCard ? () => onDeleteCard(activeCard) : undefined}
-              isPhotoCard={activeCard.isPhotoCard || activeCard.creation_mode === 'photo'}
-              orientation={orientation}
-              onToggleOrientation={() => setOrientation(prev => prev === 'portrait' ? 'landscape' : 'portrait')}
-            />
-          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              triggerTactileHaptic(6);
+              const targetUrl = getCardShareUrl(activeCard);
+              const displayName = activeCard.data.name || activeCard.data.nameKr;
+              const displayOrg = activeCard.data.organizationKr || activeCard.data.organization;
+              const displayTitle = activeCard.data.titleKr || activeCard.data.title;
+              await shareOrCopyLink({
+                title: displayOrg ? `${displayName} — ${displayOrg}` : displayName,
+                text: [displayOrg, displayTitle, displayName, '디지털 명함']
+                  .filter(Boolean)
+                  .join(' '),
+                url: targetUrl,
+                onCopied: () => onShowToast?.('명함 링크가 클립보드에 복사되었습니다.'),
+                onCopyError: () => onShowToast?.('명함 공유에 실패했습니다.'),
+              });
+            }}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white/65 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/25"
+            title="공유하기"
+            aria-label="공유하기"
+          >
+            <Share2 className="w-4 h-4 stroke-[1.75]" />
+          </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              triggerTactileHaptic(6);
+              const targetUrl = getCardShareUrl(activeCard);
+              try {
+                await navigator.clipboard.writeText(targetUrl);
+                setCopiedCardId(activeCard.id);
+                if (copyTimerRef.current !== null) {
+                  window.clearTimeout(copyTimerRef.current);
+                }
+                copyTimerRef.current = window.setTimeout(() => {
+                  setCopiedCardId(null);
+                }, 2000);
+                onShowToast?.('명함 웹 링크가 복사되었습니다.');
+              } catch {
+                onShowToast?.('링크 복사에 실패했습니다.');
+              }
+            }}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white/65 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/25"
+            title="링크 복사"
+            aria-label="링크 복사"
+          >
+            {copiedCardId === activeCard.id ? (
+              <Check className="w-4 h-4 stroke-[2] text-emerald-400" />
+            ) : (
+              <Link2 className="w-4 h-4 stroke-[1.75]" />
+            )}
+          </button>
+
+          <span className="border-r border-white/10 h-3.5 mx-0.5 self-center" aria-hidden="true" />
+
+          <button
+            type="button"
+            onClick={() => onOpenEdit?.(activeCard)}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white/65 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/25"
+            title="내 명함 편집"
+            aria-label="내 명함 편집"
+          >
+            <Edit3 className="w-4 h-4 stroke-[1.75]" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (onOpenPrint) {
+                onOpenPrint(activeCard);
+              } else {
+                onOpenShare(activeCard);
+              }
+            }}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white/65 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/25"
+            title="인쇄 · PDF"
+            aria-label="인쇄 · PDF"
+          >
+            <Printer className="w-4 h-4 stroke-[1.75]" />
+          </button>
         </div>
       )}
     </div>
