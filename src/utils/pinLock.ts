@@ -194,3 +194,34 @@ export function setSessionLocked(locked: boolean): void {
 }
 
 export const setSessionLockState = setSessionLocked;
+
+export const LAZY_PIN_DISMISSED_KEY = 'lazy_pin_dismissed';
+
+/**
+ * Persists dismissal of the lazy first-card PIN setup prompt.
+ */
+export function markLazyPinDismissed(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(LAZY_PIN_DISMISSED_KEY, 'true');
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
+/**
+ * Checks whether the lazy PIN setup prompt should trigger after saving a user's first card.
+ */
+export function isLazyPinPromptEligible(
+  isFirstEverCard: boolean,
+  isPinConfigured: boolean
+): boolean {
+  if (!isFirstEverCard || isPinConfigured || typeof window === 'undefined') {
+    return false;
+  }
+  try {
+    return localStorage.getItem(LAZY_PIN_DISMISSED_KEY) !== 'true';
+  } catch {
+    return false;
+  }
+}

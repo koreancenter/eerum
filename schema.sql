@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS cards (
     slug TEXT NOT NULL UNIQUE,
     custom_domain TEXT UNIQUE,
     owner_key TEXT,
+    owner_key_hash TEXT,
     owner_email TEXT,
     creation_mode TEXT NOT NULL DEFAULT 'template' CHECK (creation_mode IN ('template', 'custom_html', 'photo')),
     theme TEXT NOT NULL DEFAULT 'pure_white',
@@ -20,6 +21,7 @@ CREATE TABLE IF NOT EXISTS cards (
     view_count INTEGER NOT NULL DEFAULT 0 CHECK (view_count >= 0),
     notes TEXT,
     data TEXT NOT NULL DEFAULT '{}',
+    extra_json TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -28,6 +30,7 @@ CREATE TABLE IF NOT EXISTS cards (
 CREATE INDEX IF NOT EXISTS idx_cards_slug ON cards(slug);
 CREATE INDEX IF NOT EXISTS idx_cards_custom_domain ON cards(custom_domain);
 CREATE INDEX IF NOT EXISTS idx_cards_owner_key ON cards(owner_key);
+CREATE INDEX IF NOT EXISTS idx_cards_owner_key_hash ON cards(owner_key_hash);
 CREATE INDEX IF NOT EXISTS idx_cards_owner_email ON cards(owner_email);
 CREATE INDEX IF NOT EXISTS idx_cards_updated_at ON cards(updated_at DESC);
 

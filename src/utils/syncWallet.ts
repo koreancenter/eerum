@@ -67,3 +67,78 @@ export async function pushWalletToEdge(cards: StoredCard[]): Promise<void> {
     clearTimeout(timeoutId);
   }
 }
+
+export interface PublishCardResult {
+  ok: boolean;
+  forbidden?: boolean;
+  ownerKey?: string;
+  id?: string;
+  slug?: string;
+  error?: string;
+}
+
+/**
+ * Publishes or updates a personal public card (`isMyCard === true` with a `slug`)
+ * to `/api/cards`, sending the card's secret `ownerKey` in both the `X-Owner-Key` header
+ * and JSON payload for SHA-256 ownership verification.
+ */
+export async function publishPublicCardToEdge(
+  card: StoredCard
+): Promise<PublishCardResult> {
+  if (!card?.isMyCard || !card.slug) {
+    return { ok: false, error: 'Not a public personal card' };
+  }
+
+  const ownerKey = (card.ownerKey || card.owner_key || '').trim();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    };
+    if (ownerKey) {
+      headers['X-Owner-Key'] = ownerKey;
+    }
+
+    const res = await fetch('/api/cards', {
+      method: 'POST',
+      signal: controller.signal,
+      headers,
+      body: JSON.stringify({
+        ...card,
+        ownerKey: ownerKey || undefined,
+        owner_key: ownerKey || undefined,
+      }),
+    });
+    clearTimeout(timeoutId);
+
+    const payload = await res.json().catch(() => null);
+    if (res.status === 403) {
+      return {
+        ok: false,
+        forbidden: true,
+        error: payload?.error || 'Forbidden: invalid ownerKey for slug',
+      };
+    }
+
+    if (!res.ok || !payload?.success) {
+      return {
+        ok: false,
+        error: payload?.error || `HTTP ${res.status}`,
+      };
+    }
+
+    return {
+      ok: true,
+      id: payload.id,
+      slug: payload.slug,
+      ownerKey: payload.ownerKey || ownerKey || undefined,
+    };
+  } catch {
+    clearTimeout(timeoutId);
+    // Quiet local-first fallback when offline
+    return { ok: false, error: 'Network unavailable' };
+  }
+}

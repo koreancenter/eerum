@@ -318,8 +318,8 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                 onClick={() => fileInputRef.current?.click()}
                 className={`relative flex flex-col items-center justify-center p-6 sm:p-8 rounded-2xl border-2 border-dashed transition-all cursor-pointer ${
                   isDragging
-                    ? 'border-white bg-white/10 text-white'
-                    : 'border-white/15 hover:border-white/30 bg-white/[0.02] hover:bg-white/[0.04]'
+                    ? 'border-[var(--app-accent)] bg-[var(--app-highlight)]/35 text-[var(--app-text)]'
+                    : 'border-[var(--app-border)] hover:border-[var(--app-accent)]/60 bg-[var(--app-surface-subtle)]/60 hover:bg-[var(--app-surface-subtle)]'
                 }`}
               >
                 <input
@@ -329,30 +329,30 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                   className="hidden"
                   onChange={(e) => handleFileUpload(e.target.files)}
                 />
-                <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center mb-3">
-                  <Upload className="w-5 h-5 text-white" />
+                <div className="w-12 h-12 rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] flex items-center justify-center mb-3 shadow-xs">
+                  <Upload className="w-5 h-5 text-[var(--app-text)]" />
                 </div>
-                <h3 className="text-sm font-semibold text-white mb-1">
+                <h3 className="text-sm font-semibold text-[var(--app-text)] mb-1">
                   vCard (.vcf) 파일 업로드
                 </h3>
-                <p className="text-xs text-zinc-400 text-center max-w-sm">
-                  스마트폰 주소록이나 연락처 앱에서 내보낸 <code className="text-zinc-200">.vcf</code> 파일을 끌어다 놓거나 클릭하여 선택하세요.
+                <p className="text-xs text-[var(--app-text-muted)] text-center max-w-sm">
+                  스마트폰 주소록이나 연락처 앱에서 내보낸 <code className="text-[var(--app-text)] font-medium">.vcf</code> 파일을 끌어다 놓거나 클릭하여 선택하세요.
                 </p>
-                <span className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-[11px] text-zinc-300 font-medium">
-                  <FileText className="w-3 h-3 text-zinc-400" /> 단일 또는 수백 건 대량 vCard 지원
+                <span className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--app-surface)] border border-[var(--app-border)] text-[11px] text-[var(--app-text-muted)] font-medium">
+                  <FileText className="w-3 h-3 text-[var(--app-text-muted)]" /> 단일 또는 수백 건 대량 vCard 지원
                 </span>
               </div>
 
               {/* Other Options Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Option B: Native Contact Picker */}
-                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/10 flex flex-col justify-between">
+                <div className="p-4 rounded-xl bg-[var(--app-surface-subtle)]/60 border border-[var(--app-border)] flex flex-col justify-between">
                   <div>
                     <div className="flex items-center gap-2 mb-1.5">
-                      <Smartphone className="w-4 h-4 text-white" />
-                      <h4 className="text-xs font-semibold text-white">기기 주소록 선택</h4>
+                      <Smartphone className="w-4 h-4 text-[var(--app-text)]" />
+                      <h4 className="text-xs font-semibold text-[var(--app-text)]">기기 주소록 선택</h4>
                     </div>
-                    <p className="text-[11px] text-zinc-400 leading-relaxed">
+                    <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
                       스마트폰 브라우저(Android Chrome 등)에서 기기에 저장된 연락처를 직접 선택합니다.
                     </p>
                   </div>
@@ -362,8 +362,8 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                     disabled={!isNativeContactsSupported || isProcessing}
                     className={`mt-3 w-full py-2 px-3 rounded-lg text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                       isNativeContactsSupported
-                        ? 'bg-white/10 hover:bg-white/20 text-white'
-                        : 'bg-white/5 text-zinc-500 cursor-not-allowed'
+                        ? 'bg-[var(--app-surface)] hover:bg-[var(--app-border)] border border-[var(--app-border)] text-[var(--app-text)]'
+                        : 'bg-[var(--app-surface-subtle)] text-[var(--app-text-muted)] opacity-60 cursor-not-allowed'
                     }`}
                   >
                     <span>
@@ -375,7 +375,7 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                 </div>
 
                 {/* Option C: Google Contacts OAuth */}
-                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/10 flex flex-col justify-between">
+                <div className="p-4 rounded-xl bg-[var(--app-surface-subtle)]/60 border border-[var(--app-border)] flex flex-col justify-between">
                   <div>
                     <div className="flex items-center gap-2 mb-1.5">
                       <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -396,17 +396,17 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                           d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                         />
                       </svg>
-                      <h4 className="text-xs font-semibold text-white">Google 주소록 연동</h4>
+                      <h4 className="text-xs font-semibold text-[var(--app-text)]">Google 주소록 연동</h4>
                     </div>
-                    <p className="text-[11px] text-zinc-400 leading-relaxed">
-                      Google People API (<code className="text-zinc-300">contacts.readonly</code>) 주소록을 동기화합니다.
+                    <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
+                      Google People API (<code className="text-[var(--app-text)]">contacts.readonly</code>) 주소록을 동기화합니다.
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={handleGoogleContactsSync}
                     disabled={googleOauthStatus === 'authorizing'}
-                    className="mt-3 w-full py-2 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    className="mt-3 w-full py-2 px-3 rounded-lg bg-[var(--app-surface)] hover:bg-[var(--app-border)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <span>{googleOauthStatus === 'authorizing' ? '연동 확인 중...' : 'Google 주소록 가져오기'}</span>
                   </button>
@@ -414,14 +414,14 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
               </div>
 
               {/* Sample Test Data Bar */}
-              <div className="pt-2 flex items-center justify-between border-t border-white/5">
-                <span className="text-[11px] text-zinc-500">
+              <div className="pt-2 flex items-center justify-between border-t border-[var(--app-border)]">
+                <span className="text-[11px] text-[var(--app-text-muted)]">
                   준비된 파일이 없으신가요?
                 </span>
                 <button
                   type="button"
                   onClick={handleLoadSample}
-                  className="text-xs text-zinc-300 hover:text-white inline-flex items-center px-2.5 py-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                  className="text-xs text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] inline-flex items-center px-2.5 py-1 rounded-lg transition-colors cursor-pointer font-medium"
                 >
                   <span>테스트용 샘플 vCard 불러오기</span>
                 </button>
@@ -431,17 +431,17 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
             /* ================= PARSED CONTACTS PREVIEW & BULK SELECT ================= */
             <div className="space-y-3.5">
               {/* Summary & Filter Bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/10 text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 p-3 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-xs">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-white">
+                  <span className="font-semibold text-[var(--app-text)]">
                     {contacts.length}개의 연락처 발견
                   </span>
-                  <span className="text-zinc-400">·</span>
-                  <span className="text-zinc-300 font-mono">
+                  <span className="text-[var(--app-text-muted)]">·</span>
+                  <span className="text-[var(--app-text-muted)] font-mono">
                     {selectedIds.size}개 선택됨
                   </span>
                   {duplicateCount > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[11px] font-medium inline-flex items-center gap-1">
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-700 dark:text-amber-300 text-[11px] font-medium inline-flex items-center gap-1">
                       <AlertTriangle className="w-3 h-3" />
                       중복 {duplicateCount}개
                     </span>
@@ -452,7 +452,7 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                   <button
                     type="button"
                     onClick={handleToggleSelectAll}
-                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer text-[11px]"
+                    className="px-2.5 py-1 rounded-lg bg-[var(--app-surface)] hover:bg-[var(--app-border)] border border-[var(--app-border)] text-[var(--app-text)] transition-colors cursor-pointer text-[11px]"
                   >
                     {selectedIds.size === contacts.length ? '전체 해제' : '전체 선택'}
                   </button>
@@ -460,7 +460,7 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                     <button
                       type="button"
                       onClick={handleSelectNonDuplicatesOnly}
-                      className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 transition-colors cursor-pointer text-[11px]"
+                      className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 transition-colors cursor-pointer text-[11px] font-medium"
                     >
                       중복 제외 선택
                     </button>
@@ -471,7 +471,7 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                       setContacts([]);
                       setSelectedIds(new Set());
                     }}
-                    className="px-2 py-1 rounded-lg text-zinc-400 hover:text-white transition-colors cursor-pointer text-[11px] inline-flex items-center gap-1"
+                    className="px-2 py-1 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-colors cursor-pointer text-[11px] inline-flex items-center gap-1"
                     title="다시 선택"
                   >
                     <RotateCcw className="w-3 h-3" />
@@ -482,14 +482,14 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
 
               {/* Target Category Select */}
               <div className="flex items-center justify-between px-1 text-xs">
-                <label htmlFor="import-target-category" className="text-zinc-400">
+                <label htmlFor="import-target-category" className="text-[var(--app-text-muted)]">
                   저장할 보관함 카테고리:
                 </label>
                 <select
                   id="import-target-category"
                   value={targetCategory}
                   onChange={(e) => setTargetCategory(e.target.value)}
-                  className="px-3 py-1.5 rounded-xl bg-[#18181B] border border-white/15 text-white text-xs focus:outline-none focus:ring-1 focus:ring-white/30 cursor-pointer"
+                  className="px-3 py-1.5 rounded-xl bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] cursor-pointer"
                 >
                   {categories
                     .filter((c) => c !== '전체')
@@ -505,9 +505,9 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
               </div>
 
               {/* Scrollable Contacts Table / List */}
-              <div className="border border-white/10 rounded-xl overflow-hidden bg-black/30 max-h-[380px] overflow-y-auto">
+              <div className="border border-[var(--app-border)] rounded-xl overflow-hidden bg-[var(--app-bg)] max-h-[380px] overflow-y-auto">
                 <table className="w-full text-left text-xs border-collapse">
-                  <thead className="sticky top-0 bg-[#18181B] border-b border-white/10 text-zinc-400 text-[11px] uppercase tracking-wider z-10">
+                  <thead className="sticky top-0 bg-[var(--app-surface-subtle)] border-b border-[var(--app-border)] text-[var(--app-text-muted)] text-[11px] uppercase tracking-wider z-10">
                     <tr>
                       <th className="py-2.5 px-3 w-10 text-center">
                         <button
@@ -517,9 +517,9 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                           className="cursor-pointer"
                         >
                           {selectedIds.size === contacts.length && contacts.length > 0 ? (
-                            <CheckSquare className="w-4 h-4 text-white" />
+                            <CheckSquare className="w-4 h-4 text-[var(--app-accent)]" />
                           ) : (
-                            <Square className="w-4 h-4 text-zinc-500" />
+                            <Square className="w-4 h-4 text-[var(--app-text-muted)]" />
                           )}
                         </button>
                       </th>
@@ -529,7 +529,7 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                       <th className="py-2.5 px-3 font-medium hidden md:table-cell">이메일</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
+                  <tbody className="divide-y divide-[var(--app-border)]">
                     {contacts.map((contact) => {
                       const isSelected = selectedIds.has(contact.id);
                       return (
@@ -538,8 +538,8 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                           onClick={() => handleToggleItem(contact.id)}
                           className={`cursor-pointer transition-colors ${
                             isSelected
-                              ? 'bg-white/[0.06] hover:bg-white/[0.08]'
-                              : 'hover:bg-white/[0.02]'
+                              ? 'bg-[var(--app-highlight)]/45 hover:bg-[var(--app-highlight)]/60'
+                              : 'hover:bg-[var(--app-surface-subtle)]/70'
                           }`}
                         >
                           <td className="py-2.5 px-3 text-center">
@@ -547,36 +547,36 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => handleToggleItem(contact.id)}
-                              className="accent-white rounded cursor-pointer"
+                              className="accent-[var(--app-accent)] rounded cursor-pointer"
                               onClick={(e) => e.stopPropagation()}
                             />
                           </td>
                           <td className="py-2.5 px-3">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-semibold text-white">
+                              <span className="font-semibold text-[var(--app-text)]">
                                 {contact.name}
                               </span>
                               {contact.isDuplicate && (
                                 <span
-                                  className="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                  className="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/35"
                                   title={contact.duplicateReason}
                                 >
                                   이미 보관됨
                                 </span>
                               )}
                             </div>
-                            <div className="text-[11px] text-zinc-400 sm:hidden">
+                            <div className="text-[11px] text-[var(--app-text-muted)] sm:hidden">
                               {[contact.organization, contact.title].filter(Boolean).join(' · ')}
                             </div>
                           </td>
-                          <td className="py-2.5 px-3 text-zinc-300 hidden sm:table-cell">
+                          <td className="py-2.5 px-3 text-[var(--app-text)] hidden sm:table-cell">
                             <div>{contact.organization || '-'}</div>
-                            <div className="text-[11px] text-zinc-400">{contact.title}</div>
+                            <div className="text-[11px] text-[var(--app-text-muted)]">{contact.title}</div>
                           </td>
-                          <td className="py-2.5 px-3 font-mono text-zinc-300 text-[11px]">
+                          <td className="py-2.5 px-3 font-mono text-[var(--app-text)] text-[11px]">
                             {contact.phone || '-'}
                           </td>
-                          <td className="py-2.5 px-3 text-zinc-400 text-[11px] hidden md:table-cell truncate max-w-[150px]">
+                          <td className="py-2.5 px-3 text-[var(--app-text-muted)] text-[11px] hidden md:table-cell truncate max-w-[150px]">
                             {contact.email || '-'}
                           </td>
                         </tr>
@@ -590,11 +590,11 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-t border-white/10 bg-[#0A0A0B]">
+        <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-t border-[var(--app-border)] bg-[var(--app-bg)]">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs text-zinc-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+            className="px-4 py-2 rounded-xl text-xs text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
           >
             취소
           </button>
@@ -606,8 +606,8 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
               disabled={selectedIds.size === 0}
               className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer ${
                 selectedIds.size > 0
-                  ? 'bg-white hover:bg-zinc-200 text-neutral-950 active:scale-95 shadow-md'
-                  : 'bg-white/10 text-zinc-500 cursor-not-allowed'
+                  ? 'bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] active:scale-95 shadow-md'
+                  : 'bg-[var(--app-surface-subtle)] text-[var(--app-text-muted)] opacity-60 cursor-not-allowed'
               }`}
             >
               <Check className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -627,20 +627,20 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-label="연락처 가져오기 모달"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-[var(--app-overlay)] backdrop-blur-md animate-in fade-in duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative w-full max-w-2xl max-h-[92vh] flex flex-col rounded-2xl bg-[#121214] border border-white/10 shadow-2xl text-zinc-200 overflow-hidden">
+      <div className="relative w-full max-w-2xl max-h-[92vh] flex flex-col rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-2xl text-[var(--app-text)] overflow-hidden">
         {/* Modal Header */}
-        <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-white/10">
-          <h2 className="text-sm sm:text-base font-semibold text-white tracking-tight">
+        <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-[var(--app-border)] bg-[var(--app-bg)]">
+          <h2 className="text-sm sm:text-base font-semibold text-[var(--app-text)] tracking-tight">
             연락처 대량 가져오기
           </h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
             aria-label="닫기"
           >
             <X className="w-4 h-4" />

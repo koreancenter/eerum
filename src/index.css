@@ -1,4 +1,101 @@
 @import "tailwindcss";
+@custom-variant dark (&:where([data-app-theme="obsidian_vault"], [data-app-theme="obsidian_vault"] *));
+
+:root,
+[data-app-theme="editorial_cream"] {
+  color-scheme: light;
+  --app-bg: #FAF7F2;
+  --app-surface: #FFFFFF;
+  --app-surface-subtle: #F3EFE8;
+  --app-text: #1C1B18;
+  --app-text-muted: #6E6A63;
+  --app-border: rgba(28, 27, 24, 0.10);
+  --app-accent: #D95D39;
+  --app-accent-fg: #FFFFFF;
+  --app-highlight: #F2E2CE;
+  --app-highlight-fg: #1C1B18;
+  --app-shadow: 0 8px 24px -6px rgba(28, 27, 24, 0.08);
+  --app-header-bg: rgba(250, 247, 242, 0.88);
+  --app-overlay: rgba(28, 27, 24, 0.45);
+  --app-scrollbar-thumb: rgba(28, 27, 24, 0.18);
+  --app-scrollbar-thumb-hover: rgba(28, 27, 24, 0.34);
+}
+
+[data-app-theme="pop_vermilion"] {
+  color-scheme: light;
+  --app-bg: #FFFDF5;
+  --app-surface: #FFFFFF;
+  --app-surface-subtle: #FFF6DB;
+  --app-text: #18181B;
+  --app-text-muted: #52525B;
+  --app-border: rgba(24, 24, 27, 0.10);
+  --app-accent: #E63946;
+  --app-accent-fg: #FFFFFF;
+  --app-highlight: #FFB703;
+  --app-highlight-fg: #18181B;
+  --app-shadow: 0 8px 24px -6px rgba(230, 57, 70, 0.10);
+  --app-header-bg: rgba(255, 253, 245, 0.88);
+  --app-overlay: rgba(24, 24, 27, 0.45);
+  --app-scrollbar-thumb: rgba(24, 24, 27, 0.18);
+  --app-scrollbar-thumb-hover: rgba(24, 24, 27, 0.34);
+}
+
+[data-app-theme="cobalt_citrus"] {
+  color-scheme: light;
+  --app-bg: #F6F9FF;
+  --app-surface: #FFFFFF;
+  --app-surface-subtle: #EBF2FF;
+  --app-text: #0F172A;
+  --app-text-muted: #475569;
+  --app-border: rgba(15, 23, 42, 0.10);
+  --app-accent: #1D4ED8;
+  --app-accent-fg: #FFFFFF;
+  --app-highlight: #FACC15;
+  --app-highlight-fg: #0F172A;
+  --app-shadow: 0 8px 24px -6px rgba(29, 78, 216, 0.10);
+  --app-header-bg: rgba(246, 249, 255, 0.88);
+  --app-overlay: rgba(15, 23, 42, 0.45);
+  --app-scrollbar-thumb: rgba(15, 23, 42, 0.18);
+  --app-scrollbar-thumb-hover: rgba(15, 23, 42, 0.34);
+}
+
+[data-app-theme="bottega_sage"] {
+  color-scheme: light;
+  --app-bg: #F3F5F1;
+  --app-surface: #FCFDFB;
+  --app-surface-subtle: #E7ECE4;
+  --app-text: #1A332A;
+  --app-text-muted: #4D665C;
+  --app-border: rgba(26, 51, 42, 0.11);
+  --app-accent: #1E3A2F;
+  --app-accent-fg: #FCFDFB;
+  --app-highlight: #E2D4B7;
+  --app-highlight-fg: #1A332A;
+  --app-shadow: 0 8px 24px -6px rgba(26, 51, 42, 0.08);
+  --app-header-bg: rgba(243, 245, 241, 0.88);
+  --app-overlay: rgba(26, 51, 42, 0.45);
+  --app-scrollbar-thumb: rgba(26, 51, 42, 0.20);
+  --app-scrollbar-thumb-hover: rgba(26, 51, 42, 0.36);
+}
+
+[data-app-theme="obsidian_vault"] {
+  color-scheme: dark;
+  --app-bg: #0A0A0B;
+  --app-surface: #121214;
+  --app-surface-subtle: rgba(255, 255, 255, 0.05);
+  --app-text: #F5F5F7;
+  --app-text-muted: #A1A1AA;
+  --app-border: rgba(255, 255, 255, 0.10);
+  --app-accent: #FFFFFF;
+  --app-accent-fg: #0A0A0B;
+  --app-highlight: rgba(255, 255, 255, 0.12);
+  --app-highlight-fg: #FFFFFF;
+  --app-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.6);
+  --app-header-bg: rgba(10, 10, 11, 0.90);
+  --app-overlay: rgba(0, 0, 0, 0.80);
+  --app-scrollbar-thumb: rgba(255, 255, 255, 0.15);
+  --app-scrollbar-thumb-hover: rgba(255, 255, 255, 0.35);
+}
 
 :root {
   --app-vh: 100vh;
@@ -7,6 +104,47 @@
   :root {
     --app-vh: 100dvh;
   }
+}
+
+/* ===================================================
+   CARD EDITOR MODAL — HIGH-CONTRAST LIGHT & DARK TOKENS
+   =================================================== */
+.CardEditorModal,
+.CardEditorPreviewDialog {
+  --editor-text: var(--app-text);
+  --editor-section-title: var(--app-text);
+  --editor-label: color-mix(in srgb, var(--app-text) 88%, transparent);
+  --editor-muted: color-mix(in srgb, var(--app-text) 72%, transparent);
+  --editor-placeholder: color-mix(in srgb, var(--app-text) 56%, transparent);
+  --editor-input-bg: var(--app-surface-subtle);
+  --editor-input-bg-focus: #FFFFFF;
+  --editor-input-border: color-mix(in srgb, var(--app-text) 24%, transparent);
+  --editor-input-border-hover: color-mix(in srgb, var(--app-text) 42%, transparent);
+  --editor-control-bg: var(--app-surface-subtle);
+  --editor-control-border: color-mix(in srgb, var(--app-text) 22%, transparent);
+  --editor-segment-track: color-mix(in srgb, var(--app-text) 6%, var(--app-surface-subtle));
+  --editor-divider: color-mix(in srgb, var(--app-text) 16%, transparent);
+  --editor-checkbox-border: color-mix(in srgb, var(--app-text) 42%, transparent);
+  --editor-wire-sub: color-mix(in srgb, var(--app-text) 34%, transparent);
+}
+
+[data-app-theme="obsidian_vault"] .CardEditorModal,
+[data-app-theme="obsidian_vault"] .CardEditorPreviewDialog {
+  --editor-text: #FFFFFF;
+  --editor-section-title: #F7F7FA;
+  --editor-label: #E4E4EC;
+  --editor-muted: #CBCBD6;
+  --editor-placeholder: #A2A2B0;
+  --editor-input-bg: rgba(255, 255, 255, 0.08);
+  --editor-input-bg-focus: rgba(255, 255, 255, 0.13);
+  --editor-input-border: rgba(255, 255, 255, 0.24);
+  --editor-input-border-hover: rgba(255, 255, 255, 0.44);
+  --editor-control-bg: rgba(255, 255, 255, 0.08);
+  --editor-control-border: rgba(255, 255, 255, 0.24);
+  --editor-segment-track: rgba(255, 255, 255, 0.07);
+  --editor-divider: rgba(255, 255, 255, 0.16);
+  --editor-checkbox-border: rgba(255, 255, 255, 0.48);
+  --editor-wire-sub: rgba(255, 255, 255, 0.36);
 }
 
 @layer base {
@@ -18,6 +156,8 @@
     height: 100%;
     margin: 0;
     padding: 0;
+    background-color: var(--app-bg);
+    color: var(--app-text);
   }
 
   body {
@@ -35,7 +175,7 @@
     transition: none !important;
   }
 
-  /* Luxury Dark Scrollbar */
+  /* Theme-aware Scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -44,15 +184,15 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--app-scrollbar-thumb);
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.35);
+    background: var(--app-scrollbar-thumb-hover);
   }
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+    scrollbar-color: var(--app-scrollbar-thumb) transparent;
   }
 }
 

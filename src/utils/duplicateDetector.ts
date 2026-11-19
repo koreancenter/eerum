@@ -348,16 +348,45 @@ export function buildMergedVaultCard(
       ? notesOverride.trim()
       : mergeDuplicateNotes(primary, duplicates);
 
+  const mergedMetAt =
+    (primary.metAt || '').trim() ||
+    duplicates.map((d) => (d.metAt || '').trim()).find(Boolean) ||
+    undefined;
+
+  const mergedMetLocation =
+    (primary.metLocation || '').trim() ||
+    duplicates.map((d) => (d.metLocation || '').trim()).find(Boolean) ||
+    undefined;
+
+  const totalInteractions = [primary, ...duplicates].reduce(
+    (sum, card) =>
+      sum +
+      (typeof card.interactionCount === 'number' && Number.isFinite(card.interactionCount)
+        ? Math.max(0, Math.floor(card.interactionCount))
+        : 0),
+    0
+  );
+  const latestInteractedAt = [primary, ...duplicates]
+    .map((card) => (typeof card.lastInteractedAt === 'string' ? card.lastInteractedAt.trim() : ''))
+    .filter(Boolean)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+
   // Retain Primary Card's mode, theme, and front/back photos strictly
   const mergedCard: StoredCard = {
     ...primary,
     isMyCard: false,
     isDefault: false,
+    ownerKey: undefined,
     owner_key: undefined,
     slug: undefined,
     customDomain: undefined,
     category: mergedCategory,
+    interactionCount: totalInteractions > 0 ? totalInteractions : undefined,
+    lastInteractedAt: latestInteractedAt || undefined,
     notes: mergedNotes,
+    memo: mergedNotes || undefined,
+    metAt: mergedMetAt,
+    metLocation: mergedMetLocation,
     updatedAt: new Date().toISOString(),
     data: mergedData,
     card_features: primary.card_features

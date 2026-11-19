@@ -2,6 +2,7 @@ import React from 'react';
 import { CardData, CardOrientation } from '../types/card';
 import { downloadVCard } from '@/utils/cardExporter';
 import { sanitizeExternalUrl } from '@/utils/sanitizeUrl';
+import { shareOrCopyLink } from '@/utils/share';
 import {
   Phone,
   MessageSquare,
@@ -31,6 +32,7 @@ interface ActionButtonsProps {
   hasMemo?: boolean;
   cardUrl?: string;
   onShowToast?: (msg: string) => void;
+  onInteraction?: () => void;
 }
 
 interface ContactChannelItem {
@@ -55,10 +57,11 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   hasMemo = false,
   cardUrl,
   onShowToast,
+  onInteraction,
 }) => {
   const phoneTarget = data.phoneRaw || data.phone?.replace(/[^0-9+]/g, '');
   const iconButtonClass =
-    'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-200 cursor-pointer';
+    'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]';
 
   const safeWebsiteUrl = sanitizeExternalUrl(data.website);
 
@@ -98,6 +101,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 
   // Direct recipient action: download .vcf contact directly without modal
   const handleDownloadContact = () => {
+    onInteraction?.();
     downloadVCard(data);
     if (onShowToast) {
       onShowToast(`${data.name}님의 연락처(vCard)가 다운로드되었습니다.`);
@@ -106,35 +110,18 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 
   // Direct recipient action: share card link via Web Share API or copy URL
   const handleShareCardLink = async () => {
+    onInteraction?.();
     const targetUrl = cardUrl || (typeof window !== 'undefined' ? window.location.href : '');
     const title = `${data.name} — ${data.organization}`;
     const text = `${data.organization} ${data.title} ${data.name} 디지털 명함`;
 
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({
-          title,
-          text,
-          url: targetUrl,
-        });
-        return;
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') return;
-      }
-    }
-
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      try {
-        await navigator.clipboard.writeText(targetUrl);
-        if (onShowToast) {
-          onShowToast('명함 링크가 복사되었습니다.');
-        }
-      } catch {
-        if (onShowToast) {
-          onShowToast('명함 링크 복사에 실패했습니다.');
-        }
-      }
-    }
+    await shareOrCopyLink({
+      title,
+      text,
+      url: targetUrl,
+      onCopied: () => onShowToast?.('명함 링크가 복사되었습니다.'),
+      onCopyError: () => onShowToast?.('명함 링크 복사에 실패했습니다.'),
+    });
   };
 
   return (
@@ -150,6 +137,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           href={href}
           target={external ? '_blank' : undefined}
           rel={external ? 'noopener noreferrer' : undefined}
+          onClick={() => onInteraction?.()}
           className={iconButtonClass}
           title={title}
           aria-label={ariaLabel}
@@ -160,7 +148,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 
       {/* 1px Vertical Divider */}
       {contactChannels.length > 0 && (
-        <span className="border-r border-white/10 h-3.5 mx-1 self-center" />
+        <span className="border-r border-[var(--app-border)] h-3.5 mx-1 self-center" />
       )}
 
       {!isOwner ? (
@@ -207,11 +195,14 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           {onToggleMemo && (
             <button
               type="button"
-              onClick={onToggleMemo}
+              onClick={() => {
+                onInteraction?.();
+                onToggleMemo();
+              }}
               aria-pressed={isMemoOpen}
               className={`relative ${
                 isMemoOpen
-                  ? 'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center bg-white/15 text-white ring-1 ring-white/25 active:scale-95 transition-all duration-200 cursor-pointer'
+                  ? 'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] ring-1 ring-[var(--app-border)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]'
                   : iconButtonClass
               }`}
               title={isMemoOpen ? '개인 메모 닫기' : '개인 메모 열기'}
@@ -221,7 +212,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
               {!isMemoOpen && hasMemo && (
                 <span
                   aria-hidden="true"
-                  className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-400"
+                  className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500"
                 />
               )}
             </button>
@@ -241,7 +232,10 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 
           {/* Share */}
           <button
-            onClick={onOpenShare}
+            onClick={() => {
+              onInteraction?.();
+              onOpenShare();
+            }}
             className={iconButtonClass}
             title="명함 공유 (QR, 링크, 인쇄, HTML 내보내기)"
             aria-label="명함 공유"
@@ -253,7 +247,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           {onDelete && (
             <button
               onClick={onDelete}
-              className={`${iconButtonClass} hover:text-rose-400 hover:bg-rose-500/10 text-white/50`}
+              className={`${iconButtonClass} hover:text-rose-500 hover:bg-rose-500/10`}
               title="내 명함 삭제"
               aria-label="내 명함 삭제"
             >

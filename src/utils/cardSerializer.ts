@@ -255,18 +255,36 @@ export class CardSerializer {
         : `vault-card-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`);
 
     const nowIso = new Date().toISOString();
+    const resolvedMemo = (overrides?.memo ?? overrides?.notes ?? sourceCard.memo ?? sourceCard.notes ?? '').trim();
+    const resolvedMetAt = (overrides?.metAt ?? sourceCard.metAt ?? '').trim();
+    const resolvedMetLocation = (overrides?.metLocation ?? sourceCard.metLocation ?? '').trim();
+    const rawCount = overrides?.interactionCount ?? sourceCard.interactionCount;
+    const resolvedInteractionCount =
+      typeof rawCount === 'number' && Number.isFinite(rawCount) && rawCount > 0
+        ? Math.floor(rawCount)
+        : undefined;
+    const resolvedLastInteractedAt =
+      (overrides?.lastInteractedAt ?? sourceCard.lastInteractedAt ?? '').trim() || undefined;
+
     return {
       ...sourceCard,
       ...overrides,
       id: vaultId,
       isMyCard: false,
       isDefault: false,
+      ownerKey: undefined,
       owner_key: undefined,
       slug: undefined,
       customDomain: undefined,
       category: overrides?.category || sourceCard.category || 'VIP 파트너',
+      interactionCount: resolvedInteractionCount,
+      lastInteractedAt: resolvedLastInteractedAt,
+      notes: resolvedMemo || undefined,
+      memo: resolvedMemo || undefined,
+      metAt: resolvedMetAt || undefined,
+      metLocation: resolvedMetLocation || undefined,
       createdAt: overrides?.createdAt || sourceCard.createdAt || nowDate,
-      created_at: sourceCard.created_at || nowIso,
+      created_at: overrides?.created_at || sourceCard.created_at || nowIso,
       updatedAt: overrides?.updatedAt || nowIso,
       data: {
         ...sourceCard.data,
@@ -303,10 +321,13 @@ export class CardSerializer {
    * Serializes StoredCard to portable JSON envelope
    */
   static toJsonEnvelope(card: StoredCard): string {
+    const safeCard: StoredCard = { ...card };
+    delete safeCard.ownerKey;
+    delete safeCard.owner_key;
     const envelope: CardJsonEnvelope = {
       schemaVersion: '1.0',
       exportedAt: new Date().toISOString(),
-      card,
+      card: safeCard,
     };
     return JSON.stringify(envelope, null, 2);
   }

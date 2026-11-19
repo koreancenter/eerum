@@ -274,16 +274,16 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--app-overlay)] backdrop-blur-md animate-in fade-in duration-200">
       <div 
-        className="relative w-full max-w-xs sm:max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl bg-[#121214] border border-white/10 text-neutral-100 shadow-2xl p-5 sm:p-7 flex flex-col items-center"
+        className="relative w-full max-w-xs sm:max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] shadow-[var(--app-shadow)] p-5 sm:p-7 flex flex-col items-center"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cancel button if allowed */}
         {allowCancel && onClose && (
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+            className="absolute top-4 right-4 p-2 text-[var(--app-text-muted)] hover:text-[var(--app-text)] rounded-full hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
             title="닫기"
           >
             <X className="w-5 h-5" />
@@ -291,10 +291,10 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
         )}
 
         {/* Header Text */}
-        <h3 className="text-lg font-bold text-white mb-1 tracking-tight text-center mt-1">
+        <h3 className="text-lg font-bold text-[var(--app-text)] mb-1 tracking-tight text-center mt-1">
           {title}
         </h3>
-        <p className="text-xs text-zinc-400 mb-5 text-center max-w-[240px] leading-relaxed">
+        <p className="text-xs text-[var(--app-text-muted)] mb-5 text-center max-w-[240px] leading-relaxed">
           {subtitle}
         </p>
 
@@ -303,14 +303,14 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
           isBiometricThresholdExpired() ? (
             <div 
               onClick={() => triggerError('보안 임계치 초과: 7일간 PIN 미입력으로 생체 인증이 만료되었습니다. 4자리 PIN을 입력하세요.')}
-              className="w-full mb-5 py-2 px-3 rounded-2xl bg-[#0A0A0B] border border-zinc-800/80 text-zinc-300 text-xs flex items-center justify-between cursor-pointer hover:bg-white/5 transition-all shadow-sm"
+              className="w-full mb-5 py-2 px-3 rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text-muted)] text-xs flex items-center justify-between cursor-pointer hover:opacity-90 transition-all shadow-sm"
               title="7일 이상 PIN을 입력하지 않아 생체 인증이 무효화되었습니다. 4자리 PIN을 입력해 주세요."
             >
               <div className="flex items-center gap-2">
-                <Fingerprint className="w-4 h-4 text-zinc-400 shrink-0" />
+                <Fingerprint className="w-4 h-4 text-[var(--app-text-muted)] shrink-0" />
                 <span className="text-[11px] font-medium leading-tight">7일 만료: PIN으로 재인증 필요</span>
               </div>
-              <span className="text-[10px] font-bold text-white underline underline-offset-2 shrink-0">
+              <span className="text-[10px] font-bold text-[var(--app-text)] underline underline-offset-2 shrink-0">
                 PIN 입력
               </span>
             </div>
@@ -319,9 +319,9 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
               type="button"
               onClick={triggerBiometricUnlock}
               disabled={isAuthenticatingBio}
-              className="w-full mb-5 py-2.5 px-4 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 hover:border-white/25 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-98 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+              className="w-full mb-5 py-2.5 px-4 rounded-2xl bg-[var(--app-highlight)] hover:opacity-90 border border-[var(--app-border)] text-[var(--app-highlight-fg)] text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-98 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
             >
-              <Fingerprint className="w-4 h-4 text-white shrink-0" />
+              <Fingerprint className="w-4 h-4 shrink-0" />
               <span>생체 인증으로 잠금 해제 ({biometricLabel})</span>
             </button>
           )
@@ -336,10 +336,10 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
                 key={index}
                 className={`w-4 h-4 rounded-full transition-all duration-200 ${
                   isError
-                    ? 'bg-zinc-400 ring-4 ring-white/20'
+                    ? 'bg-rose-500 ring-4 ring-rose-500/20'
                     : isFilled
-                      ? 'bg-white ring-4 ring-white/20 scale-110 shadow-lg shadow-white/20'
-                      : 'bg-white/10 border border-white/20'
+                      ? 'bg-[var(--app-accent)] ring-4 ring-[var(--app-accent)]/20 scale-110 shadow-sm'
+                      : 'bg-[var(--app-surface-subtle)] border border-[var(--app-border)]'
                 }`}
               />
             );
@@ -348,8 +348,8 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
 
         {/* Error message */}
         {errorMessage ? (
-          <div className="flex items-center gap-1.5 text-xs text-zinc-200 mb-4 bg-[#0A0A0B] border border-white/15 px-3 py-1.5 rounded-xl font-medium text-center">
-            <AlertCircle className="w-3.5 h-3.5 shrink-0 text-white" />
+          <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-300 mb-4 bg-rose-500/10 border border-rose-500/25 px-3 py-1.5 rounded-xl font-medium text-center">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
             <span>{errorMessage}</span>
           </div>
         ) : (
@@ -363,7 +363,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
               key={digit}
               type="button"
               onClick={() => handleDigit(digit)}
-              className="h-12 sm:h-14 rounded-2xl bg-[#0A0A0B] hover:bg-white/10 active:bg-white/15 border border-white/10 text-white font-semibold text-lg sm:text-xl tabular-nums transition-all duration-150 active:scale-95 cursor-pointer shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+              className="h-12 sm:h-14 rounded-2xl bg-[var(--app-surface-subtle)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] active:scale-95 border border-[var(--app-border)] text-[var(--app-text)] font-semibold text-lg sm:text-xl tabular-nums transition-all duration-150 cursor-pointer shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
             >
               {digit}
             </button>
@@ -371,7 +371,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
           <button
             type="button"
             onClick={handleBackspace}
-            className="h-12 sm:h-14 rounded-2xl bg-[#0A0A0B] hover:bg-white/10 active:bg-white/15 border border-white/10 text-zinc-300 hover:text-white flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+            className="h-12 sm:h-14 rounded-2xl bg-[var(--app-surface-subtle)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] active:scale-95 border border-[var(--app-border)] text-[var(--app-text-muted)] flex items-center justify-center transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
             title="지우기"
           >
             <Delete className="w-5 h-5" />
@@ -379,14 +379,14 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
           <button
             type="button"
             onClick={() => handleDigit('0')}
-            className="h-12 sm:h-14 rounded-2xl bg-[#0A0A0B] hover:bg-white/10 active:bg-white/15 border border-white/10 text-white font-semibold text-lg sm:text-xl tabular-nums transition-all duration-150 active:scale-95 cursor-pointer shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+            className="h-12 sm:h-14 rounded-2xl bg-[var(--app-surface-subtle)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] active:scale-95 border border-[var(--app-border)] text-[var(--app-text)] font-semibold text-lg sm:text-xl tabular-nums transition-all duration-150 cursor-pointer shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
           >
             0
           </button>
           <button
             type="button"
             onClick={handleClear}
-            className="h-12 sm:h-14 rounded-2xl bg-[#0A0A0B] hover:bg-white/10 active:bg-white/15 border border-white/10 text-zinc-400 hover:text-white text-xs font-semibold uppercase tracking-wider transition-all duration-150 active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+            className="h-12 sm:h-14 rounded-2xl bg-[var(--app-surface-subtle)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] active:scale-95 border border-[var(--app-border)] text-[var(--app-text-muted)] text-xs font-semibold uppercase tracking-wider transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
             title="전체 지우기"
           >
             Clear
@@ -395,18 +395,18 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
 
         {/* Biometrics Setup / Management Section (In Setup / Change mode) */}
         {(mode === 'setup' || mode === 'change') && biometricSupported && (
-          <div className="w-full mt-2 pt-3 border-t border-white/10 flex flex-col items-center">
+          <div className="w-full mt-2 pt-3 border-t border-[var(--app-border)] flex flex-col items-center">
             <div className="flex items-center justify-between w-full text-xs mb-2 px-1">
-              <span className="text-zinc-300 flex items-center gap-1.5 font-medium">
-                <Fingerprint className="w-3.5 h-3.5 text-white" />
+              <span className="text-[var(--app-text-muted)] flex items-center gap-1.5 font-medium">
+                <Fingerprint className="w-3.5 h-3.5 text-[var(--app-text)]" />
                 <span>{biometricLabel} 연동</span>
               </span>
               {biometricRegistered ? (
-                <span className="text-[11px] font-semibold text-white flex items-center gap-1">
+                <span className="text-[11px] font-semibold text-[var(--app-accent)] flex items-center gap-1">
                   <Check className="w-3 h-3" /> 활성화됨
                 </span>
               ) : (
-                <span className="text-[11px] text-zinc-400">미등록</span>
+                <span className="text-[11px] text-[var(--app-text-muted)]">미등록</span>
               )}
             </div>
 
@@ -414,7 +414,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
               <button
                 type="button"
                 onClick={handleRemoveBiometric}
-                className="w-full py-1.5 px-3 rounded-xl bg-[#0A0A0B] hover:bg-white/10 border border-zinc-800/80 text-zinc-400 hover:text-white text-[11px] transition-all cursor-pointer"
+                className="w-full py-1.5 px-3 rounded-xl bg-[var(--app-surface-subtle)] hover:opacity-80 border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] text-[11px] transition-all cursor-pointer"
               >
                 {biometricLabel} 연동 해제
               </button>
@@ -423,7 +423,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
                 type="button"
                 onClick={handleRegisterBiometric}
                 disabled={isAuthenticatingBio}
-                className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-white text-xs font-semibold transition-all cursor-pointer active:scale-98 flex items-center justify-center gap-1.5"
+                className="w-full py-2 px-3 rounded-xl bg-[var(--app-surface-subtle)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-semibold transition-all cursor-pointer active:scale-98 flex items-center justify-center gap-1.5"
               >
                 <Fingerprint className="w-3.5 h-3.5" />
                 <span>생체 인증 등록 ({biometricLabel})</span>
@@ -437,7 +437,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
           <button
             type="button"
             onClick={handleDisableAllSecurity}
-            className="mt-3 text-xs text-zinc-400 hover:text-white underline underline-offset-4 cursor-pointer transition-colors"
+            className="mt-3 text-xs text-[var(--app-text-muted)] hover:text-[var(--app-text)] underline underline-offset-4 cursor-pointer transition-colors"
           >
             PIN 및 생체 인증 잠금 해제 (보안 기능 끄기)
           </button>

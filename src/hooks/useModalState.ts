@@ -2,11 +2,16 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { StoredCard } from '../types/card';
 import type { PinModalMode } from '../components/PinLockModal';
 import type { LegalDocType } from '../components/LegalModal';
+import type { BackupModalTab } from '../components/VaultBackupModal';
+import type { AboutTab } from '../components/AboutModal';
 
 export interface ModalManager {
   // Modal visibility flags
   isShareOpen: boolean;
   isQrOpen: boolean;
+  isQuickQrOpen: boolean;
+  isNfcOpen: boolean;
+  isEmailSignatureOpen: boolean;
   isPrintOpen: boolean;
   isExportOpen: boolean;
   isScanOpen: boolean;
@@ -24,6 +29,10 @@ export interface ModalManager {
   isResetOpen: boolean;
   isFromShare: boolean;
   isImportContactsOpen: boolean;
+  isBackupOpen: boolean;
+  backupInitialTab: BackupModalTab;
+  isAboutOpen: boolean;
+  aboutInitialTab: AboutTab;
 
   // Settings dropdown ref
   settingsMenuRef: React.RefObject<HTMLDivElement | null>;
@@ -33,6 +42,12 @@ export interface ModalManager {
   closeShare: () => void;
   openQr: (fromShare?: boolean) => void;
   closeQr: () => void;
+  openQuickQr: () => void;
+  closeQuickQr: () => void;
+  openNfc: () => void;
+  closeNfc: () => void;
+  openEmailSignature: (fromShare?: boolean) => void;
+  closeEmailSignature: () => void;
   openPrint: (fromShare?: boolean) => void;
   closePrint: () => void;
   openExport: (fromShare?: boolean) => void;
@@ -57,6 +72,10 @@ export interface ModalManager {
   closeLegal: () => void;
   openReset: () => void;
   closeReset: () => void;
+  openBackup: (tab?: BackupModalTab) => void;
+  closeBackup: () => void;
+  openAbout: (tab?: AboutTab) => void;
+  closeAbout: () => void;
   closeAll: () => void;
 }
 
@@ -68,6 +87,9 @@ export interface ModalManager {
 export function useModalState(): ModalManager {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
+  const [isQuickQrOpen, setIsQuickQrOpen] = useState(false);
+  const [isNfcOpen, setIsNfcOpen] = useState(false);
+  const [isEmailSignatureOpen, setIsEmailSignatureOpen] = useState(false);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isScanOpen, setIsScanOpen] = useState(false);
@@ -85,6 +107,10 @@ export function useModalState(): ModalManager {
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [isFromShare, setIsFromShare] = useState(false);
   const [isImportContactsOpen, setIsImportContactsOpen] = useState(false);
+  const [isBackupOpen, setIsBackupOpen] = useState(false);
+  const [backupInitialTab, setBackupInitialTab] = useState<BackupModalTab>('export');
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [aboutInitialTab, setAboutInitialTab] = useState<AboutTab>('philosophy');
 
   const settingsMenuRef = useRef<HTMLDivElement | null>(null);
   const isShareOpenRef = useRef(false);
@@ -128,6 +154,46 @@ export function useModalState(): ModalManager {
 
   const closeQr = useCallback(() => {
     setIsQrOpen(false);
+    if (returnToShareRef.current) {
+      returnToShareRef.current = false;
+      setIsFromShare(false);
+      setIsShareOpen(true);
+    }
+  }, []);
+
+  const openQuickQr = useCallback(() => {
+    returnToShareRef.current = false;
+    setIsFromShare(false);
+    setIsShareOpen(false);
+    setIsQuickQrOpen(true);
+  }, []);
+
+  const closeQuickQr = useCallback(() => {
+    setIsQuickQrOpen(false);
+  }, []);
+
+  const openNfc = useCallback(() => {
+    returnToShareRef.current = false;
+    setIsFromShare(false);
+    setIsShareOpen(false);
+    setIsNfcOpen(true);
+  }, []);
+
+  const closeNfc = useCallback(() => {
+    setIsNfcOpen(false);
+  }, []);
+
+  const openEmailSignature = useCallback((fromShare?: boolean) => {
+    const shouldReturn = Boolean(fromShare || isShareOpenRef.current);
+    returnToShareRef.current = shouldReturn;
+    setIsFromShare(shouldReturn);
+    if (shouldReturn) setIsShareOpen(false);
+    setIsExportOpen(false);
+    setIsEmailSignatureOpen(true);
+  }, []);
+
+  const closeEmailSignature = useCallback(() => {
+    setIsEmailSignatureOpen(false);
     if (returnToShareRef.current) {
       returnToShareRef.current = false;
       setIsFromShare(false);
@@ -213,11 +279,26 @@ export function useModalState(): ModalManager {
   const openReset = useCallback(() => setIsResetOpen(true), []);
   const closeReset = useCallback(() => setIsResetOpen(false), []);
 
+  const openBackup = useCallback((tab: BackupModalTab = 'export') => {
+    setBackupInitialTab(tab);
+    setIsBackupOpen(true);
+  }, []);
+  const closeBackup = useCallback(() => setIsBackupOpen(false), []);
+
+  const openAbout = useCallback((tab: AboutTab = 'philosophy') => {
+    setAboutInitialTab(tab);
+    setIsAboutOpen(true);
+  }, []);
+  const closeAbout = useCallback(() => setIsAboutOpen(false), []);
+
   const closeAll = useCallback(() => {
     returnToShareRef.current = false;
     setIsFromShare(false);
     setIsShareOpen(false);
     setIsQrOpen(false);
+    setIsQuickQrOpen(false);
+    setIsNfcOpen(false);
+    setIsEmailSignatureOpen(false);
     setIsPrintOpen(false);
     setIsExportOpen(false);
     setIsScanOpen(false);
@@ -230,6 +311,8 @@ export function useModalState(): ModalManager {
     setIsLazyPinOpen(false);
     setIsLegalOpen(false);
     setIsResetOpen(false);
+    setIsBackupOpen(false);
+    setIsAboutOpen(false);
     setEditingCard(null);
     setIsCreatingCard(false);
   }, []);
@@ -237,6 +320,9 @@ export function useModalState(): ModalManager {
   return {
     isShareOpen,
     isQrOpen,
+    isQuickQrOpen,
+    isNfcOpen,
+    isEmailSignatureOpen,
     isPrintOpen,
     isExportOpen,
     isScanOpen,
@@ -254,11 +340,21 @@ export function useModalState(): ModalManager {
     legalDocType,
     isResetOpen,
     isFromShare,
+    isBackupOpen,
+    backupInitialTab,
+    isAboutOpen,
+    aboutInitialTab,
     settingsMenuRef,
     openShare,
     closeShare,
     openQr,
     closeQr,
+    openQuickQr,
+    closeQuickQr,
+    openNfc,
+    closeNfc,
+    openEmailSignature,
+    closeEmailSignature,
     openPrint,
     closePrint,
     openExport,
@@ -283,6 +379,10 @@ export function useModalState(): ModalManager {
     closeLegal,
     openReset,
     closeReset,
+    openBackup,
+    closeBackup,
+    openAbout,
+    closeAbout,
     closeAll,
   };
 }

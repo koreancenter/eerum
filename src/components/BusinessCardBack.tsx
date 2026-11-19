@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import QRCode from 'qrcode';
 import { CardData, CardTheme, CardOrientation, CardLayoutType } from '../types/card';
 import { resolveThemeStyles, isVerticalLayout } from '../constants/templates';
+import { deriveCardThemeHarmony } from '../utils/cardThemeHarmony';
 import { SandboxedCardRenderer } from './SandboxedCardRenderer';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { sanitizeExternalUrl } from '../utils/sanitizeUrl';
@@ -33,7 +34,11 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
     [html_back]
   );
 
-  const themeStyles = resolveThemeStyles(theme);
+  const themeStyles = useMemo(() => resolveThemeStyles(theme), [theme]);
+  const themeHarmony = useMemo(
+    () => deriveCardThemeHarmony(themeStyles.accent, themeStyles.isLight, themeStyles.canvasHex),
+    [themeStyles]
+  );
   const isLight = themeStyles.isLight;
   const isVerticalCard = isVerticalLayout(layout_type);
   const isPortrait = isVerticalCard || orientation === 'portrait';
@@ -65,8 +70,11 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
       <div
         className={`relative w-full h-full select-none overflow-hidden rounded-2xl ${
           isPrintPreview || hideBorder ? 'border-0' : 'border border-white/10 shadow-2xl'
-        } bg-[#121214] transition-all duration-300`}
-        style={{ aspectRatio: isPortrait ? '5 / 8' : '9 / 5' }}
+        } bg-[#121214] transition-colors duration-200`}
+        style={{
+          ...themeHarmony.fallbackCssVars,
+          aspectRatio: isPortrait ? '5 / 8' : '9 / 5',
+        }}
       >
         <SandboxedCardRenderer
           html={sanitizedHtmlBack}
@@ -83,8 +91,11 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
       <div
         className={`relative w-full h-full select-none overflow-hidden rounded-2xl ${
           isPrintPreview || hideBorder ? 'border-0' : `border ${themeStyles.border} shadow-2xl`
-        } bg-[#121214] transition-all duration-300`}
-        style={{ aspectRatio: isPortrait ? '5 / 8' : '9 / 5' }}
+        } bg-[#121214] transition-colors duration-200`}
+        style={{
+          ...themeHarmony.fallbackCssVars,
+          aspectRatio: isPortrait ? '5 / 8' : '9 / 5',
+        }}
       >
         <img
           src={backPhotoUrl}
@@ -96,26 +107,19 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
     );
   }
 
-  // Resolve clean Quiet Luxury Main Title & Sub-heading
-  const rawBackTitle = (data.backTitle || '').trim();
-  const isLegacyBackTitle = rawBackTitle === '고구마 AI 스튜디오' || rawBackTitle === 'GOGUMA AI STUDIO';
+  // Resolve clean Quiet Luxury Main Title & Sub-heading (legacy cleanup runs in normalizeStoredCards)
   const mainTitle =
-    (!isLegacyBackTitle && rawBackTitle) ||
+    (data.backTitle || '').trim() ||
     data.organization ||
     data.organizationKr ||
     'GOGUMA KNOWLEDGE OFFICE';
 
   const rawBackSubtitle = (data.backSubtitle || '').trim();
   const rawBackTagline = (data.backTagline || '').trim();
-  const isLegacySub =
-    rawBackSubtitle === 'GOGUMA AI STUDIO' || rawBackSubtitle === 'AI EXPERT GROUP';
-  const isLegacyTag =
-    rawBackTagline === 'AI EXPERT GROUP' || rawBackTagline === 'GOGUMA AI STUDIO';
-
   const rawSubHeading =
-    !isLegacySub && rawBackSubtitle && rawBackSubtitle.toLowerCase() !== mainTitle.trim().toLowerCase()
+    rawBackSubtitle && rawBackSubtitle.toLowerCase() !== mainTitle.trim().toLowerCase()
       ? rawBackSubtitle
-      : !isLegacyTag && rawBackTagline && rawBackTagline.toLowerCase() !== mainTitle.trim().toLowerCase()
+      : rawBackTagline && rawBackTagline.toLowerCase() !== mainTitle.trim().toLowerCase()
         ? rawBackTagline
         : 'KOREAN CENTER GLOBAL NETWORK';
   const subHeading =
@@ -127,9 +131,11 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
     data.addressEn ||
     (data.addressLines && data.addressLines.length > 0 ? data.addressLines.join(', ') : '')
   ).trim();
-  const rawHq = (data.backHqAddress || '').trim();
-  const cleanHq = rawHq === 'Gangnam-gu, Seoul, Republic of Korea' ? '' : rawHq;
-  const hqAddress = rawAddressEn || cleanHq || data.addressKr || '152 Teheran-ro, Gangnam-gu, Seoul';
+  const hqAddress =
+    rawAddressEn ||
+    (data.backHqAddress || '').trim() ||
+    data.addressKr ||
+    '152 Teheran-ro, Gangnam-gu, Seoul';
 
   return (
     <div
@@ -138,9 +144,10 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
           ? 'p-4 sm:p-6'
           : isPrintPreview
             ? 'p-4'
-            : 'p-3.5 sm:p-5 md:p-8'
+            : 'p-2.5 sm:p-5 md:p-8'
       } ${themeStyles.cardBg} ${isPrintPreview || hideBorder ? 'border-0' : `border ${themeStyles.border} shadow-2xl`} transition-colors duration-300 font-sans`}
       style={{
+        ...themeHarmony.fallbackCssVars,
         aspectRatio: isPortrait ? '5 / 8' : '9 / 5',
       }}
     >
@@ -154,48 +161,48 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
       />
 
       {/* Center Statement: Main Title & Sub-Heading */}
-      <div className="relative z-10 my-auto py-2 text-center flex flex-col items-center justify-center space-y-1.5 sm:space-y-2 px-2">
-        <h2 className={`${isPortrait ? 'text-xs sm:text-sm' : 'text-sm sm:text-base md:text-[17px]'} font-semibold tracking-[0.16em] uppercase leading-snug ${themeStyles.textPrimary} break-keep`}>
+      <div className="relative z-10 my-auto py-1 sm:py-2 text-center flex flex-col items-center justify-center space-y-1 sm:space-y-2 px-2">
+        <h2 className={`${isPortrait ? 'text-xs sm:text-sm' : 'text-xs sm:text-base md:text-[17px]'} font-semibold tracking-[0.16em] uppercase leading-snug ${themeStyles.textPrimary} break-keep`}>
           {mainTitle}
         </h2>
         {subHeading && subHeading !== mainTitle && (
-          <p className={`text-[9px] sm:text-[10px] font-normal uppercase tracking-[0.24em] leading-relaxed ${themeStyles.textSecondary} break-keep`}>
+          <p className={`text-[8.5px] sm:text-[10px] font-normal uppercase tracking-[0.2em] sm:tracking-[0.24em] leading-relaxed ${themeStyles.textSecondary} break-keep`}>
             {subHeading}
           </p>
         )}
       </div>
 
       {/* Bottom Bar: QR Code Block cleanly at Bottom-Left, HQ Address at Bottom-Right */}
-      <div className={`relative z-10 flex items-end justify-between gap-3 w-full pt-3 sm:pt-3.5 border-t ${themeStyles.accentHairline} mt-auto`}>
+      <div className={`relative z-10 flex items-end justify-between gap-2 sm:gap-3 w-full pt-2 sm:pt-3.5 border-t ${themeStyles.accentHairline} mt-auto`}>
         {/* Bottom-Left: QR Code Block */}
         {safeWebsiteUrl ? (
           <a
             href={safeWebsiteUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-end gap-2.5 group/qr hover:opacity-85 transition-opacity min-w-0 shrink-0 cursor-pointer"
+            className="flex items-end gap-2 sm:gap-2.5 group/qr hover:opacity-85 transition-opacity min-w-0 shrink-0 cursor-pointer"
             title={data.websiteDisplay ? `${data.websiteDisplay} 바로가기` : '디지털 명함 바로가기'}
             onClick={(e) => e.stopPropagation()}
           >
             {qrSvg && (
               <div
-                className={`w-9 h-9 sm:w-10 sm:h-10 p-1.5 rounded-md bg-[#FAF8F4] border border-[#1C1B1A]/10 flex items-center justify-center shrink-0 [&>svg]:w-full [&>svg]:h-full`}
+                className="w-8 h-8 sm:w-10 sm:h-10 p-1 sm:p-1.5 rounded-md bg-[#FAF8F4] border border-[var(--card-hairline,var(--card-fallback-hairline))] flex items-center justify-center shrink-0 [&>svg]:w-full [&>svg]:h-full"
                 dangerouslySetInnerHTML={{ __html: qrSvg }}
               />
             )}
             {!isPortrait && (
               <div className="text-left leading-tight pb-0.5 min-w-0">
-                <p className={`font-mono text-[9.5px] sm:text-[10px] tracking-tight ${themeStyles.textSecondary} group-hover/qr:underline underline-offset-2 truncate max-w-[155px] sm:max-w-[195px]`}>
+                <p className={`font-mono text-[8.5px] sm:text-[10px] tracking-tight ${themeStyles.textSecondary} group-hover/qr:underline underline-offset-2 truncate max-w-[120px] sm:max-w-[195px]`}>
                   {data.websiteDisplay}
                 </p>
               </div>
             )}
           </a>
         ) : (
-          <div className="flex items-end gap-2.5 min-w-0 shrink-0">
+          <div className="flex items-end gap-2 sm:gap-2.5 min-w-0 shrink-0">
             {qrSvg && (
               <div
-                className={`w-9 h-9 sm:w-10 sm:h-10 p-1.5 rounded-md bg-[#FAF8F4] border border-[#1C1B1A]/10 flex items-center justify-center shrink-0 [&>svg]:w-full [&>svg]:h-full`}
+                className="w-8 h-8 sm:w-10 sm:h-10 p-1 sm:p-1.5 rounded-md bg-[#FAF8F4] border border-[var(--card-hairline,var(--card-fallback-hairline))] flex items-center justify-center shrink-0 [&>svg]:w-full [&>svg]:h-full"
                 dangerouslySetInnerHTML={{ __html: qrSvg }}
               />
             )}
@@ -209,8 +216,8 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
               {data.websiteDisplay}
             </p>
           )}
-          <p className={`text-[8.5px] sm:text-[9.5px] leading-snug ${themeStyles.textSecondary} truncate ${isPortrait ? 'max-w-[175px]' : 'max-w-[230px] sm:max-w-[260px]'}`}>
-            <span className={`font-mono text-[8px] tracking-[0.16em] uppercase ${themeStyles.textMuted} mr-2`}>
+          <p className={`text-[8px] sm:text-[9.5px] leading-snug ${themeStyles.textSecondary} truncate ${isPortrait ? 'max-w-[175px]' : 'max-w-[165px] sm:max-w-[260px]'}`}>
+            <span className={`font-mono text-[7.5px] sm:text-[8px] tracking-[0.16em] uppercase ${themeStyles.textMuted} mr-1.5 sm:mr-2`}>
               HQ
             </span>
             <span>{hqAddress}</span>

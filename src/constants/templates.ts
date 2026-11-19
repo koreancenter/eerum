@@ -164,6 +164,7 @@ export const LUXURY_THEME_PRESETS: ThemePresetDefinition[] = [
 
 export interface ResolvedThemeStyle {
   cardBg: string;
+  canvasHex: string;
   border: string;
   textPrimary: string;
   textSecondary: string;
@@ -177,20 +178,36 @@ export interface ResolvedThemeStyle {
   isLight: boolean;
 }
 
+const HARMONIZED_TEXT_PRIMARY =
+  'text-[var(--card-text-primary,var(--card-fallback-text-primary))]';
+const HARMONIZED_TEXT_SECONDARY =
+  'text-[var(--card-text-secondary,var(--card-fallback-text-secondary))]';
+const HARMONIZED_TEXT_MUTED =
+  'text-[var(--card-text-muted,var(--card-fallback-text-muted))]';
+const HARMONIZED_HAIRLINE =
+  'border-[var(--card-hairline,var(--card-fallback-hairline))]';
+const HARMONIZED_HOVER =
+  'hover:bg-[var(--card-hover-bg,var(--card-fallback-hover-bg))]';
+const HARMONIZED_BORDER_LIGHT =
+  'border-[var(--card-border,var(--card-fallback-border))] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.45)]';
+const HARMONIZED_BORDER_DARK =
+  'border-[var(--card-border,var(--card-fallback-border))] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.85)]';
+
 export function resolveThemeStyles(theme: CardTheme | undefined): ResolvedThemeStyle {
   const t = (theme || 'pure_white') as string;
 
   if (t === 'pure_white' || t === 'cotton') {
     return {
       cardBg: 'bg-[#F5F2EC]',
-      border: 'border-[#1C1B1A]/10 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.45),0_0_1px_1px_rgba(28,27,26,0.06)]',
-      textPrimary: 'text-[#1C1B1A]',
-      textSecondary: 'text-[#5C5955]',
-      textMuted: 'text-[#5C5955]',
+      canvasHex: '#F5F2EC',
+      border: HARMONIZED_BORDER_LIGHT,
+      textPrimary: HARMONIZED_TEXT_PRIMARY,
+      textSecondary: HARMONIZED_TEXT_SECONDARY,
+      textMuted: HARMONIZED_TEXT_MUTED,
       accent: '#1C1B1A',
-      accentHairline: 'border-[#1C1B1A]/10',
-      tagline: 'text-[#1C1B1A]',
-      hoverHighlight: 'hover:bg-[#1C1B1A]/5',
+      accentHairline: HARMONIZED_HAIRLINE,
+      tagline: HARMONIZED_TEXT_PRIMARY,
+      hoverHighlight: HARMONIZED_HOVER,
       sheen: 'from-[#1C1B1A]/[0.025] via-transparent to-transparent',
       qrBg: 'bg-[#FAF8F4]',
       isLight: true
@@ -200,14 +217,15 @@ export function resolveThemeStyles(theme: CardTheme | undefined): ResolvedThemeS
   if (t === 'sumi_ink') {
     return {
       cardBg: 'bg-[#0A0A0B]',
-      border: 'border-white/10 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.85)]',
-      textPrimary: 'text-[#FAFAFA]',
-      textSecondary: 'text-zinc-400',
-      textMuted: 'text-zinc-400',
+      canvasHex: '#0A0A0B',
+      border: HARMONIZED_BORDER_DARK,
+      textPrimary: HARMONIZED_TEXT_PRIMARY,
+      textSecondary: HARMONIZED_TEXT_SECONDARY,
+      textMuted: HARMONIZED_TEXT_MUTED,
       accent: '#FAFAFA',
-      accentHairline: 'border-white/10',
-      tagline: 'text-[#FAFAFA]',
-      hoverHighlight: 'hover:bg-white/10',
+      accentHairline: HARMONIZED_HAIRLINE,
+      tagline: HARMONIZED_TEXT_PRIMARY,
+      hoverHighlight: HARMONIZED_HOVER,
       sheen: 'from-white/[0.04] via-transparent to-transparent',
       qrBg: 'bg-[#121214]',
       isLight: false
@@ -217,14 +235,15 @@ export function resolveThemeStyles(theme: CardTheme | undefined): ResolvedThemeS
   if (t === 'warm_paper' || t === 'sand') {
     return {
       cardBg: 'bg-[#F5F5F4]',
-      border: 'border-black/5 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.35),0_0_1px_1px_rgba(0,0,0,0.05)]',
-      textPrimary: 'text-[#121214]',
-      textSecondary: 'text-zinc-600',
-      textMuted: 'text-zinc-600',
+      canvasHex: '#F5F5F4',
+      border: HARMONIZED_BORDER_LIGHT,
+      textPrimary: HARMONIZED_TEXT_PRIMARY,
+      textSecondary: HARMONIZED_TEXT_SECONDARY,
+      textMuted: HARMONIZED_TEXT_MUTED,
       accent: '#121214',
-      accentHairline: 'border-black/10',
-      tagline: 'text-[#121214]',
-      hoverHighlight: 'hover:bg-black/5',
+      accentHairline: HARMONIZED_HAIRLINE,
+      tagline: HARMONIZED_TEXT_PRIMARY,
+      hoverHighlight: HARMONIZED_HOVER,
       sheen: 'from-white/60 via-transparent to-transparent',
       qrBg: 'bg-[#FAFAFA]',
       isLight: true
@@ -234,14 +253,15 @@ export function resolveThemeStyles(theme: CardTheme | undefined): ResolvedThemeS
   if (t === 'deep_forest' || t === 'emerald') {
     return {
       cardBg: 'bg-[#0D1914]',
-      border: 'border-white/10 shadow-2xl',
-      textPrimary: 'text-[#FAFAFA]',
-      textSecondary: 'text-zinc-400',
-      textMuted: 'text-zinc-400',
+      canvasHex: '#0D1914',
+      border: HARMONIZED_BORDER_DARK,
+      textPrimary: HARMONIZED_TEXT_PRIMARY,
+      textSecondary: HARMONIZED_TEXT_SECONDARY,
+      textMuted: HARMONIZED_TEXT_MUTED,
       accent: '#E4E4E7',
-      accentHairline: 'border-white/10',
-      tagline: 'text-[#FAFAFA]',
-      hoverHighlight: 'hover:bg-white/10',
+      accentHairline: HARMONIZED_HAIRLINE,
+      tagline: HARMONIZED_TEXT_PRIMARY,
+      hoverHighlight: HARMONIZED_HOVER,
       sheen: 'from-white/[0.04] via-transparent to-transparent',
       qrBg: 'bg-[#121214]',
       isLight: false
@@ -251,14 +271,15 @@ export function resolveThemeStyles(theme: CardTheme | undefined): ResolvedThemeS
   if (t === 'classic_navy' || t === 'navy') {
     return {
       cardBg: 'bg-[#0B101B]',
-      border: 'border-white/10 shadow-2xl',
-      textPrimary: 'text-[#FAFAFA]',
-      textSecondary: 'text-zinc-400',
-      textMuted: 'text-zinc-400',
+      canvasHex: '#0B101B',
+      border: HARMONIZED_BORDER_DARK,
+      textPrimary: HARMONIZED_TEXT_PRIMARY,
+      textSecondary: HARMONIZED_TEXT_SECONDARY,
+      textMuted: HARMONIZED_TEXT_MUTED,
       accent: '#E4E4E7',
-      accentHairline: 'border-white/10',
-      tagline: 'text-zinc-200',
-      hoverHighlight: 'hover:bg-white/10',
+      accentHairline: HARMONIZED_HAIRLINE,
+      tagline: HARMONIZED_TEXT_PRIMARY,
+      hoverHighlight: HARMONIZED_HOVER,
       sheen: 'from-white/[0.04] via-transparent to-transparent',
       qrBg: 'bg-[#121214]',
       isLight: false
@@ -268,14 +289,15 @@ export function resolveThemeStyles(theme: CardTheme | undefined): ResolvedThemeS
   if (t === 'obsidian' || t === 'titanium' || t === 'slate') {
     return {
       cardBg: 'bg-[#121214]',
-      border: 'border-zinc-800/80 shadow-2xl',
-      textPrimary: 'text-[#FAFAFA]',
-      textSecondary: 'text-zinc-400',
-      textMuted: 'text-zinc-400',
+      canvasHex: '#121214',
+      border: HARMONIZED_BORDER_DARK,
+      textPrimary: HARMONIZED_TEXT_PRIMARY,
+      textSecondary: HARMONIZED_TEXT_SECONDARY,
+      textMuted: HARMONIZED_TEXT_MUTED,
       accent: '#FAFAFA',
-      accentHairline: 'border-zinc-800/80',
-      tagline: 'text-zinc-300',
-      hoverHighlight: 'hover:bg-white/10',
+      accentHairline: HARMONIZED_HAIRLINE,
+      tagline: HARMONIZED_TEXT_PRIMARY,
+      hoverHighlight: HARMONIZED_HOVER,
       sheen: 'from-white/[0.03] via-transparent to-transparent',
       qrBg: 'bg-[#0A0A0B]',
       isLight: false
@@ -285,14 +307,15 @@ export function resolveThemeStyles(theme: CardTheme | undefined): ResolvedThemeS
   // Default fallback (including any retired legacy theme string) -> Warm Champagne Sand (#F5F2EC)
   return {
     cardBg: 'bg-[#F5F2EC]',
-    border: 'border-[#1C1B1A]/10 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.45),0_0_1px_1px_rgba(28,27,26,0.06)]',
-    textPrimary: 'text-[#1C1B1A]',
-    textSecondary: 'text-[#5C5955]',
-    textMuted: 'text-[#5C5955]',
+    canvasHex: '#F5F2EC',
+    border: HARMONIZED_BORDER_LIGHT,
+    textPrimary: HARMONIZED_TEXT_PRIMARY,
+    textSecondary: HARMONIZED_TEXT_SECONDARY,
+    textMuted: HARMONIZED_TEXT_MUTED,
     accent: '#1C1B1A',
-    accentHairline: 'border-[#1C1B1A]/10',
-    tagline: 'text-[#1C1B1A]',
-    hoverHighlight: 'hover:bg-[#1C1B1A]/5',
+    accentHairline: HARMONIZED_HAIRLINE,
+    tagline: HARMONIZED_TEXT_PRIMARY,
+    hoverHighlight: HARMONIZED_HOVER,
     sheen: 'from-[#1C1B1A]/[0.025] via-transparent to-transparent',
     qrBg: 'bg-[#FAF8F4]',
     isLight: true

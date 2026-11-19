@@ -141,7 +141,12 @@ export interface StoredCard {
   ownerEmail?: string;
   createdAt: string;
   updatedAt?: string;
+  interactionCount?: number;
+  lastInteractedAt?: string;
   notes?: string;
+  memo?: string;
+  metAt?: string;
+  metLocation?: string;
   scannedImage?: string; // Physical card photo archive (High-Res base64 or URL)
   scannedImageBack?: string; // Optional physical card back photo (WebP base64 or URL)
   isPhotoCard?: boolean; // When true, renders authentic physical photo as card face
@@ -152,6 +157,7 @@ export interface StoredCard {
   template_id?: string;
   photo_url?: string;
   back_photo_url?: string;
+  ownerKey?: string;
   owner_key?: string;
   created_at?: string;
   updated_at?: string;

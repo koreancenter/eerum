@@ -30,6 +30,10 @@ interface TemplateModeEditorProps {
   onChangeSubTab: (tab: 'visual_atelier' | 'identity_profile') => void;
   notes?: string;
   onChangeNotes?: (notes: string) => void;
+  metAt?: string;
+  onChangeMetAt?: (metAt: string) => void;
+  metLocation?: string;
+  onChangeMetLocation?: (metLocation: string) => void;
 }
 
 export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
@@ -54,6 +58,10 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
   onChangeSubTab,
   notes,
   onChangeNotes,
+  metAt,
+  onChangeMetAt,
+  metLocation,
+  onChangeMetLocation,
 }) => {
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,14 +79,14 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Understated Typographic Sub-Tab Switcher */}
-      <div className="grid grid-cols-2 p-0.5 sm:p-1 rounded-lg bg-[#161618] border border-white/[0.06]">
+      <div className="grid grid-cols-2 p-0.5 sm:p-1 rounded-lg bg-[var(--editor-segment-track)] border border-[var(--editor-control-border)]">
         <button
           type="button"
           onClick={() => onChangeSubTab('visual_atelier')}
           className={`py-1.5 sm:py-2 rounded-md text-[11px] sm:text-xs tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none ${
             subTab === 'visual_atelier'
-              ? 'bg-[#222226] text-[#F2F2F5] font-medium'
-              : 'text-zinc-400 hover:text-zinc-300 font-normal'
+              ? 'bg-[var(--app-surface)] text-[var(--editor-text)] font-semibold shadow-xs ring-1 ring-[var(--editor-control-border)]'
+              : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
           }`}
         >
           소재 및 구도
@@ -88,8 +96,8 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
           onClick={() => onChangeSubTab('identity_profile')}
           className={`py-1.5 sm:py-2 rounded-md text-[11px] sm:text-xs tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none ${
             subTab === 'identity_profile'
-              ? 'bg-[#222226] text-[#F2F2F5] font-medium'
-              : 'text-zinc-400 hover:text-zinc-300 font-normal'
+              ? 'bg-[var(--app-surface)] text-[var(--editor-text)] font-semibold shadow-xs ring-1 ring-[var(--editor-control-border)]'
+              : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
           }`}
         >
           인적 정보
@@ -101,7 +109,7 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
         <div className="space-y-4 sm:space-y-6 lg:space-y-8 animate-in fade-in duration-150">
           {/* Curated Material Presets (4 Quiet Luxury Finishes) */}
           <section className="space-y-2.5 sm:space-y-3.5">
-            <h4 className="text-xs font-medium text-zinc-400 tracking-wide">
+            <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">
               지류 및 마감
             </h4>
 
@@ -113,19 +121,21 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                     key={t.id}
                     type="button"
                     onClick={() => onChangeTheme(t.id)}
-                    className={`px-3 py-2.5 sm:px-4 sm:py-3.5 rounded-xl border text-left cursor-pointer flex items-center gap-2.5 sm:gap-3.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                    className={`px-3 py-2.5 sm:px-4 sm:py-3.5 rounded-xl border text-left cursor-pointer flex items-center gap-2.5 sm:gap-3.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/50 transition-colors ${
                       isSelected
-                        ? 'bg-[#1A1A1E] border-white/25'
-                        : 'bg-[#161618] border-white/[0.06] hover:border-white/[0.14]'
+                        ? 'bg-[var(--app-highlight)] border-[var(--app-accent)] ring-1 ring-[var(--app-accent)]/35'
+                        : 'bg-[var(--editor-control-bg)] border-[var(--editor-control-border)] hover:border-[var(--editor-input-border-hover)]'
                     }`}
                   >
                     <span
-                      className="w-4 h-4 sm:w-5 sm:h-5 rounded-md border border-white/15 shrink-0"
+                      className="w-4 h-4 sm:w-5 sm:h-5 rounded-md border border-[var(--editor-checkbox-border)] shrink-0"
                       style={{ backgroundColor: t.dotColor }}
                     />
                     <span
                       className={`text-xs sm:text-[13px] truncate ${
-                        isSelected ? 'text-[#F2F2F5] font-medium' : 'text-zinc-400 font-normal'
+                        isSelected
+                          ? 'text-[var(--app-highlight-fg)] font-semibold'
+                          : 'text-[var(--editor-label)] font-medium'
                       }`}
                     >
                       {t.name}
@@ -137,8 +147,8 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
           </section>
 
           {/* Architectural Layouts */}
-          <section className="border-t border-white/[0.06] pt-4 sm:pt-6 lg:pt-8 space-y-2.5 sm:space-y-3.5">
-            <h4 className="text-xs font-medium text-zinc-400 tracking-wide">
+          <section className="border-t border-[var(--editor-divider)] pt-4 sm:pt-6 lg:pt-8 space-y-2.5 sm:space-y-3.5">
+            <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">
               레이아웃
             </h4>
 
@@ -150,10 +160,10 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                     key={preset.id}
                     type="button"
                     onClick={() => onChangeLayout(preset.id)}
-                    className={`p-2.5 sm:p-3.5 rounded-xl border text-left cursor-pointer flex flex-col justify-between focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                    className={`p-2.5 sm:p-3.5 rounded-xl border text-left cursor-pointer flex flex-col justify-between focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/50 transition-colors ${
                       isSelected
-                        ? 'bg-[#1A1A1E] border-white/25'
-                        : 'bg-[#161618] border-white/[0.06] hover:border-white/[0.14]'
+                        ? 'bg-[var(--app-highlight)] border-[var(--app-accent)] ring-1 ring-[var(--app-accent)]/35'
+                        : 'bg-[var(--editor-control-bg)] border-[var(--editor-control-border)] hover:border-[var(--editor-input-border-hover)]'
                     }`}
                   >
                     <div className="mb-2 sm:mb-3 w-full">
@@ -162,12 +172,18 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                     <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full">
                       <span
                         className={`text-[11px] sm:text-xs truncate ${
-                          isSelected ? 'text-[#F2F2F5] font-medium' : 'text-zinc-400 font-normal'
+                          isSelected
+                            ? 'text-[var(--app-highlight-fg)] font-semibold'
+                            : 'text-[var(--editor-label)] font-medium'
                         }`}
                       >
                         {preset.name}
                       </span>
-                      <span className="text-[9px] sm:text-[10px] font-mono tabular-nums text-zinc-400 shrink-0">
+                      <span
+                        className={`text-[9px] sm:text-[10px] font-mono tabular-nums shrink-0 ${
+                          isSelected ? 'text-[var(--app-highlight-fg)]/85' : 'text-[var(--editor-muted)]'
+                        }`}
+                      >
                         {preset.aspectRatio}
                       </span>
                     </div>
@@ -191,14 +207,14 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
           />
 
           {/* Monogram & Mark */}
-          <section className="border-t border-white/[0.06] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
-            <h4 className="text-xs font-medium text-zinc-400 tracking-wide">
+          <section className="border-t border-[var(--editor-divider)] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
+            <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">
               모노그램 및 심볼
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400 block">모노그램</label>
+                <label className="text-xs font-medium text-[var(--editor-label)] block">모노그램</label>
                 <input
                   type="text"
                   maxLength={4}
@@ -214,7 +230,7 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400 block">로고 이미지</label>
+                <label className="text-xs font-medium text-[var(--editor-label)] block">로고 이미지</label>
                 <input
                   type="file"
                   ref={logoInputRef}
@@ -223,7 +239,7 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                   onChange={handleLogoUpload}
                 />
                 {features.custom_logo ? (
-                  <div className="flex items-center justify-between px-3.5 py-2 rounded-lg bg-[#161618] border border-white/[0.06]">
+                  <div className="flex items-center justify-between px-3.5 py-2 rounded-lg bg-[var(--editor-input-bg)] border border-[var(--editor-input-border)]">
                     <img
                       src={features.custom_logo}
                       alt="로고"
@@ -235,18 +251,18 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                       onClick={() =>
                         onChangeFeatures((prev) => ({ ...prev, custom_logo: undefined }))
                       }
-                      className="p-1 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05] cursor-pointer"
+                      className="p-1 rounded-md text-[var(--editor-label)] hover:text-[var(--editor-text)] hover:bg-[var(--app-surface)] cursor-pointer"
                       title="삭제"
                       aria-label="삭제"
                     >
-                      <Trash2 className="w-3.5 h-3.5 stroke-[1.5]" />
+                      <Trash2 className="w-3.5 h-3.5 stroke-[1.75]" />
                     </button>
                   </div>
                 ) : (
                   <button
                     type="button"
                     onClick={() => logoInputRef.current?.click()}
-                    className="w-full px-3.5 py-2 rounded-lg bg-[#161618] border border-dashed border-white/[0.1] hover:border-white/25 text-zinc-400 hover:text-zinc-200 cursor-pointer text-xs text-center"
+                    className="w-full px-3.5 py-2 sm:py-2.5 rounded-lg bg-[var(--editor-input-bg)] border border-dashed border-[var(--editor-input-border)] hover:border-[var(--editor-input-border-hover)] hover:bg-[var(--app-highlight)] text-[var(--editor-label)] hover:text-[var(--editor-text)] cursor-pointer text-xs sm:text-[13px] font-medium text-center transition-colors"
                   >
                     이미지 선택
                   </button>
@@ -256,17 +272,17 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
           </section>
 
           {/* Address Slug & Classification */}
-          <section className="border-t border-white/[0.06] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
-            <h4 className="text-xs font-medium text-zinc-400 tracking-wide">
+          <section className="border-t border-[var(--editor-divider)] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
+            <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">
               {isMyCardMode ? '고유 주소 및 분류' : '웹사이트 및 보관함 분류'}
             </h4>
 
             {isMyCardMode ? (
               <>
                 <div className="space-y-1.5">
-                  <label className="text-xs text-zinc-400 block">웹 주소</label>
-                  <div className="flex items-center rounded-lg bg-[#161618] border border-white/[0.06] focus-within:border-white/25 overflow-hidden">
-                    <span className="px-3 py-2 sm:px-3.5 sm:py-2.5 text-zinc-400 font-mono select-none text-xs shrink-0 border-r border-white/[0.06]">
+                  <label className="text-xs font-medium text-[var(--editor-label)] block">웹 주소</label>
+                  <div className="flex items-center rounded-lg bg-[var(--editor-input-bg)] border border-[var(--editor-input-border)] hover:border-[var(--editor-input-border-hover)] focus-within:border-[var(--app-accent)] focus-within:bg-[var(--editor-input-bg-focus)] overflow-hidden transition-colors">
+                    <span className="px-3 py-2 sm:px-3.5 sm:py-2.5 text-[var(--editor-muted)] font-mono select-none text-xs shrink-0 border-r border-[var(--editor-input-border)]">
                       {APP_BASE_DOMAIN}/card/
                     </span>
                     <input
@@ -278,14 +294,14 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                         )
                       }
                       placeholder="master"
-                      className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-transparent text-[#EDEDEF] placeholder:text-zinc-400 focus:outline-none font-mono text-[13px]"
+                      className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-transparent text-[var(--editor-text)] placeholder:text-[var(--editor-placeholder)] focus:outline-none font-mono text-[13px]"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs text-zinc-400 block">커스텀 도메인</label>
+                    <label className="text-xs font-medium text-[var(--editor-label)] block">커스텀 도메인</label>
                     <input
                       type="text"
                       value={customDomain}
@@ -306,16 +322,16 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                       type="checkbox"
                       checked={isDefault}
                       onChange={(e) => onChangeIsDefault(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded accent-zinc-200 cursor-pointer"
+                      className="w-4 h-4 rounded-[4px] accent-[var(--app-accent)] ring-1 ring-[var(--editor-checkbox-border)] cursor-pointer"
                     />
-                    <span className="text-xs text-zinc-400">대표 명함으로 설정</span>
+                    <span className="text-xs font-medium text-[var(--editor-label)]">대표 명함으로 설정</span>
                   </label>
                 </div>
               </>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs text-zinc-400 block">웹사이트</label>
+                  <label className="text-xs font-medium text-[var(--editor-label)] block">웹사이트</label>
                   <input
                     type="url"
                     value={formData.website}
@@ -328,17 +344,36 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                   category={category}
                   onChangeCategory={onChangeCategory}
                 />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--editor-label)] block">만난 날짜</label>
+                  <input
+                    type="date"
+                    value={metAt || ''}
+                    onChange={(e) => onChangeMetAt?.(e.target.value)}
+                    className={`${EDITOR_INPUT_CLASS} font-mono`}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--editor-label)] block">만난 장소 / 행사</label>
+                  <input
+                    type="text"
+                    value={metLocation || ''}
+                    onChange={(e) => onChangeMetLocation?.(e.target.value)}
+                    placeholder="예: COEX 컨퍼런스, 삼성역"
+                    className={EDITOR_INPUT_CLASS}
+                  />
+                </div>
                 <div className="sm:col-span-2 space-y-1.5 pt-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs text-zinc-400 block">개인 메모 (비공개)</label>
-                    <span className="text-[10px] text-zinc-500 font-mono">
+                    <label className="text-xs font-medium text-[var(--editor-label)] block">개인 메모 (비공개)</label>
+                    <span className="text-[10px] text-[var(--editor-muted)] font-mono">
                       {(notes || '').length}자
                     </span>
                   </div>
                   <textarea
                     value={notes || ''}
                     onChange={(e) => onChangeNotes?.(e.target.value)}
-                    placeholder="해당 명함에 대한 연락처 특징, 만난 날짜 등을 기록하세요 (보관함 검색 시 활용됨)"
+                    placeholder="대화 내용, 연락처 특징, 후속 미팅 계획 등을 기록하세요 (보관함 검색 시 활용됨)"
                     rows={2}
                     className={`${EDITOR_INPUT_CLASS} resize-y text-xs`}
                   />
