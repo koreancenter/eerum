@@ -106,6 +106,47 @@
   }
 }
 
+/* ===================================================
+   CARD EDITOR MODAL — HIGH-CONTRAST LIGHT & DARK TOKENS
+   =================================================== */
+.CardEditorModal,
+.CardEditorPreviewDialog {
+  --editor-text: var(--app-text);
+  --editor-section-title: var(--app-text);
+  --editor-label: color-mix(in srgb, var(--app-text) 88%, transparent);
+  --editor-muted: color-mix(in srgb, var(--app-text) 72%, transparent);
+  --editor-placeholder: color-mix(in srgb, var(--app-text) 56%, transparent);
+  --editor-input-bg: var(--app-surface-subtle);
+  --editor-input-bg-focus: #FFFFFF;
+  --editor-input-border: color-mix(in srgb, var(--app-text) 24%, transparent);
+  --editor-input-border-hover: color-mix(in srgb, var(--app-text) 42%, transparent);
+  --editor-control-bg: var(--app-surface-subtle);
+  --editor-control-border: color-mix(in srgb, var(--app-text) 22%, transparent);
+  --editor-segment-track: color-mix(in srgb, var(--app-text) 6%, var(--app-surface-subtle));
+  --editor-divider: color-mix(in srgb, var(--app-text) 16%, transparent);
+  --editor-checkbox-border: color-mix(in srgb, var(--app-text) 42%, transparent);
+  --editor-wire-sub: color-mix(in srgb, var(--app-text) 34%, transparent);
+}
+
+[data-app-theme="obsidian_vault"] .CardEditorModal,
+[data-app-theme="obsidian_vault"] .CardEditorPreviewDialog {
+  --editor-text: #FFFFFF;
+  --editor-section-title: #F7F7FA;
+  --editor-label: #E4E4EC;
+  --editor-muted: #CBCBD6;
+  --editor-placeholder: #A2A2B0;
+  --editor-input-bg: rgba(255, 255, 255, 0.08);
+  --editor-input-bg-focus: rgba(255, 255, 255, 0.13);
+  --editor-input-border: rgba(255, 255, 255, 0.24);
+  --editor-input-border-hover: rgba(255, 255, 255, 0.44);
+  --editor-control-bg: rgba(255, 255, 255, 0.08);
+  --editor-control-border: rgba(255, 255, 255, 0.24);
+  --editor-segment-track: rgba(255, 255, 255, 0.07);
+  --editor-divider: rgba(255, 255, 255, 0.16);
+  --editor-checkbox-border: rgba(255, 255, 255, 0.48);
+  --editor-wire-sub: rgba(255, 255, 255, 0.36);
+}
+
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;

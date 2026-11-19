@@ -1,12 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Copy, RotateCcw, Check } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Copy, RotateCcw, Check } from 'lucide-react';
 import { CardData } from '../../types/card';
 import { sanitizeHtml, detectUnsafeHtmlPatterns } from '../../utils/sanitizeHtml';
-import {
-  CATEGORIES_UPDATED_EVENT,
-  loadVaultCategories,
-  addVaultCategory,
-} from '../../utils/categories';
+import { CategorySelectSection, EDITOR_INPUT_CLASS } from './CategorySelectSection';
 
 interface CustomHtmlEditorProps {
   htmlFront: string;
@@ -78,9 +74,6 @@ export const DEFAULT_LUXURY_HTML_BACK = `<div class="w-full h-full aspect-[1.586
   </span>
 </div>`;
 
-const INPUT_CLASS =
-  'w-full px-3.5 py-2.5 rounded-lg bg-[var(--app-surface-subtle)] border border-[var(--app-border)] hover:border-[var(--app-text-muted)]/40 focus:outline-none focus:border-[var(--app-accent)] focus:bg-[var(--app-surface)] text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]/70 text-[13px]';
-
 export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
   htmlFront,
   htmlBack,
@@ -95,37 +88,6 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
 }) => {
   const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
   const [templateStatus, setTemplateStatus] = useState<string | null>(null);
-  const [storedCategories, setStoredCategories] = useState<string[]>(() => loadVaultCategories());
-  const [isAddingCategory, setIsAddingCategory] = useState<boolean>(false);
-  const [newCategoryName, setNewCategoryName] = useState<string>('');
-  const [categoryError, setCategoryError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const sync = () => setStoredCategories(loadVaultCategories());
-    window.addEventListener(CATEGORIES_UPDATED_EVENT, sync);
-    return () => window.removeEventListener(CATEGORIES_UPDATED_EVENT, sync);
-  }, []);
-
-  const categories = useMemo(() => {
-    if (category && !storedCategories.includes(category)) {
-      return [...storedCategories, category];
-    }
-    return storedCategories;
-  }, [storedCategories, category]);
-
-  const handleQuickAddCategory = () => {
-    if (!onChangeCategory) return;
-    const res = addVaultCategory(newCategoryName);
-    if (!res.ok || !res.added) {
-      setCategoryError(res.error || '카테고리를 추가할 수 없습니다.');
-      return;
-    }
-    setStoredCategories(res.categories);
-    onChangeCategory(res.added);
-    setNewCategoryName('');
-    setCategoryError(null);
-    setIsAddingCategory(false);
-  };
 
   const handleCopyPrompt = () => {
     let promptText = CLOUD_AI_QUIET_LUXURY_PROMPT;
@@ -158,17 +120,17 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
         <div className="flex flex-row items-center justify-between gap-2 whitespace-nowrap">
           {/* 2-Segment Face Toggle Switch */}
           <div
-            className="inline-flex items-center p-0.5 rounded-lg bg-[var(--app-surface-subtle)] border border-[var(--app-border)] shrink-0"
+            className="inline-flex items-center p-0.5 rounded-lg bg-[var(--editor-segment-track)] border border-[var(--editor-control-border)] shrink-0"
             role="group"
             aria-label="명함 면 선택"
           >
             <button
               type="button"
               onClick={() => onChangeActiveFace('front')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium tracking-wide transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-xs tracking-wide transition-all whitespace-nowrap cursor-pointer ${
                 activeFace === 'front'
-                  ? 'bg-[var(--app-surface)] text-[var(--app-text)] shadow-sm ring-1 ring-[var(--app-border)]'
-                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
+                  ? 'bg-[var(--app-surface)] text-[var(--editor-text)] font-semibold shadow-sm ring-1 ring-[var(--editor-control-border)]'
+                  : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
               }`}
               title="앞면 코드 편집 (Front)"
               aria-label="앞면 코드 편집"
@@ -178,10 +140,10 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
             <button
               type="button"
               onClick={() => onChangeActiveFace('back')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium tracking-wide transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-xs tracking-wide transition-all whitespace-nowrap cursor-pointer ${
                 activeFace === 'back'
-                  ? 'bg-[var(--app-surface)] text-[var(--app-text)] shadow-sm ring-1 ring-[var(--app-border)]'
-                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
+                  ? 'bg-[var(--app-surface)] text-[var(--editor-text)] font-semibold shadow-sm ring-1 ring-[var(--editor-control-border)]'
+                  : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
               }`}
               title="뒷면 코드 편집 (Back)"
               aria-label="뒷면 코드 편집"
@@ -195,7 +157,7 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
             <button
               type="button"
               onClick={handleCopyPrompt}
-              className="p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] transition-all cursor-pointer relative"
+              className="p-1.5 rounded-lg text-[var(--editor-label)] hover:text-[var(--editor-text)] bg-[var(--editor-control-bg)] hover:bg-[var(--app-highlight)] border border-[var(--editor-control-border)] hover:border-[var(--editor-input-border-hover)] transition-all cursor-pointer relative"
               title={copiedPrompt ? 'AI 프롬프트 복사됨' : 'AI 프롬프트 복사'}
               aria-label={copiedPrompt ? 'AI 프롬프트 복사됨' : 'AI 프롬프트 복사'}
             >
@@ -208,7 +170,7 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
             <button
               type="button"
               onClick={handleApplyDefaultTemplate}
-              className="p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] transition-all cursor-pointer"
+              className="p-1.5 rounded-lg text-[var(--editor-label)] hover:text-[var(--editor-text)] bg-[var(--editor-control-bg)] hover:bg-[var(--app-highlight)] border border-[var(--editor-control-border)] hover:border-[var(--editor-input-border-hover)] transition-all cursor-pointer"
               title="기본 프리셋 코드 적용"
               aria-label="기본 프리셋 코드 적용"
             >
@@ -226,12 +188,12 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
               : onChangeBack(e.target.value)
           }
           placeholder="<div class=&quot;w-full h-full aspect-[9/5] bg-[#121214] text-[#F2F2F5] p-7 ...&quot;>...</div>"
-          className="w-full p-3 sm:p-4 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] hover:border-[var(--app-text-muted)]/40 focus:border-[var(--app-accent)] focus:bg-[var(--app-surface)] focus:outline-none text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]/70 text-xs font-mono leading-relaxed resize-y selection:bg-[var(--app-highlight)] selection:text-[var(--app-highlight-fg)] editor-scrollbar min-h-[140px] sm:min-h-[220px]"
+          className="w-full p-3 sm:p-4 rounded-xl bg-[var(--editor-input-bg)] border border-[var(--editor-input-border)] hover:border-[var(--editor-input-border-hover)] focus:border-[var(--app-accent)] focus:bg-[var(--editor-input-bg-focus)] focus:outline-none text-[var(--editor-text)] placeholder:text-[var(--editor-placeholder)] text-xs font-mono leading-relaxed resize-y selection:bg-[var(--app-highlight)] selection:text-[var(--app-highlight-fg)] editor-scrollbar min-h-[140px] sm:min-h-[220px] transition-colors"
           spellCheck={false}
         />
 
         {(templateStatus || detectedUnsafe.length > 0) && (
-          <div className="flex items-center justify-between text-[11px] text-[var(--app-text-muted)] pt-0.5">
+          <div className="flex items-center justify-between text-[11px] text-[var(--editor-muted)] pt-0.5">
             {detectedUnsafe.length > 0 ? (
               <span>허용되지 않는 스크립트 속성은 자동으로 제외됩니다.</span>
             ) : (
@@ -242,118 +204,42 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
       </section>
 
       {/* Essential Contact Metadata */}
-      <section className="border-t border-[var(--app-border)] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
-        <h4 className="text-xs font-medium text-[var(--app-text-muted)] tracking-wide">
+      <section className="border-t border-[var(--editor-divider)] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
+        <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">
           연결 정보
         </h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">성명</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">성명</label>
             <input
               type="text"
               required
               value={cardData.name}
               onChange={(e) => onChangeCardData('name', e.target.value)}
               placeholder="박기홍"
-              className={INPUT_CLASS}
+              className={EDITOR_INPUT_CLASS}
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">연락처</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">연락처</label>
             <input
               type="text"
               required
               value={cardData.phone}
               onChange={(e) => onChangeCardData('phone', e.target.value)}
               placeholder="010-1234-5678"
-              className={`${INPUT_CLASS} font-mono tabular-nums`}
+              className={`${EDITOR_INPUT_CLASS} font-mono tabular-nums`}
             />
           </div>
         </div>
 
         {onChangeCategory && (
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs text-[var(--app-text-muted)]">분류</label>
-              {!isAddingCategory && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCategoryError(null);
-                    setIsAddingCategory(true);
-                  }}
-                  className="text-[11px] text-[var(--app-text-muted)] hover:text-[var(--app-text)] inline-flex items-center gap-0.5 cursor-pointer"
-                >
-                  <Plus className="w-3 h-3 stroke-[1.75]" />
-                  <span>새 분류</span>
-                </button>
-              )}
-            </div>
-
-            {isAddingCategory ? (
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="text"
-                    maxLength={20}
-                    autoFocus
-                    value={newCategoryName}
-                    onChange={(e) => {
-                      setNewCategoryName(e.target.value);
-                      if (categoryError) setCategoryError(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleQuickAddCategory();
-                      } else if (e.key === 'Escape') {
-                        setIsAddingCategory(false);
-                        setCategoryError(null);
-                      }
-                    }}
-                    placeholder="새 카테고리 이름"
-                    className={INPUT_CLASS}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleQuickAddCategory}
-                    disabled={!newCategoryName.trim()}
-                    className="px-3 py-2.5 rounded-lg bg-[var(--app-accent)] text-[var(--app-accent-fg)] font-medium text-xs shrink-0 disabled:opacity-40 cursor-pointer"
-                  >
-                    추가
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsAddingCategory(false);
-                      setCategoryError(null);
-                      setNewCategoryName('');
-                    }}
-                    className="px-2 py-2.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] text-xs shrink-0 cursor-pointer"
-                  >
-                    취소
-                  </button>
-                </div>
-                {categoryError && (
-                  <p className="text-[11px] text-amber-700 dark:text-amber-300/90">{categoryError}</p>
-                )}
-              </div>
-            ) : (
-              <select
-                value={category || categories[0] || 'VIP 파트너'}
-                onChange={(e) => onChangeCategory(e.target.value)}
-                className={`${INPUT_CLASS} cursor-pointer`}
-              >
-                {categories.map((cat) => (
-                  <option key={cat} value={cat} className="bg-[var(--app-surface)] text-[var(--app-text)]">
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
+          <CategorySelectSection
+            category={category}
+            onChangeCategory={onChangeCategory}
+          />
         )}
       </section>
     </div>

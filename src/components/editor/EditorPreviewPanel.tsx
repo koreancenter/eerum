@@ -88,7 +88,7 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
       className={
         isMobileModal
           ? 'w-full flex-1 flex flex-col items-center justify-center p-3 sm:p-5 relative select-none'
-          : 'hidden lg:flex order-1 lg:order-2 col-span-12 lg:col-span-7 flex-shrink-0 min-h-0 flex-col items-center justify-center bg-[var(--app-surface-subtle)] border-b lg:border-b-0 lg:border-l border-[var(--app-border)] px-4 py-3 sm:px-8 sm:py-6 lg:p-12 relative overflow-hidden select-none'
+          : 'hidden lg:flex order-1 lg:order-2 col-span-12 lg:col-span-7 flex-shrink-0 min-h-0 flex-col items-center justify-center bg-[var(--app-surface-subtle)] border-b lg:border-b-0 lg:border-l border-[var(--editor-divider)] px-4 py-3 sm:px-8 sm:py-6 lg:p-12 relative overflow-hidden select-none'
       }
     >
       {/* Subtle Ambient Gallery Illumination */}
@@ -109,12 +109,12 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
         title="클릭하여 면 전환"
       >
         <div
-          className={`w-full h-full relative rounded-xl sm:rounded-2xl transition-transform duration-500 ease-out [transform-style:preserve-3d] group-hover:scale-[1.01] shadow-[var(--app-shadow)] ring-1 ring-[var(--app-border)] ${
+          className={`w-full h-full relative rounded-xl sm:rounded-2xl transition-transform duration-500 ease-out [transform-style:preserve-3d] group-hover:scale-[1.01] shadow-[var(--app-shadow)] ring-1 ring-[var(--editor-control-border)] ${
             previewFace === 'back' ? '[transform:rotateY(180deg)]' : '[transform:rotateY(0deg)]'
           }`}
         >
           {/* Front Face */}
-          <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-xl sm:rounded-2xl overflow-hidden bg-[var(--app-surface)] ring-1 ring-[var(--app-border)] flex items-center justify-center">
+          <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-xl sm:rounded-2xl overflow-hidden bg-[var(--app-surface)] ring-1 ring-[var(--editor-control-border)] flex items-center justify-center">
             {creationMode === 'template' && (
               <div className="w-full h-full flex items-center justify-center">
                 <BusinessCardFront
@@ -160,15 +160,15 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
                   />
                 </div>
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-[var(--app-surface)] border border-[var(--app-border)] rounded-xl sm:rounded-2xl">
-                  <p className="text-xs text-[var(--app-text-muted)]">코드를 입력해 주세요</p>
+                <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-[var(--app-surface)] border border-[var(--editor-control-border)] rounded-xl sm:rounded-2xl">
+                  <p className="text-xs font-medium text-[var(--editor-muted)]">코드를 입력해 주세요</p>
                 </div>
               )
             )}
           </div>
 
           {/* Back Face */}
-          <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-xl sm:rounded-2xl overflow-hidden bg-[var(--app-surface)] ring-1 ring-[var(--app-border)] flex items-center justify-center">
+          <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-xl sm:rounded-2xl overflow-hidden bg-[var(--app-surface)] ring-1 ring-[var(--editor-control-border)] flex items-center justify-center">
             {creationMode === 'template' && (
               <div className="w-full h-full flex items-center justify-center">
                 <BusinessCardBack

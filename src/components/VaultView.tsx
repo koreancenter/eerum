@@ -46,16 +46,12 @@ import {
 } from '../utils/vaultBackup';
 import { downloadBatchVCard } from '../utils/cardExporter';
 import {
-  type VaultViewScope,
   type VaultSortOption,
   SORT_OPTIONS,
-  RECENT_WINDOW_DAYS,
-  filterCardsByScope,
-  isRecentVaultCard,
   sortVaultCards,
 } from '../utils/cardSorting';
 
-export type { VaultSortOption, VaultViewScope };
+export type { VaultSortOption };
 
 interface IWindowSpeechRecognition extends Window {
   SpeechRecognition?: any;
@@ -146,17 +142,6 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   const [photoArchiveCardId, setPhotoArchiveCardId] = useState<string | null>(null);
 
-  // Vault view scope ('all' | 'recent') persisted in localStorage
-  const [viewScope, setViewScope] = useState<VaultViewScope>(() => {
-    if (typeof window !== 'undefined') {
-      const savedScope = localStorage.getItem('eerum_vault_view_scope');
-      if (savedScope === 'recent' || savedScope === 'all') {
-        return savedScope;
-      }
-    }
-    return 'all';
-  });
-
   // Sorting state persisted in localStorage (defaults to automated 'smart' ranking)
   const [sortBy, setSortBy] = useState<VaultSortOption>(() => {
     if (typeof window !== 'undefined') {
@@ -176,13 +161,6 @@ export const VaultView: React.FC<VaultViewProps> = ({
   });
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState<boolean>(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Persist view scope & sort preferences
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('eerum_vault_view_scope', viewScope);
-    }
-  }, [viewScope]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -452,22 +430,16 @@ export const VaultView: React.FC<VaultViewProps> = ({
     return counts;
   }, [cards, categories]);
 
-  const recentCardsCount = useMemo(
-    () => cards.filter((c) => isRecentVaultCard(c)).length,
-    [cards]
-  );
-
-  // Instant scope ('all' | 'recent') + multi-field Korean choseong search + category filter
+  // Multi-field Korean choseong search + category filter
   const filteredCards = useMemo(() => {
-    const scopedCards = filterCardsByScope(cards, viewScope);
     const q = searchQuery.trim();
     const isAllCategories = selectedCategory === '전체';
 
     if (isAllCategories && !q) {
-      return scopedCards;
+      return cards;
     }
 
-    return scopedCards.filter((c) => {
+    return cards.filter((c) => {
       if (!isAllCategories && c.category !== selectedCategory) {
         return false;
       }
@@ -503,7 +475,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
         [d.phone, d.phoneRaw]
       );
     });
-  }, [cards, viewScope, selectedCategory, searchQuery]);
+  }, [cards, selectedCategory, searchQuery]);
 
   // Automated sorting by interaction frequency, creation date, name, or company
   const sortedCards = useMemo(
@@ -683,77 +655,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
         aria-label="명함 보관함 검색 및 필터 도구 모음"
         className="w-full max-w-full min-w-0 flex flex-col gap-2.5 sm:gap-3 pb-3 border-b border-[var(--app-border)]"
       >
-        {/* Row 1: Action Toolbar (Desktop: Recent/All Switcher on Left, Search+Sort+Actions on Right; Mobile: Recent/All + Actions on Top, Search+Sort Below) */}
+        {/* Row 1: Action Toolbar (Desktop: Search+Sort on Left, Actions on Right; Mobile: Actions on Top, Search+Sort Below) */}
         <div className="w-full max-w-full min-w-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3">
-          {/* Desktop Recent / All View Switcher (sm+) */}
-          <div
-            role="group"
-            aria-label="보관함 명함 보기 범위"
-            className="hidden sm:grid grid-cols-2 p-0.5 h-9 sm:h-9.5 bg-[var(--app-surface)] rounded-xl border border-[var(--app-border)] shrink-0"
-          >
-            <button
-              type="button"
-              onClick={() => setViewScope('all')}
-              aria-pressed={viewScope === 'all'}
-              title={`보관함 전체 명함 (${cards.length}명)`}
-              className={`px-3 h-full rounded-lg text-xs font-medium flex items-center justify-center cursor-pointer transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
-                viewScope === 'all'
-                  ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] font-semibold'
-                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
-              }`}
-            >
-              전체
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewScope('recent')}
-              aria-pressed={viewScope === 'recent'}
-              title={`최근 ${RECENT_WINDOW_DAYS}일 내 등록하거나 열람·연락한 명함 (${recentCardsCount}명)`}
-              className={`px-3 h-full rounded-lg text-xs font-medium flex items-center justify-center cursor-pointer transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
-                viewScope === 'recent'
-                  ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] font-semibold'
-                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
-              }`}
-            >
-              최근
-            </button>
-          </div>
-
-          {/* Mobile-Only Top Row: Recent/All Switcher on Left + Action Cluster on Right (< sm) */}
-          <div className="flex sm:hidden items-center justify-between gap-1.5 shrink-0 w-full">
-            <div
-              role="group"
-              aria-label="보관함 명함 보기 범위"
-              className="grid grid-cols-2 p-0.5 h-8.5 bg-[var(--app-surface)] rounded-xl border border-[var(--app-border)] shrink-0"
-            >
-              <button
-                type="button"
-                onClick={() => setViewScope('all')}
-                aria-pressed={viewScope === 'all'}
-                title={`보관함 전체 명함 (${cards.length}명)`}
-                className={`px-2.5 h-full rounded-lg text-[11px] font-medium flex items-center justify-center cursor-pointer transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
-                  viewScope === 'all'
-                    ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] font-semibold'
-                    : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
-                }`}
-              >
-                전체
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewScope('recent')}
-                aria-pressed={viewScope === 'recent'}
-                title={`최근 ${RECENT_WINDOW_DAYS}일 내 등록하거나 열람·연락한 명함 (${recentCardsCount}명)`}
-                className={`px-2.5 h-full rounded-lg text-[11px] font-medium flex items-center justify-center cursor-pointer transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
-                  viewScope === 'recent'
-                    ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] font-semibold'
-                    : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
-                }`}
-              >
-                최근
-              </button>
-            </div>
-
+          {/* Mobile-Only Top Row: Action Cluster on Right (< sm) */}
+          <div className="flex sm:hidden items-center justify-end gap-1.5 shrink-0 w-full">
             <div className="flex items-center justify-end gap-1.5 shrink-0">
               <button
                 type="button"
@@ -844,11 +749,11 @@ export const VaultView: React.FC<VaultViewProps> = ({
             </div>
           </div>
 
-          {/* Right on Desktop / Responsive on Mobile: Search Bar + Sort Dropdown + (Desktop Action Controls) */}
-          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-2.5 md:gap-3 w-full sm:w-auto sm:flex-1 sm:min-w-0">
+          {/* Search Bar + Sort Dropdown + (Desktop Action Controls) */}
+          <div className="flex items-center justify-between gap-2 sm:gap-2.5 md:gap-3 w-full sm:flex-1 sm:min-w-0">
             {/* 1. Search Bar + Sort Dropdown Cluster */}
-            <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto sm:flex-1 sm:justify-end min-w-0">
-              <div className="relative flex-1 sm:w-44 md:w-56 lg:w-64 sm:max-w-[280px] min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto sm:flex-1 sm:justify-start min-w-0">
+              <div className="relative flex-1 sm:w-52 md:w-64 lg:w-72 sm:max-w-[320px] min-w-0">
                 <Search
                   className={`w-3.5 h-3.5 stroke-[1.75] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-200 ${
                     isListening ? 'text-rose-500' : 'text-[var(--app-text-muted)]'
@@ -1248,42 +1153,22 @@ export const VaultView: React.FC<VaultViewProps> = ({
 
       {/* Content Rendering: Cards Grid or List Table */}
       {sortedCards.length === 0 ? (
-        viewScope === 'recent' && cards.length > 0 && !searchQuery.trim() ? (
-          <div className="py-20 text-center space-y-3 p-8 rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)]">
-            <p className="text-sm font-semibold text-[var(--app-text)]">
-              {selectedCategory !== '전체'
-                ? `'${selectedCategory}' 카테고리에 최근 ${RECENT_WINDOW_DAYS}일 내 활동한 명함이 없습니다.`
-                : `최근 ${RECENT_WINDOW_DAYS}일 내 등록하거나 교류한 명함이 없습니다.`}
-            </p>
-            <p className="text-xs text-[var(--app-text-muted)]">
-              명함을 열람하거나 전화·문자·메모 기록을 남기면 최근 명함에 자동으로 모입니다.
-            </p>
-            <button
-              type="button"
-              onClick={() => setViewScope('all')}
-              className="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[var(--app-accent)] text-[var(--app-accent-fg)] text-xs font-semibold hover:opacity-90 cursor-pointer"
-            >
-              <span>전체 명함 보기</span>
-            </button>
-          </div>
-        ) : (
-          <div className="py-20 text-center space-y-3 p-8 rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)]">
-            <p className="text-sm font-semibold text-[var(--app-text)]">
-              {selectedCategory !== '전체' && !searchQuery.trim()
-                ? `'${selectedCategory}' 카테고리에 등록된 명함이 없습니다.`
-                : '검색 조건에 일치하는 명함이 없습니다.'}
-            </p>
-            <p className="text-xs text-[var(--app-text-muted)]">실물 명함 사진을 촬영하거나 새 명함을 등록해 보세요.</p>
-            <button
-              type="button"
-              onClick={onOpenScan}
-              className="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[var(--app-accent)] text-[var(--app-accent-fg)] text-xs font-semibold hover:opacity-90 cursor-pointer"
-            >
-              <Plus className="w-4 h-4 stroke-[2]" />
-              <span>실물 명함 등록</span>
-            </button>
-          </div>
-        )
+        <div className="py-20 text-center space-y-3 p-8 rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)]">
+          <p className="text-sm font-semibold text-[var(--app-text)]">
+            {selectedCategory !== '전체' && !searchQuery.trim()
+              ? `'${selectedCategory}' 카테고리에 등록된 명함이 없습니다.`
+              : '검색 조건에 일치하는 명함이 없습니다.'}
+          </p>
+          <p className="text-xs text-[var(--app-text-muted)]">실물 명함 사진을 촬영하거나 새 명함을 등록해 보세요.</p>
+          <button
+            type="button"
+            onClick={onOpenScan}
+            className="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[var(--app-accent)] text-[var(--app-accent-fg)] text-xs font-semibold hover:opacity-90 cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[2]" />
+            <span>실물 명함 등록</span>
+          </button>
+        </div>
       ) : viewMode === 'cards' ? (
         /* ================= CARDS GALLERY VIEW (2-Column Mobile Grid, 3-Column Desktop) ================= */
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3.5 min-w-0">

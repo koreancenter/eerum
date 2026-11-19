@@ -30,7 +30,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
         {/* Name & Phone */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">성명</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">성명</label>
             <input
               type="text"
               required
@@ -42,7 +42,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">연락처</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">연락처</label>
             <input
               type="text"
               required
@@ -57,7 +57,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
         {/* Organization & Title */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">소속</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">소속</label>
             <input
               type="text"
               value={formData.organizationKr || formData.organization || ''}
@@ -68,7 +68,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">직함</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">직함</label>
             <input
               type="text"
               value={formData.titleKr || formData.title || ''}
@@ -82,7 +82,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
         {/* Email & Slug / Website */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">이메일</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">이메일</label>
             <input
               type="email"
               value={formData.email}
@@ -95,9 +95,9 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
           <div className="space-y-1.5">
             {isMyCardMode && onChangeSlug ? (
               <>
-                <label className="text-xs text-[var(--app-text-muted)] block">웹 주소</label>
-                <div className="flex items-center rounded-lg bg-[var(--app-surface-subtle)] border border-[var(--app-border)] focus-within:border-[var(--app-accent)] focus-within:bg-[var(--app-surface)] overflow-hidden">
-                  <span className="px-3 py-2 sm:px-3.5 sm:py-2.5 text-[var(--app-text-muted)] font-mono text-xs shrink-0 border-r border-[var(--app-border)] select-none">
+                <label className="text-xs font-medium text-[var(--editor-label)] block">웹 주소</label>
+                <div className="flex items-center rounded-lg bg-[var(--editor-input-bg)] border border-[var(--editor-input-border)] hover:border-[var(--editor-input-border-hover)] focus-within:border-[var(--app-accent)] focus-within:bg-[var(--editor-input-bg-focus)] overflow-hidden transition-colors">
+                  <span className="px-3 py-2 sm:px-3.5 sm:py-2.5 text-[var(--editor-muted)] font-mono text-xs shrink-0 border-r border-[var(--editor-input-border)] select-none">
                     {APP_BASE_DOMAIN}/card/
                   </span>
                   <input
@@ -109,13 +109,13 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
                       )
                     }
                     placeholder="slug"
-                    className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-transparent text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]/70 focus:outline-none font-mono text-[13px]"
+                    className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-transparent text-[var(--editor-text)] placeholder:text-[var(--editor-placeholder)] focus:outline-none font-mono text-[13px]"
                   />
                 </div>
               </>
             ) : (
               <>
-                <label className="text-xs text-[var(--app-text-muted)] block">웹사이트</label>
+                <label className="text-xs font-medium text-[var(--editor-label)] block">웹사이트</label>
                 <input
                   type="url"
                   value={formData.website}
@@ -135,11 +135,11 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
     <>
       {/* Name & Display Toggles */}
       <section className="space-y-3 sm:space-y-4">
-        <h4 className="text-xs font-medium text-[var(--app-text-muted)] tracking-wide">성명</h4>
+        <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">성명</h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">한글</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">한글</label>
             <input
               type="text"
               value={formData.name}
@@ -149,7 +149,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">영문 · 보조 성명</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">영문 · 보조 성명</label>
             <input
               type="text"
               value={formData.nameEn ?? ''}
@@ -172,9 +172,9 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
                     show_en_name: e.target.checked,
                   }))
                 }
-                className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer"
+                className="w-4 h-4 rounded-[4px] accent-[var(--app-accent)] ring-1 ring-[var(--editor-checkbox-border)] cursor-pointer"
               />
-              <span className="text-xs text-[var(--app-text-muted)]">영문 · 보조 성명 표기</span>
+              <span className="text-xs font-medium text-[var(--editor-label)]">영문 · 보조 성명 표기</span>
             </label>
             <label className="inline-flex items-center gap-2 cursor-pointer select-none">
               <input
@@ -186,23 +186,23 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
                     show_sub_org: e.target.checked,
                   }))
                 }
-                className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer"
+                className="w-4 h-4 rounded-[4px] accent-[var(--app-accent)] ring-1 ring-[var(--editor-checkbox-border)] cursor-pointer"
               />
-              <span className="text-xs text-[var(--app-text-muted)]">영문 소속 병기</span>
+              <span className="text-xs font-medium text-[var(--editor-label)]">영문 소속 병기</span>
             </label>
           </div>
         )}
       </section>
 
       {/* Affiliation & Title */}
-      <section className="border-t border-[var(--app-border)] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
-        <h4 className="text-xs font-medium text-[var(--app-text-muted)] tracking-wide">
+      <section className="border-t border-[var(--editor-divider)] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
+        <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">
           소속 및 직함
         </h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">소속</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">소속</label>
             <input
               type="text"
               value={formData.organizationKr}
@@ -212,7 +212,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">영문 소속</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">영문 소속</label>
             <input
               type="text"
               value={formData.organization}
@@ -225,7 +225,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">직함</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">직함</label>
             <input
               type="text"
               value={formData.titleKr}
@@ -235,7 +235,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">영문 직함</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">영문 직함</label>
             <input
               type="text"
               value={formData.title}
@@ -248,14 +248,14 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
       </section>
 
       {/* Direct Contact & Address */}
-      <section className="border-t border-[var(--app-border)] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
-        <h4 className="text-xs font-medium text-[var(--app-text-muted)] tracking-wide">
+      <section className="border-t border-[var(--editor-divider)] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
+        <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">
           연락처 및 주소
         </h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">연락처</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">연락처</label>
             <input
               type="text"
               value={formData.phone}
@@ -265,7 +265,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">이메일</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">이메일</label>
             <input
               type="email"
               value={formData.email}
@@ -278,7 +278,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">주소</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">주소</label>
             <input
               type="text"
               value={formData.addressKr}
@@ -288,7 +288,7 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-[var(--app-text-muted)] block">영문 주소</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">영문 주소</label>
             <input
               type="text"
               value={formData.address_en ?? formData.details?.address_en ?? ''}

@@ -337,17 +337,17 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
         <div className="flex flex-row items-center justify-between gap-2 whitespace-nowrap">
           {/* 2-Segment Photo Side Switch */}
           <div
-            className="inline-flex items-center p-0.5 rounded-lg bg-[var(--app-surface-subtle)] border border-[var(--app-border)] shrink-0"
+            className="inline-flex items-center p-0.5 rounded-lg bg-[var(--editor-segment-track)] border border-[var(--editor-control-border)] shrink-0"
             role="group"
             aria-label="사진 면 선택"
           >
             <button
               type="button"
               onClick={() => setActiveSide('front')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium tracking-wide transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-xs tracking-wide transition-all whitespace-nowrap cursor-pointer ${
                 activeSide === 'front'
-                  ? 'bg-[var(--app-surface)] text-[var(--app-text)] shadow-sm ring-1 ring-[var(--app-border)]'
-                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
+                  ? 'bg-[var(--app-surface)] text-[var(--editor-text)] font-semibold shadow-sm ring-1 ring-[var(--editor-control-border)]'
+                  : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
               }`}
               title="앞면 사진 (Front)"
               aria-label="앞면 사진"
@@ -357,10 +357,10 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
             <button
               type="button"
               onClick={() => setActiveSide('back')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium tracking-wide transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-xs tracking-wide transition-all whitespace-nowrap cursor-pointer ${
                 activeSide === 'back'
-                  ? 'bg-[var(--app-surface)] text-[var(--app-text)] shadow-sm ring-1 ring-[var(--app-border)]'
-                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
+                  ? 'bg-[var(--app-surface)] text-[var(--editor-text)] font-semibold shadow-sm ring-1 ring-[var(--editor-control-border)]'
+                  : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
               }`}
               title="뒷면 사진 (Back)"
               aria-label="뒷면 사진"
@@ -372,7 +372,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
           <button
             type="button"
             onClick={handleLoadSample}
-            className="text-xs text-[var(--app-text-muted)] hover:text-[var(--app-text)] cursor-pointer whitespace-nowrap"
+            className="px-2.5 py-1 rounded-md border border-[var(--editor-control-border)] bg-[var(--editor-control-bg)] hover:border-[var(--editor-input-border-hover)] hover:bg-[var(--app-highlight)] text-xs font-medium text-[var(--editor-label)] hover:text-[var(--editor-text)] cursor-pointer whitespace-nowrap transition-colors"
           >
             샘플 불러오기
           </button>
@@ -385,10 +385,10 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
           onClick={() => !currentImageUrl && triggerCurrentInput()}
           className={`relative w-full aspect-[9/5] rounded-xl border overflow-hidden flex flex-col items-center justify-center ${
             isDragging
-              ? 'border-[var(--app-accent)] bg-[var(--app-highlight)]/30'
+              ? 'border-[var(--app-accent)] bg-[var(--app-highlight)]/40'
               : currentImageUrl
-                ? 'border-[var(--app-border)] bg-[var(--app-surface-subtle)]'
-                : 'border-dashed border-[var(--app-border)] hover:border-[var(--app-text-muted)]/50 bg-[var(--app-surface-subtle)] cursor-pointer'
+                ? 'border-[var(--editor-input-border)] bg-[var(--editor-input-bg)]'
+                : 'border-dashed border-[var(--editor-input-border)] hover:border-[var(--editor-input-border-hover)] bg-[var(--editor-input-bg)] cursor-pointer transition-colors'
           }`}
         >
           {currentImageUrl ? (
@@ -426,8 +426,8 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center p-4 sm:p-6 text-center space-y-2 pointer-events-none">
-              <Camera className="w-5 h-5 text-[var(--app-text-muted)] stroke-[1.5]" />
-              <p className="text-xs text-[var(--app-text-muted)]">
+              <Camera className="w-5 h-5 text-[var(--editor-label)] stroke-[1.75]" />
+              <p className="text-xs font-medium text-[var(--editor-label)]">
                 {isCompressing ? '이미지를 정리하는 중...' : '사진을 드래그하거나 클릭하여 업로드'}
               </p>
             </div>
@@ -460,10 +460,10 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
               disabled={isExtracting || isCompressing}
               title="Auto-Fill Text from Image"
               aria-label="이미지에서 텍스트 자동 채우기 (Auto-Fill Text from Image)"
-              className={`w-full min-h-[42px] px-3.5 py-2.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-2 transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/40 ${
+              className={`w-full min-h-[42px] px-3.5 py-2.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-2 transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/50 ${
                 isExtracting
-                  ? 'bg-[var(--app-surface-subtle)] border-[var(--app-border)] text-[var(--app-text)] cursor-wait'
-                  : 'bg-[var(--app-surface-subtle)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] border-[var(--app-border)] text-[var(--app-text)] cursor-pointer active:scale-[0.99]'
+                  ? 'bg-[var(--editor-control-bg)] border-[var(--editor-control-border)] text-[var(--editor-text)] cursor-wait'
+                  : 'bg-[var(--editor-control-bg)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] border-[var(--editor-control-border)] hover:border-[var(--editor-input-border-hover)] text-[var(--editor-text)] cursor-pointer active:scale-[0.99]'
               }`}
             >
               {isExtracting ? (
@@ -473,7 +473,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
                 </>
               ) : (
                 <>
-                  <ScanText className="w-3.5 h-3.5 shrink-0 stroke-[1.6]" />
+                  <ScanText className="w-3.5 h-3.5 shrink-0 stroke-[1.75]" />
                   <span>이미지에서 텍스트 자동 채우기</span>
                 </>
               )}
@@ -481,14 +481,14 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
 
             {isExtracting ? (
               <div className="space-y-1.5 px-1">
-                <div className="h-1 w-full rounded-full bg-[var(--app-surface-subtle)] overflow-hidden">
+                <div className="h-1 w-full rounded-full bg-[var(--editor-control-bg)] overflow-hidden">
                   <div
                     className="h-full bg-[var(--app-accent)] transition-all duration-200 ease-out"
                     style={{ width: `${ocrProgress}%` }}
                   />
                 </div>
-                <p className="text-[11px] text-[var(--app-text-muted)] flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[var(--app-text-muted)] shrink-0" />
+                <p className="text-[11px] text-[var(--editor-muted)] flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[var(--editor-muted)] shrink-0" />
                   <span>이미지는 외부 서버로 전송되지 않고 브라우저 내에서만 분석됩니다.</span>
                 </p>
               </div>
@@ -496,8 +496,8 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
               !ocrMessage &&
               !ocrError &&
               !pendingParsed && (
-                <p className="text-[11px] text-[var(--app-text-muted)] flex items-center gap-1.5 px-0.5">
-                  <ShieldCheck className="w-3 h-3 text-[var(--app-text-muted)] shrink-0" />
+                <p className="text-[11px] text-[var(--editor-muted)] flex items-center gap-1.5 px-0.5">
+                  <ShieldCheck className="w-3 h-3 text-[var(--editor-muted)] shrink-0" />
                   <span>브라우저 내장 인식 우선 · 미지원 시 온디바이스 OCR 자동 로드</span>
                 </p>
               )
@@ -505,57 +505,57 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
 
             {/* Conflict Confirmation Prompt (Non-blocking inline card) */}
             {pendingParsed && !isExtracting && (
-              <div className="rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] p-3.5 space-y-3 animate-in fade-in duration-150">
+              <div className="rounded-xl bg-[var(--editor-control-bg)] border border-[var(--editor-control-border)] p-3.5 space-y-3 animate-in fade-in duration-150">
                 <div className="space-y-1">
-                  <p className="text-xs font-medium text-[var(--app-text)]">
+                  <p className="text-xs font-medium text-[var(--editor-text)]">
                     기존 입력과 겹치는 항목이 있습니다 ({conflictingFields.map((c) => c.label).join(', ')})
                   </p>
-                  <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
+                  <p className="text-[11px] text-[var(--editor-muted)] leading-relaxed">
                     추출된 텍스트를 비어 있는 항목에만 채우거나, 기존 입력값을 덮어쓸 수 있습니다.
                   </p>
                 </div>
 
-                <div className="rounded-lg bg-[var(--app-surface)] border border-[var(--app-border)] p-2.5 space-y-1 text-[11px]">
+                <div className="rounded-lg bg-[var(--app-surface)] border border-[var(--editor-control-border)] p-2.5 space-y-1 text-[11px]">
                   {pendingParsed.name && (
                     <div className="flex justify-between gap-2">
-                      <span className="text-[var(--app-text-muted)] shrink-0">성명</span>
-                      <span className="text-[var(--app-text)] truncate">{pendingParsed.name}</span>
+                      <span className="text-[var(--editor-muted)] shrink-0">성명</span>
+                      <span className="text-[var(--editor-text)] truncate">{pendingParsed.name}</span>
                     </div>
                   )}
                   {pendingParsed.company && (
                     <div className="flex justify-between gap-2">
-                      <span className="text-[var(--app-text-muted)] shrink-0">소속</span>
-                      <span className="text-[var(--app-text)] truncate">{pendingParsed.company}</span>
+                      <span className="text-[var(--editor-muted)] shrink-0">소속</span>
+                      <span className="text-[var(--editor-text)] truncate">{pendingParsed.company}</span>
                     </div>
                   )}
                   {pendingParsed.title && (
                     <div className="flex justify-between gap-2">
-                      <span className="text-[var(--app-text-muted)] shrink-0">직함</span>
-                      <span className="text-[var(--app-text)] truncate">{pendingParsed.title}</span>
+                      <span className="text-[var(--editor-muted)] shrink-0">직함</span>
+                      <span className="text-[var(--editor-text)] truncate">{pendingParsed.title}</span>
                     </div>
                   )}
                   {pendingParsed.phone && (
                     <div className="flex justify-between gap-2">
-                      <span className="text-[var(--app-text-muted)] shrink-0">연락처</span>
-                      <span className="text-[var(--app-text)] font-mono truncate">{pendingParsed.phone}</span>
+                      <span className="text-[var(--editor-muted)] shrink-0">연락처</span>
+                      <span className="text-[var(--editor-text)] font-mono truncate">{pendingParsed.phone}</span>
                     </div>
                   )}
                   {pendingParsed.email && (
                     <div className="flex justify-between gap-2">
-                      <span className="text-[var(--app-text-muted)] shrink-0">이메일</span>
-                      <span className="text-[var(--app-text)] truncate">{pendingParsed.email}</span>
+                      <span className="text-[var(--editor-muted)] shrink-0">이메일</span>
+                      <span className="text-[var(--editor-text)] truncate">{pendingParsed.email}</span>
                     </div>
                   )}
                   {!isMyCardMode && pendingParsed.website && (
                     <div className="flex justify-between gap-2">
-                      <span className="text-[var(--app-text-muted)] shrink-0">웹사이트</span>
-                      <span className="text-[var(--app-text)] font-mono truncate">{pendingParsed.website}</span>
+                      <span className="text-[var(--editor-muted)] shrink-0">웹사이트</span>
+                      <span className="text-[var(--editor-text)] font-mono truncate">{pendingParsed.website}</span>
                     </div>
                   )}
                   {pendingParsed.extraNotes.length > 0 && (
                     <div className="flex justify-between gap-2">
-                      <span className="text-[var(--app-text-muted)] shrink-0">보조 메모</span>
-                      <span className="text-[var(--app-text)] truncate">
+                      <span className="text-[var(--editor-muted)] shrink-0">보조 메모</span>
+                      <span className="text-[var(--editor-text)] truncate">
                         {pendingParsed.extraNotes.join(', ')}
                       </span>
                     </div>
@@ -573,7 +573,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
                   <button
                     type="button"
                     onClick={() => applyParsedFields(pendingParsed, 'overwrite')}
-                    className="flex-1 min-h-[36px] px-3 py-1.5 rounded-lg bg-[var(--app-surface)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-medium whitespace-nowrap cursor-pointer transition-colors"
+                    className="flex-1 min-h-[36px] px-3 py-1.5 rounded-lg bg-[var(--app-surface)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] border border-[var(--editor-control-border)] text-[var(--editor-text)] text-xs font-medium whitespace-nowrap cursor-pointer transition-colors"
                   >
                     기존 입력 덮어쓰기
                   </button>
@@ -583,7 +583,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
                       setPendingParsed(null);
                       setConflictingFields([]);
                     }}
-                    className="min-h-[36px] px-2.5 py-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] text-xs whitespace-nowrap cursor-pointer"
+                    className="min-h-[36px] px-2.5 py-1.5 rounded-lg border border-[var(--editor-control-border)] bg-[var(--editor-control-bg)] text-[var(--editor-text)] hover:border-[var(--editor-input-border-hover)] text-xs font-medium whitespace-nowrap cursor-pointer"
                   >
                     취소
                   </button>
@@ -593,9 +593,9 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
 
             {/* Completion Message */}
             {ocrMessage && !isExtracting && (
-              <div className="rounded-xl bg-[var(--app-surface-subtle)] border border-emerald-500/25 px-3 py-2.5 space-y-2 animate-in fade-in duration-150">
+              <div className="rounded-xl bg-[var(--editor-control-bg)] border border-emerald-500/35 px-3 py-2.5 space-y-2 animate-in fade-in duration-150">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-[11px] text-emerald-700 dark:text-emerald-300/90 flex items-start gap-1.5 leading-relaxed">
+                  <p className="text-[11px] text-emerald-700 dark:text-emerald-300 flex items-start gap-1.5 leading-relaxed">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                     <span>{ocrMessage}</span>
                   </p>
@@ -603,7 +603,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowRawText((prev) => !prev)}
-                      className="text-[11px] text-[var(--app-text-muted)] hover:text-[var(--app-text)] inline-flex items-center gap-0.5 shrink-0 whitespace-nowrap cursor-pointer"
+                      className="text-[11px] text-[var(--editor-label)] hover:text-[var(--editor-text)] inline-flex items-center gap-0.5 shrink-0 whitespace-nowrap cursor-pointer"
                     >
                       <span>원문</span>
                       {showRawText ? (
@@ -615,7 +615,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
                   )}
                 </div>
                 {showRawText && rawOcrText && (
-                  <pre className="p-2 rounded-lg bg-[var(--app-surface)] border border-[var(--app-border)] text-[11px] text-[var(--app-text-muted)] font-mono whitespace-pre-wrap break-words max-h-28 overflow-y-auto editor-scrollbar">
+                  <pre className="p-2 rounded-lg bg-[var(--app-surface)] border border-[var(--editor-control-border)] text-[11px] text-[var(--editor-label)] font-mono whitespace-pre-wrap break-words max-h-28 overflow-y-auto editor-scrollbar">
                     {rawOcrText}
                   </pre>
                 )}
@@ -624,14 +624,14 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
 
             {/* Error Feedback */}
             {ocrError && !isExtracting && (
-              <div className="rounded-xl bg-[var(--app-surface-subtle)] border border-amber-500/25 px-3 py-2.5 space-y-2 animate-in fade-in duration-150">
-                <p className="text-[11px] text-amber-800 dark:text-amber-300/90 leading-relaxed">{ocrError}</p>
+              <div className="rounded-xl bg-[var(--editor-control-bg)] border border-amber-500/35 px-3 py-2.5 space-y-2 animate-in fade-in duration-150">
+                <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">{ocrError}</p>
                 {rawOcrText && (
                   <>
                     <button
                       type="button"
                       onClick={() => setShowRawText((prev) => !prev)}
-                      className="text-[11px] text-[var(--app-text-muted)] hover:text-[var(--app-text)] inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
+                      className="text-[11px] text-[var(--editor-label)] hover:text-[var(--editor-text)] inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
                     >
                       <span>인식된 원문 {showRawText ? '숨기기' : '보기'}</span>
                       {showRawText ? (
@@ -641,7 +641,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
                       )}
                     </button>
                     {showRawText && (
-                      <pre className="p-2 rounded-lg bg-[var(--app-surface)] border border-[var(--app-border)] text-[11px] text-[var(--app-text-muted)] font-mono whitespace-pre-wrap break-words max-h-28 overflow-y-auto editor-scrollbar">
+                      <pre className="p-2 rounded-lg bg-[var(--app-surface)] border border-[var(--editor-control-border)] text-[11px] text-[var(--editor-label)] font-mono whitespace-pre-wrap break-words max-h-28 overflow-y-auto editor-scrollbar">
                         {rawOcrText}
                       </pre>
                     )}
@@ -654,8 +654,8 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
       </section>
 
       {/* Essential Contact Metadata */}
-      <section className="border-t border-[var(--app-border)] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
-        <h4 className="text-xs font-medium text-[var(--app-text-muted)] tracking-wide">기본 정보</h4>
+      <section className="border-t border-[var(--editor-divider)] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
+        <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">기본 정보</h4>
 
         <ProfileFieldsGroup
           formData={cardData}
@@ -681,7 +681,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
           {!isMyCardMode && (
             <>
               <div className="space-y-1.5">
-                <label className="text-xs text-[var(--app-text-muted)] block">만난 날짜</label>
+                <label className="text-xs font-medium text-[var(--editor-label)] block">만난 날짜</label>
                 <input
                   type="date"
                   value={metAt || ''}
@@ -690,7 +690,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs text-[var(--app-text-muted)] block">만난 장소 / 행사</label>
+                <label className="text-xs font-medium text-[var(--editor-label)] block">만난 장소 / 행사</label>
                 <input
                   type="text"
                   value={metLocation || ''}
@@ -703,7 +703,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
           )}
 
           <div className={`space-y-1.5 ${!isMyCardMode && onChangeCategory ? 'sm:col-span-2' : ''}`}>
-            <label className="text-xs text-[var(--app-text-muted)] block">메모</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">메모</label>
             <input
               type="text"
               value={notes}
