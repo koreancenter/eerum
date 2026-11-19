@@ -42,7 +42,6 @@ interface CardContainerProps {
   onOrientationChange?: (orientation: CardOrientation) => void;
   hideActions?: boolean;
   disableSwipe?: boolean;
-  disableLayout?: boolean;
   showFlipBadge?: boolean;
   onCardClick?: () => void;
   onInteraction?: () => void;
@@ -88,7 +87,6 @@ export const CardContainer: React.FC<CardContainerProps> = ({
   onOrientationChange,
   hideActions = false,
   disableSwipe = false,
-  disableLayout = false,
   showFlipBadge = false,
   onCardClick,
   onInteraction,
@@ -413,9 +411,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
   );
 
   return (
-    <motion.div
-      layout={!disableLayout}
-      transition={{ layout: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } }}
+    <div
       style={{
         maxWidth: isPortrait
           ? 'min(100%, calc((100vh - 240px) * 5 / 8), 320px)'
@@ -423,12 +419,11 @@ export const CardContainer: React.FC<CardContainerProps> = ({
         maxHeight: isPortrait ? 'calc(100vh - 240px)' : 'none',
         width: '100%',
       }}
-      className="mx-auto select-none flex flex-col items-center transition-all duration-300 relative"
+      className="mx-auto select-none flex flex-col items-center relative"
     >
       {/* 3D Tactile Card Canvas - Framer Motion flip + horizontal swipe-to-switch */}
       <motion.div
         ref={canvasWrapperRef}
-        layout={!disableLayout}
         style={{
           touchAction: disableSwipe ? undefined : 'pan-y',
           x: disableSwipe ? undefined : dragX,
@@ -477,7 +472,6 @@ export const CardContainer: React.FC<CardContainerProps> = ({
 
         <motion.div
           ref={cardRef}
-          layout={!disableLayout}
           onClick={handleCardSurfaceClick}
           data-card-contrast={themeHarmony.contrastMetrics.isLightCanvas ? 'light-canvas' : 'dark-canvas'}
           animate={{
@@ -485,7 +479,6 @@ export const CardContainer: React.FC<CardContainerProps> = ({
           }}
           transition={{
             rotateY: { duration: 0.65, ease: [0.16, 1, 0.3, 1] },
-            layout: { duration: 0.45, ease: [0.16, 1, 0.3, 1] },
           }}
           whileHover={isDraggingHorizontal ? undefined : { scale: 1.012 }}
           whileTap={isDraggingHorizontal ? undefined : { scale: 0.988 }}
@@ -572,10 +565,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
 
       {/* Bottom Actions: Centered beneath Card */}
       {!hideActions && (
-        <motion.div
-          layout={!disableLayout}
-          className="w-full mt-2.5 sm:mt-4 px-1 flex justify-center"
-        >
+        <div className="w-full mt-2.5 sm:mt-4 px-1 flex justify-center">
           <ActionButtons
             data={data}
             isOwner={isOwner}
@@ -596,8 +586,8 @@ export const CardContainer: React.FC<CardContainerProps> = ({
             onShowToast={onShowToast}
             onInteraction={onInteraction}
           />
-        </motion.div>
+        </div>
       )}
-    </motion.div>
+    </div>
   );
 };

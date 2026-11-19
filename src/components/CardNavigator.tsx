@@ -4,6 +4,7 @@ import { isVerticalLayout } from '../constants/templates';
 import { getCardShareUrl } from '../utils/cardSerializer';
 import { shareOrCopyLink } from '../utils/share';
 import { CardContainer } from './CardContainer';
+import { ActionButtons } from './ActionButtons';
 import { 
   Plus, 
   ChevronLeft, 
@@ -20,12 +21,13 @@ import {
 } from 'lucide-react';
 
 export type CardNavigationMode = 'carousel' | 'switcher';
+export type CardNavigatorVariant = 'my-cards' | 'vault';
 
 export interface CardNavigatorProps {
   cards: StoredCard[];
   activeCardId: string;
   onSelectCard: (id: string) => void;
-  onCreateNewCard: () => void;
+  onCreateNewCard?: () => void;
   onOpenEdit?: (card: StoredCard) => void;
   onOpenShare: (card: StoredCard) => void;
   onOpenQuickQr?: (card: StoredCard) => void;
@@ -33,6 +35,11 @@ export interface CardNavigatorProps {
   onOpenPrint?: (card: StoredCard) => void;
   onDeleteCard?: (card: StoredCard) => void;
   onShowToast?: (msg: string) => void;
+  variant?: CardNavigatorVariant;
+  isMemoOpen?: boolean;
+  onToggleMemo?: () => void;
+  getCardUrl?: (card: StoredCard) => string;
+  onInteraction?: (card: StoredCard) => void;
   mode?: CardNavigationMode;
   onModeChange?: (mode: CardNavigationMode) => void;
   allowModeToggle?: boolean;
@@ -54,10 +61,16 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
   onOpenNfc,
   onOpenPrint,
   onShowToast,
+  variant = 'my-cards',
+  isMemoOpen = false,
+  onToggleMemo,
+  getCardUrl,
+  onInteraction,
   mode = 'carousel',
   onModeChange,
   allowModeToggle = false,
 }) => {
+  const isVaultVariant = variant === 'vault';
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [copiedCardId, setCopiedCardId] = useState<string | null>(null);
@@ -71,20 +84,26 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
     };
   }, []);
   
-  // Defense-in-depth: strictly restrict My Cards Navigator to cards with isMyCard === true
-  const personalCards = useMemo(() => cards.filter((c) => c.isMyCard), [cards]);
+  // Strictly partition navigator slides based on variant ('my-cards' vs 'vault')
+  const displayCards = useMemo(
+    () => (isVaultVariant ? cards.filter((c) => !c.isMyCard) : cards.filter((c) => c.isMyCard)),
+    [cards, isVaultVariant]
+  );
 
-  // Total slides = personal cards + 1 ghost card for adding new card
-  const totalSlides = personalCards.length + 1;
-  const ghostIndex = personalCards.length;
+  // Total slides = cards + 1 ghost card in 'my-cards' mode (vault mode has no ghost card)
+  const totalSlides = isVaultVariant ? displayCards.length : displayCards.length + 1;
+  const ghostIndex = displayCards.length;
 
-  const initialIndex = Math.max(0, personalCards.findIndex((c) => c.id === activeCardId));
+  const initialIndex = Math.max(0, displayCards.findIndex((c) => c.id === activeCardId));
   const [currentIndex, setCurrentIndex] = useState<number>(initialIndex >= 0 ? initialIndex : 0);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [orientation, setOrientation] = useState<CardOrientation>(() => {
-    const initCard = personalCards[initialIndex >= 0 ? initialIndex : 0];
+    const initCard = displayCards[initialIndex >= 0 ? initialIndex : 0];
     return initCard && isVerticalLayout(initCard.layout_type) ? 'portrait' : 'landscape';
   });
+  const syncedCardIdRef = useRef<string | null>(
+    displayCards[initialIndex >= 0 ? initialIndex : 0]?.id ?? null
+  );
   // Tactile haptic vibration feedback for mobile devices (Vibration API)
   const triggerTactileHaptic = useCallback((durationMs = 6) => {
     if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
@@ -96,19 +115,20 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
     }
   }, []);
 
-  // Sync currentIndex when activeCardId or personalCards change externally
+  // Sync currentIndex when activeCardId or displayCards change externally
   useEffect(() => {
-    const idx = personalCards.findIndex((c) => c.id === activeCardId);
-    if (idx >= 0) {
-      setCurrentIndex(idx);
+    const idx = displayCards.findIndex((c) => c.id === activeCardId);
+    const resolvedIdx = idx >= 0 ? idx : displayCards.length > 0 ? 0 : -1;
+    if (resolvedIdx < 0) return;
+
+    const targetCard = displayCards[resolvedIdx];
+    setCurrentIndex(resolvedIdx);
+    if (syncedCardIdRef.current !== targetCard.id) {
+      syncedCardIdRef.current = targetCard.id;
       setIsFlipped(false);
-      setOrientation(isVerticalLayout(personalCards[idx].layout_type) ? 'portrait' : 'landscape');
-    } else if (personalCards.length > 0) {
-      setCurrentIndex(0);
-      setIsFlipped(false);
-      setOrientation(isVerticalLayout(personalCards[0].layout_type) ? 'portrait' : 'landscape');
+      setOrientation(isVerticalLayout(targetCard.layout_type) ? 'portrait' : 'landscape');
     }
-  }, [activeCardId, personalCards]);
+  }, [activeCardId, displayCards]);
 
   // Reset track inline transform whenever currentIndex settles
   useEffect(() => {
@@ -131,11 +151,13 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
       trackRef.current.style.transform = `translateX(${-bounded * 100}%)`;
     }
 
-    if (bounded < personalCards.length) {
-      onSelectCard(personalCards[bounded].id);
-      setOrientation(isVerticalLayout(personalCards[bounded].layout_type) ? 'portrait' : 'landscape');
+    if (bounded < displayCards.length) {
+      const targetCard = displayCards[bounded];
+      syncedCardIdRef.current = targetCard.id;
+      onSelectCard(targetCard.id);
+      setOrientation(isVerticalLayout(targetCard.layout_type) ? 'portrait' : 'landscape');
     }
-  }, [totalSlides, currentIndex, triggerTactileHaptic, personalCards, onSelectCard]);
+  }, [totalSlides, currentIndex, triggerTactileHaptic, displayCards, onSelectCard]);
 
   // Mobile-native axis-locked pointer/touch drag handling for carousel mode
   const gestureRef = useRef<{
@@ -288,17 +310,20 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
         goToSlide(currentIndex + 1);
-      } else if (e.code === 'Space' && currentIndex < personalCards.length) {
+      } else if (e.code === 'Space' && currentIndex < displayCards.length) {
         e.preventDefault();
         setIsFlipped(prev => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, personalCards.length, goToSlide]);
+  }, [currentIndex, displayCards.length, goToSlide]);
 
-  // If no personal cards exist, immediately present the centered ghost card
-  if (personalCards.length === 0) {
+  // If no cards exist
+  if (displayCards.length === 0) {
+    if (isVaultVariant) {
+      return null;
+    }
     return (
       <div className="w-full flex flex-col items-center justify-center py-8 px-4 animate-in fade-in duration-300">
         <div className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px]">
@@ -325,7 +350,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
     );
   }
 
-  const activeCard = currentIndex < personalCards.length ? personalCards[currentIndex] : null;
+  const activeCard = currentIndex < displayCards.length ? displayCards[currentIndex] : null;
 
   // Render Mode 1: Compact/Grid Switcher Mode
   if (mode === 'switcher') {
@@ -344,7 +369,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
         )}
 
         <div className="w-full max-w-4xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          {personalCards.map((card, idx) => {
+          {displayCards.map((card, idx) => {
             const isSelected = card.id === activeCardId;
             return (
               <div
@@ -389,15 +414,17 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
           })}
 
           {/* Add Card Card in Switcher */}
-          <div
-            onClick={onCreateNewCard}
-            className="flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-[var(--app-border)] hover:border-[var(--app-accent)] bg-[var(--app-surface-subtle)]/50 hover:bg-[var(--app-surface-subtle)] transition-all cursor-pointer group min-h-[96px]"
-          >
-            <Plus className="w-5 h-5 text-[var(--app-text-muted)] group-hover:text-[var(--app-text)] group-hover:scale-110 transition-all mb-1" />
-            <span className="text-xs font-medium text-[var(--app-text-muted)] group-hover:text-[var(--app-text)]">
-              새 명함 추가
-            </span>
-          </div>
+          {!isVaultVariant && onCreateNewCard && (
+            <div
+              onClick={onCreateNewCard}
+              className="flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-[var(--app-border)] hover:border-[var(--app-accent)] bg-[var(--app-surface-subtle)]/50 hover:bg-[var(--app-surface-subtle)] transition-all cursor-pointer group min-h-[96px]"
+            >
+              <Plus className="w-5 h-5 text-[var(--app-text-muted)] group-hover:text-[var(--app-text)] group-hover:scale-110 transition-all mb-1" />
+              <span className="text-xs font-medium text-[var(--app-text-muted)] group-hover:text-[var(--app-text)]">
+                새 명함 추가
+              </span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -471,9 +498,10 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
           }}
         >
           {/* Card Slides rendered via unified CardContainer */}
-          {personalCards.map((card, idx) => {
+          {displayCards.map((card, idx) => {
             const isCenter = idx === currentIndex;
             const isFlippedCard = isCenter && isFlipped;
+            const shouldMountCard = !isVaultVariant || Math.abs(idx - currentIndex) <= 2;
 
             return (
               <div
@@ -486,84 +514,112 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
                   zIndex: isCenter ? 20 : 10,
                 }}
               >
-                <CardContainer
-                  cardKey={card.id}
-                  data={card.data}
-                  theme={card.theme}
-                  layout_type={card.layout_type}
-                  card_features={card.card_features}
-                  isPhotoCard={card.isPhotoCard || card.creation_mode === 'photo'}
-                  photoUrl={card.scannedImage || card.front_image_url}
-                  backPhotoUrl={card.scannedImageBack || card.back_image_url}
-                  html_front={card.html_front}
-                  html_back={card.html_back}
-                  isFlipped={isFlippedCard}
-                  onFlip={() => {
-                    if (isMovedRef.current) return;
-                    setIsFlipped((prev) => !prev);
-                  }}
-                  onCardClick={() => {
-                    if (isMovedRef.current) return;
-                    if (!isCenter) {
-                      goToSlide(idx);
-                    } else {
-                      triggerTactileHaptic(5);
+                {shouldMountCard ? (
+                  <CardContainer
+                    cardKey={card.id}
+                    data={card.data}
+                    theme={card.theme}
+                    layout_type={card.layout_type}
+                    card_features={card.card_features}
+                    isPhotoCard={card.isPhotoCard || card.creation_mode === 'photo'}
+                    photoUrl={card.scannedImage || card.front_image_url}
+                    backPhotoUrl={card.scannedImageBack || card.back_image_url}
+                    html_front={card.html_front}
+                    html_back={card.html_back}
+                    isFlipped={isFlippedCard}
+                    onFlip={() => {
+                      if (isMovedRef.current) return;
                       setIsFlipped((prev) => !prev);
-                    }
-                  }}
-                  onOpenShare={() => onOpenShare(card)}
-                  orientation={isCenter ? orientation : isVerticalLayout(card.layout_type) ? 'portrait' : 'landscape'}
-                  onOrientationChange={isCenter ? setOrientation : undefined}
-                  hideActions={true}
-                  disableSwipe={true}
-                  disableLayout={true}
-                  showFlipBadge={isCenter}
-                />
+                    }}
+                    onCardClick={() => {
+                      if (isMovedRef.current) return;
+                      if (!isCenter) {
+                        goToSlide(idx);
+                      } else {
+                        triggerTactileHaptic(5);
+                        setIsFlipped((prev) => !prev);
+                      }
+                    }}
+                    onOpenShare={() => onOpenShare(card)}
+                    orientation={isCenter ? orientation : isVerticalLayout(card.layout_type) ? 'portrait' : 'landscape'}
+                    onOrientationChange={isCenter ? setOrientation : undefined}
+                    hideActions={true}
+                    disableSwipe={true}
+                    showFlipBadge={isCenter}
+                  />
+                ) : (
+                  <div
+                    className="w-full max-w-[560px] aspect-[9/5] rounded-2xl bg-[var(--app-surface)]"
+                    aria-hidden="true"
+                  />
+                )}
               </div>
             );
           })}
 
-          {/* Final Ghost Slide: "Add New Card" Slot */}
-          <div
-            className="w-full shrink-0 flex items-center justify-center px-3 sm:px-8 transition-all duration-300"
-            style={{
-              transform: currentIndex === ghostIndex ? 'scale(1)' : 'scale(0.92)',
-              opacity: currentIndex === ghostIndex ? 1 : 0.38,
-              transition: 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.45s ease',
-              cursor: 'pointer',
-              zIndex: currentIndex === ghostIndex ? 20 : 10,
-            }}
-            onClick={() => {
-              if (isMovedRef.current) return;
-              if (currentIndex !== ghostIndex) {
-                goToSlide(ghostIndex);
-              } else {
-                onCreateNewCard();
-              }
-            }}
-          >
-            <div className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px]">
-              <div 
-                className="w-full rounded-2xl border-2 border-dashed border-[var(--app-border)] hover:border-[var(--app-accent)] bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] transition-all duration-300 flex flex-col items-center justify-center p-8 sm:p-12 text-center group shadow-[var(--app-shadow)] active:scale-[0.99]"
-                style={{ aspectRatio: '9 / 5' }}
-              >
-                <div className="w-14 h-14 rounded-full border border-[var(--app-border)] group-hover:border-[var(--app-accent)] flex items-center justify-center text-[var(--app-text)] bg-[var(--app-surface-subtle)] group-hover:bg-[var(--app-highlight)] group-hover:text-[var(--app-highlight-fg)] group-hover:scale-110 transition-all duration-300 mb-3 shadow-inner">
-                  <Plus className="w-7 h-7" />
+          {/* Final Ghost Slide: "Add New Card" Slot (My Cards mode only) */}
+          {!isVaultVariant && onCreateNewCard && (
+            <div
+              className="w-full shrink-0 flex items-center justify-center px-3 sm:px-8 transition-all duration-300"
+              style={{
+                transform: currentIndex === ghostIndex ? 'scale(1)' : 'scale(0.92)',
+                opacity: currentIndex === ghostIndex ? 1 : 0.38,
+                transition: 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.45s ease',
+                cursor: 'pointer',
+                zIndex: currentIndex === ghostIndex ? 20 : 10,
+              }}
+              onClick={() => {
+                if (isMovedRef.current) return;
+                if (currentIndex !== ghostIndex) {
+                  goToSlide(ghostIndex);
+                } else {
+                  onCreateNewCard();
+                }
+              }}
+            >
+              <div className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px]">
+                <div 
+                  className="w-full rounded-2xl border-2 border-dashed border-[var(--app-border)] hover:border-[var(--app-accent)] bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] transition-all duration-300 flex flex-col items-center justify-center p-8 sm:p-12 text-center group shadow-[var(--app-shadow)] active:scale-[0.99]"
+                  style={{ aspectRatio: '9 / 5' }}
+                >
+                  <div className="w-14 h-14 rounded-full border border-[var(--app-border)] group-hover:border-[var(--app-accent)] flex items-center justify-center text-[var(--app-text)] bg-[var(--app-surface-subtle)] group-hover:bg-[var(--app-highlight)] group-hover:text-[var(--app-highlight-fg)] group-hover:scale-110 transition-all duration-300 mb-3 shadow-inner">
+                    <Plus className="w-7 h-7" />
+                  </div>
+                  <h4 className="text-sm sm:text-base font-semibold text-[var(--app-text)] tracking-tight transition-colors">
+                    새 명함 만들기
+                  </h4>
+                  <p className="text-xs text-[var(--app-text-muted)] mt-1 max-w-[240px] leading-relaxed">
+                    새로운 직함이나 소속 단체 명함을 추가합니다
+                  </p>
                 </div>
-                <h4 className="text-sm sm:text-base font-semibold text-[var(--app-text)] tracking-tight transition-colors">
-                  새 명함 만들기
-                </h4>
-                <p className="text-xs text-[var(--app-text-muted)] mt-1 max-w-[240px] leading-relaxed">
-                  새로운 직함이나 소속 단체 명함을 추가합니다
-                </p>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* 2. Minimalist Single-Row Icon-Only Action Bar */}
-      {activeCard && (
+      {/* 2. Action Toolbar */}
+      {activeCard && isVaultVariant ? (
+        <div className="w-full mt-2.5 sm:mt-4 px-1 flex justify-center">
+          <ActionButtons
+            data={activeCard.data}
+            isOwner={true}
+            onOpenEdit={onOpenEdit ? () => onOpenEdit(activeCard) : undefined}
+            onOpenShare={() => onOpenShare(activeCard)}
+            isPhotoCard={activeCard.isPhotoCard || activeCard.creation_mode === 'photo'}
+            orientation={orientation}
+            onToggleOrientation={() =>
+              setOrientation((prev) => (prev === 'portrait' ? 'landscape' : 'portrait'))
+            }
+            onToggleMemo={onToggleMemo}
+            isMemoOpen={isMemoOpen}
+            hasMemo={Boolean(activeCard.memo?.trim() || activeCard.notes?.trim())}
+            cardUrl={getCardUrl ? getCardUrl(activeCard) : getCardShareUrl(activeCard)}
+            onShowToast={onShowToast}
+            onInteraction={onInteraction ? () => onInteraction(activeCard) : undefined}
+          />
+        </div>
+      ) : activeCard ? (
         <div
           role="toolbar"
           aria-label="내 명함 빠른 작업"
@@ -686,7 +742,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
             <Printer className="w-4 h-4 stroke-[1.75]" />
           </button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

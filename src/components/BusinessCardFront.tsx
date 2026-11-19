@@ -85,7 +85,7 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
       <div
         className={`relative w-full h-full select-none overflow-hidden rounded-2xl ${
           isPrintPreview || hideBorder ? 'border-0' : 'border border-white/10 shadow-2xl'
-        } bg-[#121214] transition-all duration-300`}
+        } bg-[#121214] transition-colors duration-200`}
         style={{
           ...themeHarmony.fallbackCssVars,
           aspectRatio: isPortrait ? '5 / 8' : '9 / 5',
@@ -106,7 +106,7 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
       <div
         className={`relative w-full h-full select-none overflow-hidden rounded-2xl ${
           isPrintPreview || hideBorder ? 'border-0' : `border ${themeStyles.border} shadow-2xl`
-        } bg-[#121214] transition-all duration-300`}
+        } bg-[#121214] transition-colors duration-200`}
         style={{
           ...themeHarmony.fallbackCssVars,
           aspectRatio: isPortrait ? '5 / 8' : '9 / 5',
