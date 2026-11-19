@@ -1057,81 +1057,75 @@ export default function App() {
 
         {/* Footer */}
         <footer className="shrink-0 border-t border-[var(--app-border)] py-2 sm:py-2.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(0.625rem+env(safe-area-inset-bottom,0px))] px-4 sm:px-8 font-sans text-xs">
-          <div className="max-w-5xl mx-auto w-full grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-            <div className="flex items-center justify-self-start min-w-0">
-              {isUnauthenticatedExternalVisitor ? (
-                <a
-                  href="https://nettodot.org/pages/chapter01/abstract"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                  title="eerum · Net to Dot Movement"
-                  aria-label="eerum · Net to Dot Movement"
-                >
-                  <span className="text-xs font-semibold leading-none select-none" aria-hidden="true">
-                    D
-                  </span>
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => modals.openAbout('philosophy')}
-                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                  title="eerum · Net to Dot Movement"
-                  aria-label="eerum · Net to Dot Movement"
-                >
-                  <span className="text-xs font-semibold leading-none select-none" aria-hidden="true">
-                    D
-                  </span>
-                </button>
-              )}
-            </div>
-
-            <div className="justify-self-center flex items-center justify-center gap-1.5 sm:gap-2.5 shrink-0">
+          <div className="max-w-5xl mx-auto w-full flex items-center justify-center gap-1.5 sm:gap-2.5">
+            {isUnauthenticatedExternalVisitor ? (
+              <a
+                href="https://nettodot.org/pages/chapter01/abstract"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+                title="eerum · Net to Dot Movement"
+                aria-label="eerum · Net to Dot Movement"
+              >
+                <span className="text-xs font-semibold leading-none select-none" aria-hidden="true">
+                  D
+                </span>
+              </a>
+            ) : (
               <button
                 type="button"
-                onClick={() => modals.openLegal('privacy')}
+                onClick={() => modals.openAbout('philosophy')}
                 className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                title="개인정보처리방침"
-                aria-label="개인정보처리방침"
+                title="eerum · Net to Dot Movement"
+                aria-label="eerum · Net to Dot Movement"
               >
-                <ShieldCheck className="w-4 h-4 stroke-[1.75]" />
+                <span className="text-xs font-semibold leading-none select-none" aria-hidden="true">
+                  D
+                </span>
               </button>
+            )}
 
+            <button
+              type="button"
+              onClick={() => modals.openLegal('privacy')}
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+              title="개인정보처리방침"
+              aria-label="개인정보처리방침"
+            >
+              <ShieldCheck className="w-4 h-4 stroke-[1.75]" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => modals.openLegal('terms')}
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+              title="서비스 이용약관"
+              aria-label="서비스 이용약관"
+            >
+              <FileText className="w-4 h-4 stroke-[1.75]" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => modals.openLegal('licenses')}
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+              title="오픈소스 라이선스"
+              aria-label="오픈소스 라이선스"
+            >
+              <Code2 className="w-4 h-4 stroke-[1.75]" />
+            </button>
+
+            {!isUnauthenticatedExternalVisitor && (
               <button
                 type="button"
-                onClick={() => modals.openLegal('terms')}
+                onClick={modals.openReset}
                 className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                title="서비스 이용약관"
-                aria-label="서비스 이용약관"
+                title="로컬 데이터 초기화"
+                aria-label="로컬 데이터 초기화"
               >
-                <FileText className="w-4 h-4 stroke-[1.75]" />
+                <RotateCcw className="w-4 h-4 stroke-[1.75]" />
               </button>
-
-              <button
-                type="button"
-                onClick={() => modals.openLegal('licenses')}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                title="오픈소스 라이선스"
-                aria-label="오픈소스 라이선스"
-              >
-                <Code2 className="w-4 h-4 stroke-[1.75]" />
-              </button>
-
-              {!isUnauthenticatedExternalVisitor && (
-                <button
-                  type="button"
-                  onClick={modals.openReset}
-                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                  title="로컬 데이터 초기화"
-                  aria-label="로컬 데이터 초기화"
-                >
-                  <RotateCcw className="w-4 h-4 stroke-[1.75]" />
-                </button>
-              )}
-            </div>
-
-            <div aria-hidden="true" />
+            )}
           </div>
         </footer>
 
