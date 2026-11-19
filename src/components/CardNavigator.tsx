@@ -422,7 +422,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
       <div 
         ref={containerRef}
         style={{ touchAction: 'pan-y' }}
-        className="w-full max-w-5xl relative flex items-center justify-center min-h-[220px] sm:min-h-[290px] md:min-h-[330px] px-2 sm:px-4"
+        className="w-full max-w-5xl relative flex items-center justify-center min-h-[200px] sm:min-h-[290px] md:min-h-[330px] px-1 sm:px-4"
         onPointerDown={handleContainerPointerDown}
         onPointerMove={handleContainerPointerMove}
         onPointerUp={(e) => finishContainerGesture(e, false)}
@@ -478,7 +478,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
             return (
               <div
                 key={card.id}
-                className="w-full shrink-0 flex items-center justify-center px-2 sm:px-8"
+                className="w-full shrink-0 flex items-center justify-center px-1 sm:px-8"
                 style={{
                   transform: isCenter ? 'scale(1)' : 'scale(0.92)',
                   opacity: isCenter ? 1 : 0.38,
@@ -561,41 +561,6 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Minimal Carousel Position Indicator */}
-      {totalSlides > 1 && (
-        <div
-          className="w-full flex items-center justify-center gap-1.5 mt-2.5"
-          role="tablist"
-          aria-label="내 명함 슬라이드 순서"
-        >
-          {Array.from({ length: totalSlides }).map((_, idx) => {
-            const isActive = idx === currentIndex;
-            const isGhost = idx === ghostIndex;
-            return (
-              <button
-                key={idx}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                aria-label={isGhost ? '새 명함 만들기 슬라이드' : `${idx + 1}번째 명함`}
-                onClick={() => goToSlide(idx)}
-                className="p-0.5 cursor-pointer flex items-center justify-center"
-              >
-                <span
-                  className={`block h-1 rounded-full transition-all duration-200 ${
-                    isActive
-                      ? 'w-5 bg-[var(--app-accent)]'
-                      : isGhost
-                        ? 'w-1.5 bg-transparent border border-[var(--app-text-muted)]'
-                        : 'w-1.5 bg-[var(--app-border)] hover:bg-[var(--app-text-muted)]'
-                  }`}
-                />
-              </button>
-            );
-          })}
-        </div>
-      )}
 
       {/* 2. Minimalist Single-Row Icon-Only Action Bar */}
       {activeCard && (

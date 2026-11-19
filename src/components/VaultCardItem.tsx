@@ -16,6 +16,7 @@ import {
   MapPin,
 } from 'lucide-react';
 import { resolveThemeStyles } from '../constants/templates';
+import { deriveCardThemeHarmony } from '../utils/cardThemeHarmony';
 import { downloadVCard, downloadBatchVCard } from '@/utils/cardExporter';
 
 export const extractCleanPhoneNumber = (phoneRaw?: string, phone?: string): string => {
@@ -314,6 +315,10 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
   const effectiveTheme =
     card.creation_mode === 'custom_html' && !card.theme ? 'obsidian' : card.theme;
   const themeStyles = useMemo(() => resolveThemeStyles(effectiveTheme), [effectiveTheme]);
+  const themeHarmony = useMemo(
+    () => deriveCardThemeHarmony(themeStyles.accent, themeStyles.isLight, themeStyles.canvasHex),
+    [themeStyles]
+  );
 
   // Normalized & deduplicated identity fields
   const {
@@ -428,6 +433,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
 
   return (
     <article
+      style={themeHarmony.fallbackCssVars}
       className={`group relative rounded-xl border ${surfaceBorderClass} ${themeStyles.cardBg} p-2.5 sm:p-3.5 shadow-[var(--app-shadow)] transition-colors duration-150 flex flex-col justify-between gap-2 min-w-0`}
     >
       {/* Self-Contained Clickable Card Body (No outer or top category/date header) */}

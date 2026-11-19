@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { CardData, CardTheme, CardOrientation, CardLayoutType, CardFeatures } from '../types/card';
 import { resolveThemeStyles, isVerticalLayout } from '../constants/templates';
+import { deriveCardThemeHarmony } from '../utils/cardThemeHarmony';
 import { BusinessCardFront } from './BusinessCardFront';
 import { BusinessCardBack } from './BusinessCardBack';
 import { ActionButtons } from './ActionButtons';
@@ -82,9 +83,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
   onSwipeNext,
   hasPrev,
   hasNext,
-  carouselIndex = 0,
   carouselTotal = 1,
-  onSelectIndex,
   orientation: controlledOrientation,
   onOrientationChange,
   hideActions = false,
@@ -407,6 +406,12 @@ export const CardContainer: React.FC<CardContainerProps> = ({
   const isPortrait = isVerticalCard || orientation === 'portrait';
   const showCarouselControls = hasCarouselNavigation && carouselTotal > 1;
 
+  const themeStyles = useMemo(() => resolveThemeStyles(theme), [theme]);
+  const themeHarmony = useMemo(
+    () => deriveCardThemeHarmony(themeStyles.accent, themeStyles.isLight, themeStyles.canvasHex),
+    [themeStyles]
+  );
+
   return (
     <motion.div
       layout={!disableLayout}
@@ -474,6 +479,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
           ref={cardRef}
           layout={!disableLayout}
           onClick={handleCardSurfaceClick}
+          data-card-contrast={themeHarmony.contrastMetrics.isLightCanvas ? 'light-canvas' : 'dark-canvas'}
           animate={{
             rotateY: isFlipped ? 180 : 0,
           }}
@@ -484,14 +490,16 @@ export const CardContainer: React.FC<CardContainerProps> = ({
           whileHover={isDraggingHorizontal ? undefined : { scale: 1.012 }}
           whileTap={isDraggingHorizontal ? undefined : { scale: 0.988 }}
           style={{
+            ...themeHarmony.cssVars,
             transformStyle: 'preserve-3d',
             WebkitTransformStyle: 'preserve-3d',
             maxWidth: isPortrait
               ? 'min(100%, calc((100vh - 240px) * 5 / 8), 320px)'
               : '100%',
             maxHeight: isPortrait ? 'calc(100vh - 240px)' : 'none',
+            boxShadow: themeHarmony.cardShadow,
           }}
-          className="relative w-full cursor-pointer group shadow-[var(--app-shadow)] rounded-2xl transition-shadow duration-300"
+          className="relative w-full cursor-pointer group rounded-2xl transition-shadow duration-300"
         >
           {/* Optional Top-Right Discreet Flip Trigger Badge */}
           {showFlipBadge && (
@@ -501,11 +509,16 @@ export const CardContainer: React.FC<CardContainerProps> = ({
                 e.stopPropagation();
                 handleCardFlip();
               }}
-              className="absolute top-3 right-3 z-30 opacity-40 group-hover:opacity-100 transition-opacity p-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white/80 cursor-pointer hover:scale-105 active:scale-95"
+              style={{
+                backgroundColor: themeHarmony.badgeBg,
+                borderColor: themeHarmony.badgeBorder,
+                color: themeHarmony.badgeText,
+              }}
+              className="absolute top-3 right-3 z-30 opacity-50 group-hover:opacity-100 transition-[opacity,background-color,border-color,color] duration-200 p-1.5 rounded-full backdrop-blur-md border cursor-pointer hover:scale-105 active:scale-95"
               title="앞·뒷면 뒤집기 (클릭)"
               aria-label="앞·뒷면 뒤집기"
             >
-              <RefreshCw className="w-3 h-3 text-zinc-300" />
+              <RefreshCw className="w-3 h-3" />
             </button>
           )}
 
@@ -517,10 +530,9 @@ export const CardContainer: React.FC<CardContainerProps> = ({
               transform: 'rotateY(0deg)',
               transformStyle: 'preserve-3d',
               WebkitTransformStyle: 'preserve-3d',
+              boxShadow: `0 0 0 1px ${themeHarmony.ringColor}`,
             }}
-            className={`w-full h-full rounded-2xl overflow-hidden ring-1 ${
-              resolveThemeStyles(theme).isLight ? 'ring-black/5' : 'ring-white/10'
-            }`}
+            className="w-full h-full rounded-2xl overflow-hidden transition-[box-shadow] duration-300"
           >
             <BusinessCardFront
               data={data}
@@ -542,10 +554,9 @@ export const CardContainer: React.FC<CardContainerProps> = ({
               transform: 'rotateY(180deg)',
               transformStyle: 'preserve-3d',
               WebkitTransformStyle: 'preserve-3d',
+              boxShadow: `0 0 0 1px ${themeHarmony.ringColor}`,
             }}
-            className={`absolute inset-0 w-full h-full rounded-2xl overflow-hidden ring-1 ${
-              resolveThemeStyles(theme).isLight ? 'ring-black/5' : 'ring-white/10'
-            }`}
+            className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden transition-[box-shadow] duration-300"
           >
             <BusinessCardBack
               data={data}
@@ -558,70 +569,6 @@ export const CardContainer: React.FC<CardContainerProps> = ({
           </div>
         </motion.div>
       </motion.div>
-
-      {/* Architectural Carousel Progress Indicator (Mobile & Desktop) */}
-      {showCarouselControls && (
-        <div
-          className="w-full mt-2.5 flex items-center justify-center gap-2.5"
-          aria-label={`명함 ${carouselIndex + 1} / ${carouselTotal}`}
-        >
-          <button
-            type="button"
-            onClick={triggerPrevCard}
-            disabled={!canGoPrev}
-            aria-label="이전 명함"
-            className="sm:hidden p-1 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] disabled:opacity-25 cursor-pointer disabled:cursor-default transition-colors"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-          </button>
-
-          {carouselTotal <= 8 ? (
-            <div className="flex items-center gap-1.5" role="tablist" aria-label="명함 순서">
-              {Array.from({ length: carouselTotal }).map((_, idx) => {
-                const isActive = idx === carouselIndex;
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    aria-label={`${idx + 1}번째 명함`}
-                    onClick={() => {
-                      if (!onSelectIndex || idx === carouselIndex) return;
-                      triggerHapticFeedback(5);
-                      pendingSlideDirRef.current = idx > carouselIndex ? 1 : -1;
-                      onSelectIndex(idx);
-                    }}
-                    className="p-0.5 cursor-pointer flex items-center justify-center"
-                  >
-                    <span
-                      className={`block h-1 rounded-full transition-all duration-200 ${
-                        isActive
-                          ? 'w-5 bg-[var(--app-accent)]'
-                          : 'w-1.5 bg-[var(--app-border)] hover:bg-[var(--app-text-muted)]'
-                      }`}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <span className="text-[11px] font-mono tabular-nums text-[var(--app-text-muted)] tracking-wider">
-              {carouselIndex + 1} / {carouselTotal}
-            </span>
-          )}
-
-          <button
-            type="button"
-            onClick={triggerNextCard}
-            disabled={!canGoNext}
-            aria-label="다음 명함"
-            className="sm:hidden p-1 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] disabled:opacity-25 cursor-pointer disabled:cursor-default transition-colors"
-          >
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
 
       {/* Bottom Actions: Centered beneath Card */}
       {!hideActions && (
