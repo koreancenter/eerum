@@ -1149,24 +1149,31 @@ export default function App() {
         {/* Footer */}
         <footer className="shrink-0 border-t border-[var(--app-border)] py-2 sm:py-2.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(0.625rem+env(safe-area-inset-bottom,0px))] px-4 sm:px-8 font-sans text-xs">
           <div className="max-w-5xl mx-auto w-full flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
               {isUnauthenticatedExternalVisitor ? (
                 <a
                   href="https://nettodot.org/pages/chapter01/abstract"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[10px] sm:text-[11px] text-[var(--app-text-muted)] hover:text-[var(--app-text)] tracking-wider font-normal font-sans whitespace-nowrap transition-colors"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] cursor-pointer active:scale-95 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+                  title="eerum · Net to Dot Movement"
+                  aria-label="eerum · Net to Dot Movement"
                 >
-                  eerum · Net to Dot Movement ↗
+                  <span className="text-[11px] sm:text-xs font-semibold leading-none select-none" aria-hidden="true">
+                    D
+                  </span>
                 </a>
               ) : (
                 <button
                   type="button"
                   onClick={() => modals.openAbout('philosophy')}
-                  className="text-[10px] sm:text-[11px] text-[var(--app-text-muted)] hover:text-[var(--app-text)] tracking-wider font-normal font-sans whitespace-nowrap cursor-pointer transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] rounded"
-                  title="앱 소개 · Net to Dot 철학 보기"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] cursor-pointer active:scale-95 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+                  title="eerum · Net to Dot Movement"
+                  aria-label="eerum · Net to Dot Movement"
                 >
-                  eerum · Net to Dot Movement
+                  <span className="text-[11px] sm:text-xs font-semibold leading-none select-none" aria-hidden="true">
+                    D
+                  </span>
                 </button>
               )}
             </div>

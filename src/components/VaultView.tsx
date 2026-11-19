@@ -843,11 +843,8 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   <div
                     role="listbox"
                     aria-label="정렬 옵션"
-                    className="absolute right-0 mt-1.5 w-48 py-1.5 rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] z-50 animate-in fade-in zoom-in-95 duration-150"
+                    className="absolute right-0 mt-1.5 w-40 py-1.5 rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] z-50 animate-in fade-in zoom-in-95 duration-150"
                   >
-                    <div className="px-3 py-1 mb-1 border-b border-[var(--app-border)]">
-                      <p className="text-[10px] font-sans font-medium text-[var(--app-text-muted)]">자동 · 기준별 정렬</p>
-                    </div>
                     {SORT_OPTIONS.map((opt) => {
                       const isSelected = sortBy === opt.id;
                       return (
@@ -866,18 +863,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                               : 'text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)]'
                           }`}
                         >
-                          <div className="min-w-0">
-                            <div className="leading-snug">{opt.label}</div>
-                            {opt.description && (
-                              <div
-                                className={`text-[10px] leading-tight mt-0.5 ${
-                                  isSelected ? 'opacity-80' : 'text-[var(--app-text-muted)]'
-                                }`}
-                              >
-                                {opt.description}
-                              </div>
-                            )}
-                          </div>
+                          <span className="leading-snug truncate">{opt.label}</span>
                           {isSelected && <Check className="w-3.5 h-3.5 stroke-[2] shrink-0" />}
                         </button>
                       );
