@@ -404,7 +404,10 @@ export const CardContainer: React.FC<CardContainerProps> = ({
   const isPortrait = isVerticalCard || orientation === 'portrait';
   const showCarouselControls = hasCarouselNavigation && carouselTotal > 1;
 
-  const themeStyles = useMemo(() => resolveThemeStyles(theme), [theme]);
+  const themeStyles = useMemo(
+    () => resolveThemeStyles(theme, card_features?.custom_bg_color),
+    [theme, card_features?.custom_bg_color]
+  );
   const themeHarmony = useMemo(
     () => deriveCardThemeHarmony(themeStyles.accent, themeStyles.isLight, themeStyles.canvasHex),
     [themeStyles]
@@ -555,6 +558,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
               data={data}
               theme={theme}
               layout_type={layout_type}
+              card_features={card_features}
               orientation={orientation}
               backPhotoUrl={backPhotoUrl}
               html_back={html_back}

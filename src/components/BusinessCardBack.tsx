@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import QRCode from 'qrcode';
-import { CardData, CardTheme, CardOrientation, CardLayoutType } from '../types/card';
-import { resolveThemeStyles, isVerticalLayout } from '../constants/templates';
+import { CardData, CardTheme, CardOrientation, CardLayoutType, CardFeatures } from '../types/card';
+import { resolveThemeStyles, normalizeHexColor, isVerticalLayout } from '../constants/templates';
 import { deriveCardThemeHarmony } from '../utils/cardThemeHarmony';
 import { SandboxedCardRenderer } from './SandboxedCardRenderer';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
@@ -11,6 +11,7 @@ interface BusinessCardBackProps {
   data: CardData;
   theme?: CardTheme;
   layout_type?: CardLayoutType;
+  card_features?: CardFeatures;
   orientation?: CardOrientation;
   isPrintPreview?: boolean;
   backPhotoUrl?: string;
@@ -22,6 +23,7 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
   data,
   theme = 'pure_white',
   layout_type = 'editorial_minimal',
+  card_features,
   orientation = 'landscape',
   isPrintPreview = false,
   backPhotoUrl,
@@ -34,7 +36,12 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
     [html_back]
   );
 
-  const themeStyles = useMemo(() => resolveThemeStyles(theme), [theme]);
+  const customBgHex = normalizeHexColor(card_features?.custom_bg_color) || undefined;
+  const customBgImage = (card_features?.custom_bg_image || '').trim();
+  const themeStyles = useMemo(
+    () => resolveThemeStyles(theme, customBgHex),
+    [theme, customBgHex]
+  );
   const themeHarmony = useMemo(
     () => deriveCardThemeHarmony(themeStyles.accent, themeStyles.isLight, themeStyles.canvasHex),
     [themeStyles]
@@ -139,7 +146,7 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
 
   return (
     <div
-      className={`relative w-full h-full select-none flex flex-col justify-between ${
+      className={`relative w-full h-full select-none overflow-hidden flex flex-col justify-between ${
         isPortrait
           ? 'p-4 sm:p-6'
           : isPrintPreview
@@ -148,9 +155,28 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
       } ${themeStyles.cardBg} ${isPrintPreview || hideBorder ? 'border-0' : `border ${themeStyles.border} shadow-2xl`} transition-colors duration-300 font-sans`}
       style={{
         ...themeHarmony.fallbackCssVars,
+        backgroundColor: customBgHex,
         aspectRatio: isPortrait ? '5 / 8' : '9 / 5',
       }}
     >
+      {customBgImage && (
+        <>
+          <img
+            src={customBgImage}
+            alt=""
+            aria-hidden="true"
+            referrerPolicy="no-referrer"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
+          />
+          <div
+            aria-hidden="true"
+            className={`absolute inset-0 pointer-events-none ${
+              themeStyles.isLight ? 'bg-white/45' : 'bg-black/45'
+            }`}
+          />
+        </>
+      )}
+
       {/* Subtle fine art paper grain texture */}
       <div
         className="absolute inset-0 pointer-events-none opacity-[0.028] mix-blend-overlay"

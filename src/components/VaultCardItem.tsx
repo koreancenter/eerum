@@ -15,7 +15,7 @@ import {
   Calendar,
   MapPin,
 } from 'lucide-react';
-import { resolveThemeStyles } from '../constants/templates';
+import { resolveThemeStyles, normalizeHexColor } from '../constants/templates';
 import { deriveCardThemeHarmony } from '../utils/cardThemeHarmony';
 import { downloadVCard, downloadBatchVCard } from '@/utils/cardExporter';
 
@@ -314,7 +314,12 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
 
   const effectiveTheme =
     card.creation_mode === 'custom_html' && !card.theme ? 'obsidian' : card.theme;
-  const themeStyles = useMemo(() => resolveThemeStyles(effectiveTheme), [effectiveTheme]);
+  const customBgHex = normalizeHexColor(card.card_features?.custom_bg_color) || undefined;
+  const customBgImage = (card.card_features?.custom_bg_image || '').trim();
+  const themeStyles = useMemo(
+    () => resolveThemeStyles(effectiveTheme, customBgHex),
+    [effectiveTheme, customBgHex]
+  );
   const themeHarmony = useMemo(
     () => deriveCardThemeHarmony(themeStyles.accent, themeStyles.isLight, themeStyles.canvasHex),
     [themeStyles]
@@ -433,9 +438,31 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
 
   return (
     <article
-      style={themeHarmony.fallbackCssVars}
-      className={`group relative rounded-xl border ${surfaceBorderClass} ${themeStyles.cardBg} p-2.5 sm:p-3.5 shadow-[var(--app-shadow)] transition-colors duration-150 flex flex-col justify-between gap-2 min-w-0`}
+      style={{
+        ...themeHarmony.fallbackCssVars,
+        backgroundColor: customBgHex,
+      }}
+      className={`group relative overflow-hidden rounded-xl border ${surfaceBorderClass} ${themeStyles.cardBg} p-2.5 sm:p-3.5 shadow-[var(--app-shadow)] transition-colors duration-150 flex flex-col justify-between gap-2 min-w-0`}
     >
+      {customBgImage && (
+        <>
+          <img
+            src={customBgImage}
+            alt=""
+            aria-hidden="true"
+            referrerPolicy="no-referrer"
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
+          />
+          <div
+            aria-hidden="true"
+            className={`absolute inset-0 pointer-events-none ${
+              themeStyles.isLight ? 'bg-white/55' : 'bg-black/55'
+            }`}
+          />
+        </>
+      )}
+
       {/* Self-Contained Clickable Card Body (No outer or top category/date header) */}
       <div
         role="button"
@@ -444,7 +471,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
         onKeyDown={handleBodyKeyDown}
         aria-label={`${displayName} 명함 상세 보기`}
         title="명함 크게 보기"
-        className={`w-full flex flex-col gap-1 min-w-0 cursor-pointer select-none rounded-lg focus-visible:outline-none focus-visible:ring-2 ${
+        className={`relative z-10 w-full flex flex-col gap-1 min-w-0 cursor-pointer select-none rounded-lg focus-visible:outline-none focus-visible:ring-2 ${
           themeStyles.isLight ? 'focus-visible:ring-black/30' : 'focus-visible:ring-white/35'
         }`}
       >
@@ -571,7 +598,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
 
       {/* Integrated Card Footer: Direct Contact & Grouped Kebab Management Actions */}
       <footer
-        className={`mt-auto pt-2 border-t ${themeStyles.accentHairline} flex items-center justify-between gap-1 min-w-0`}
+        className={`relative z-10 mt-auto pt-2 border-t ${themeStyles.accentHairline} flex items-center justify-between gap-1 min-w-0`}
       >
         {/* Left: Primary Quick Actions (Call, SMS, optional Mail & Website) */}
         <div className="flex items-center gap-1 min-w-0">

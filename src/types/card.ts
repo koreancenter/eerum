@@ -76,6 +76,8 @@ export interface CardFeatures {
   show_address?: boolean;       // Toggle address block
   custom_logo?: string;         // Optional custom logo upload (data URL or image path)
   monogram_text?: string;       // Text monogram fallback (e.g. "PK" or "GP")
+  custom_bg_color?: string;     // Optional custom HEX background color
+  custom_bg_image?: string;     // Optional custom background image Data URL
 }
 
 export interface CardData {

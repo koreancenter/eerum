@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { CardData, CardTheme, CardOrientation, CardLayoutType, CardFeatures } from '../types/card';
-import { resolveThemeStyles, generateMonogram, isVerticalLayout } from '../constants/templates';
+import { resolveThemeStyles, normalizeHexColor, generateMonogram, isVerticalLayout } from '../constants/templates';
 import { deriveCardThemeHarmony } from '../utils/cardThemeHarmony';
 import { Check, Copy } from 'lucide-react';
 import { SandboxedCardRenderer } from './SandboxedCardRenderer';
@@ -48,7 +48,12 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
 
   const isVerticalCard = isVerticalLayout(layout_type);
   const isPortrait = isVerticalCard || orientation === 'portrait';
-  const themeStyles = useMemo(() => resolveThemeStyles(theme), [theme]);
+  const customBgHex = normalizeHexColor(card_features?.custom_bg_color) || undefined;
+  const customBgImage = (card_features?.custom_bg_image || '').trim();
+  const themeStyles = useMemo(
+    () => resolveThemeStyles(theme, customBgHex),
+    [theme, customBgHex]
+  );
   const themeHarmony = useMemo(
     () => deriveCardThemeHarmony(themeStyles.accent, themeStyles.isLight, themeStyles.canvasHex),
     [themeStyles]
@@ -177,14 +182,35 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
       ? candidateEnAddress
       : '';
 
+  const backgroundMediaLayer = customBgImage ? (
+    <>
+      <img
+        src={customBgImage}
+        alt=""
+        aria-hidden="true"
+        referrerPolicy="no-referrer"
+        className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
+      />
+      <div
+        aria-hidden="true"
+        className={`absolute inset-0 pointer-events-none ${
+          themeStyles.isLight ? 'bg-white/45' : 'bg-black/45'
+        }`}
+      />
+    </>
+  ) : null;
+
   const textureOverlay = (
-    <div
-      className="absolute inset-0 pointer-events-none opacity-[0.028] mix-blend-overlay"
-      style={{
-        backgroundImage: 'radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)',
-        backgroundSize: '14px 14px',
-      }}
-    />
+    <>
+      {backgroundMediaLayer}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.028] mix-blend-overlay"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)',
+          backgroundSize: '14px 14px',
+        }}
+      />
+    </>
   );
 
   const cornerMark =
@@ -205,13 +231,14 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
   if (layout_type === 'monogram_executive') {
     return (
       <div
-        className={`relative w-full h-full select-none flex flex-col justify-between ${
+        className={`relative w-full h-full select-none overflow-hidden flex flex-col justify-between ${
           isPortrait ? 'p-4 sm:p-6' : isPrintPreview ? 'p-4' : 'p-2.5 sm:p-5 md:p-7'
         } ${themeStyles.cardBg} ${
           isPrintPreview || hideBorder ? 'border-0' : `border ${themeStyles.border}`
         } transition-colors duration-300 font-sans`}
         style={{
           ...themeHarmony.fallbackCssVars,
+          backgroundColor: customBgHex,
           aspectRatio: isPortrait ? '5 / 8' : '9 / 5',
         }}
       >
@@ -369,11 +396,12 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
   if (layout_type === 'vertical_atelier') {
     return (
       <div
-        className={`relative w-full h-full select-none flex flex-col justify-between p-5 sm:p-7 ${themeStyles.cardBg} ${
+        className={`relative w-full h-full select-none overflow-hidden flex flex-col justify-between p-5 sm:p-7 ${themeStyles.cardBg} ${
           isPrintPreview || hideBorder ? 'border-0' : `border ${themeStyles.border}`
         } transition-colors duration-300 font-sans`}
         style={{
           ...themeHarmony.fallbackCssVars,
+          backgroundColor: customBgHex,
           aspectRatio: '5 / 8',
         }}
       >
@@ -504,11 +532,12 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
   if (layout_type === 'serenity_vertical') {
     return (
       <div
-        className={`relative w-full h-full select-none flex flex-col justify-between p-6 sm:p-8 ${themeStyles.cardBg} ${
+        className={`relative w-full h-full select-none overflow-hidden flex flex-col justify-between p-6 sm:p-8 ${themeStyles.cardBg} ${
           isPrintPreview || hideBorder ? 'border-0' : `border ${themeStyles.border}`
         } transition-colors duration-300 font-sans`}
         style={{
           ...themeHarmony.fallbackCssVars,
+          backgroundColor: customBgHex,
           aspectRatio: '5 / 8',
         }}
       >
@@ -623,13 +652,14 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
   if (layout_type === 'swiss_typo_bold') {
     return (
       <div
-        className={`relative w-full h-full select-none flex flex-col justify-between ${
+        className={`relative w-full h-full select-none overflow-hidden flex flex-col justify-between ${
           isPortrait ? 'p-4 sm:p-6' : isPrintPreview ? 'p-4' : 'p-2.5 sm:p-5 md:p-7'
         } ${themeStyles.cardBg} ${
           isPrintPreview || hideBorder ? 'border-0' : `border ${themeStyles.border}`
         } transition-colors duration-300 font-sans`}
         style={{
           ...themeHarmony.fallbackCssVars,
+          backgroundColor: customBgHex,
           aspectRatio: isPortrait ? '5 / 8' : '9 / 5',
         }}
       >
@@ -782,13 +812,14 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
   if (layout_type === 'warm_organic') {
     return (
       <div
-        className={`relative w-full h-full select-none flex flex-col justify-between ${
+        className={`relative w-full h-full select-none overflow-hidden flex flex-col justify-between ${
           isPortrait ? 'p-4 sm:p-6' : isPrintPreview ? 'p-4' : 'p-2.5 sm:p-5 md:p-8'
         } ${themeStyles.cardBg} ${
           isPrintPreview || hideBorder ? 'border-0' : `border ${themeStyles.border}`
         } transition-colors duration-300 font-sans`}
         style={{
           ...themeHarmony.fallbackCssVars,
+          backgroundColor: customBgHex,
           aspectRatio: isPortrait ? '5 / 8' : '9 / 5',
         }}
       >
@@ -916,7 +947,7 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
   // =========================================================================
   return (
     <div
-      className={`relative w-full h-full select-none flex flex-col justify-between ${
+      className={`relative w-full h-full select-none overflow-hidden flex flex-col justify-between ${
         isPortrait
           ? 'p-4 sm:p-6'
           : isPrintPreview
@@ -927,6 +958,7 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
       } transition-colors duration-300 font-sans`}
       style={{
         ...themeHarmony.fallbackCssVars,
+        backgroundColor: customBgHex,
         aspectRatio: isPortrait ? '5 / 8' : '9 / 5',
       }}
     >

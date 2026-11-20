@@ -1,9 +1,15 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CardTheme, CardLayoutType, CardFeatures, CardData } from '../../types/card';
-import { LAYOUT_PRESETS } from '../../constants/templates';
-import { Trash2 } from 'lucide-react';
+import {
+  LAYOUT_PRESETS,
+  isVerticalLayout,
+  normalizeHexColor,
+  resolveThemeStyles,
+} from '../../constants/templates';
+import { ImagePlus, Pipette, Trash2 } from 'lucide-react';
 import { THEME_OPTIONS } from '../CardEditorModal';
 import { APP_BASE_DOMAIN } from '@/utils/cardSerializer';
+import { cropAndCompressCardImage } from '../../utils/imageProcess';
 import { LayoutMiniWireframe } from './LayoutMiniWireframe';
 import { CategorySelectSection, EDITOR_INPUT_CLASS } from './CategorySelectSection';
 import { ProfileFieldsGroup } from './ProfileFieldsGroup';
@@ -64,6 +70,82 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
   onChangeMetLocation,
 }) => {
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const bgImageInputRef = useRef<HTMLInputElement>(null);
+  const [isProcessingBgImage, setIsProcessingBgImage] = useState(false);
+
+  const resolvedCanvasHex = resolveThemeStyles(theme, features.custom_bg_color).canvasHex;
+  const activeCustomHex = normalizeHexColor(features.custom_bg_color);
+  const [hexInput, setHexInput] = useState<string>(activeCustomHex || resolvedCanvasHex);
+
+  useEffect(() => {
+    setHexInput(activeCustomHex || resolvedCanvasHex);
+  }, [activeCustomHex, resolvedCanvasHex]);
+
+  const handleSelectPresetTheme = (nextTheme: CardTheme) => {
+    onChangeTheme(nextTheme);
+    onChangeFeatures((prev) => ({
+      ...prev,
+      custom_bg_color: '',
+    }));
+  };
+
+  const handleColorPickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = e.target.value.toUpperCase();
+    setHexInput(picked);
+    onChangeFeatures((prev) => ({
+      ...prev,
+      custom_bg_color: picked,
+    }));
+  };
+
+  const handleHexInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.toUpperCase().replace(/[^#0-9A-F]/g, '');
+    const formatted = raw.startsWith('#') ? raw.slice(0, 7) : `#${raw}`.slice(0, 7);
+    setHexInput(formatted);
+
+    const stripped = formatted.replace(/^#/, '');
+    if (/^[0-9A-F]{6}$/.test(stripped)) {
+      onChangeFeatures((prev) => ({
+        ...prev,
+        custom_bg_color: `#${stripped}`,
+      }));
+    }
+  };
+
+  const handleHexInputBlur = () => {
+    const normalized = normalizeHexColor(hexInput);
+    if (normalized) {
+      setHexInput(normalized);
+      onChangeFeatures((prev) => ({
+        ...prev,
+        custom_bg_color: normalized,
+      }));
+    } else {
+      setHexInput(activeCustomHex || resolvedCanvasHex);
+    }
+  };
+
+  const handleBgImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !file.type.startsWith('image/')) return;
+    setIsProcessingBgImage(true);
+    try {
+      const vertical = isVerticalLayout(layoutType);
+      const result = await cropAndCompressCardImage(file, {
+        targetWidth: vertical ? 675 : 1080,
+        targetHeight: vertical ? 1080 : 600,
+        quality: 0.85,
+        format: 'image/webp',
+        fillColor: resolvedCanvasHex,
+      });
+      onChangeFeatures((prev) => ({ ...prev, custom_bg_image: result.dataUrl }));
+    } catch (err) {
+      console.error('Background image upload error:', err);
+    } finally {
+      setIsProcessingBgImage(false);
+    }
+  };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -78,116 +160,224 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
 
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-      {/* Understated Typographic Sub-Tab Switcher */}
-      <div className="grid grid-cols-2 p-0.5 sm:p-1 rounded-lg bg-[var(--editor-segment-track)] border border-[var(--editor-control-border)]">
+      {/* Minimal Border-Bottom Typographic Sub-Tab Switcher (Zero Box-in-Box) */}
+      <div
+        className="flex items-center gap-5 sm:gap-6 border-b border-[var(--editor-divider)]"
+        role="tablist"
+        aria-label="템플릿 편집 항목"
+      >
         <button
           type="button"
+          role="tab"
+          aria-selected={subTab === 'visual_atelier'}
           onClick={() => onChangeSubTab('visual_atelier')}
-          className={`py-1.5 sm:py-2 rounded-md text-[11px] sm:text-xs tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none ${
+          title="지류 색상, 배경 이미지 및 명함 레이아웃 구도 선택"
+          className={`relative pb-2.5 text-xs tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none ${
             subTab === 'visual_atelier'
-              ? 'bg-[var(--app-surface)] text-[var(--editor-text)] font-semibold shadow-xs ring-1 ring-[var(--editor-control-border)]'
+              ? 'text-[var(--editor-text)] font-semibold'
               : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
           }`}
         >
           소재 및 구도
+          {subTab === 'visual_atelier' && (
+            <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
+          )}
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={subTab === 'identity_profile'}
           onClick={() => onChangeSubTab('identity_profile')}
-          className={`py-1.5 sm:py-2 rounded-md text-[11px] sm:text-xs tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none ${
+          title="성명, 소속, 직함, 연락처 및 주소 정보 입력"
+          className={`relative pb-2.5 text-xs tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none ${
             subTab === 'identity_profile'
-              ? 'bg-[var(--app-surface)] text-[var(--editor-text)] font-semibold shadow-xs ring-1 ring-[var(--editor-control-border)]'
+              ? 'text-[var(--editor-text)] font-semibold'
               : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
           }`}
         >
           인적 정보
+          {subTab === 'identity_profile' && (
+            <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
+          )}
         </button>
       </div>
 
       {/* SUB-TAB 1: Curated Materials & Layout */}
       {subTab === 'visual_atelier' && (
-        <div className="space-y-4 sm:space-y-6 lg:space-y-8 animate-in fade-in duration-150">
-          {/* Curated Material Presets (4 Quiet Luxury Finishes) */}
-          <section className="space-y-2.5 sm:space-y-3.5">
-            <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">
+        <div className="space-y-5 sm:space-y-6 lg:space-y-7 animate-in fade-in duration-150">
+          {/* Paper & Finish: 5 Swatches + Custom Color Picker/HEX + Background Image Upload */}
+          <section className="space-y-3 sm:space-y-3.5">
+            <h4
+              className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide inline-block"
+              title="5종 기본 테마 색상, 사용자 지정 HEX/팔레트 색상 및 배경 이미지 설정"
+            >
               지류 및 마감
             </h4>
 
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            {/* Swatch Buttons Only + Custom Color Palette + HEX Input */}
+            <div className="flex flex-wrap items-center gap-2.5">
               {THEME_OPTIONS.map((t) => {
-                const isSelected = theme === t.id;
+                const isSelected = !activeCustomHex && theme === t.id;
                 return (
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => onChangeTheme(t.id)}
-                    className={`px-3 py-2.5 sm:px-4 sm:py-3.5 rounded-xl border text-left cursor-pointer flex items-center gap-2.5 sm:gap-3.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/50 transition-colors ${
+                    onClick={() => handleSelectPresetTheme(t.id)}
+                    title={`${t.name} (${t.dotColor})`}
+                    aria-label={`${t.name} (${t.dotColor})`}
+                    aria-pressed={isSelected}
+                    style={{ backgroundColor: t.dotColor }}
+                    className={`w-8 h-8 rounded-full border cursor-pointer transition-transform hover:scale-105 focus-visible:outline-none ${
                       isSelected
-                        ? 'bg-[var(--app-highlight)] border-[var(--app-accent)] ring-1 ring-[var(--app-accent)]/35'
-                        : 'bg-[var(--editor-control-bg)] border-[var(--editor-control-border)] hover:border-[var(--editor-input-border-hover)]'
+                        ? 'border-black/25 dark:border-white/25 ring-2 ring-[var(--app-accent)] ring-offset-2 ring-offset-[var(--app-surface)]'
+                        : 'border-black/15 dark:border-white/20'
                     }`}
-                  >
-                    <span
-                      className="w-4 h-4 sm:w-5 sm:h-5 rounded-md border border-[var(--editor-checkbox-border)] shrink-0"
-                      style={{ backgroundColor: t.dotColor }}
-                    />
-                    <span
-                      className={`text-xs sm:text-[13px] truncate ${
-                        isSelected
-                          ? 'text-[var(--app-highlight-fg)] font-semibold'
-                          : 'text-[var(--editor-label)] font-medium'
-                      }`}
-                    >
-                      {t.name}
-                    </span>
-                  </button>
+                  />
                 );
               })}
+
+              <span className="w-px h-5 bg-[var(--editor-divider)] mx-0.5 shrink-0" aria-hidden="true" />
+
+              {/* Custom Color Palette Picker */}
+              <label
+                title={
+                  activeCustomHex
+                    ? `사용자 지정 색상 (${activeCustomHex}) · 클릭하여 변경`
+                    : '컬러 팔레트에서 사용자 색상 지정'
+                }
+                aria-label="컬러 팔레트에서 사용자 색상 지정"
+                style={{ backgroundColor: activeCustomHex || resolvedCanvasHex }}
+                className={`relative w-8 h-8 rounded-full border flex items-center justify-center cursor-pointer transition-transform hover:scale-105 shrink-0 ${
+                  activeCustomHex
+                    ? 'border-black/25 dark:border-white/25 ring-2 ring-[var(--app-accent)] ring-offset-2 ring-offset-[var(--app-surface)]'
+                    : 'border-dashed border-[var(--editor-input-border-hover)]'
+                }`}
+              >
+                <Pipette
+                  className="w-3.5 h-3.5 pointer-events-none"
+                  style={{
+                    color: resolveThemeStyles(theme, activeCustomHex || resolvedCanvasHex).isLight
+                      ? '#1C1B1A'
+                      : '#FAFAFA',
+                  }}
+                />
+                <input
+                  type="color"
+                  value={activeCustomHex || resolvedCanvasHex}
+                  onChange={handleColorPickerChange}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  aria-label="컬러 팔레트"
+                />
+              </label>
+
+              {/* Direct HEX Input */}
+              <input
+                type="text"
+                maxLength={7}
+                value={hexInput}
+                onChange={handleHexInputChange}
+                onBlur={handleHexInputBlur}
+                placeholder="#F8F7F4"
+                title="HEX 색상 코드 직접 입력 (예: #1A2B3C)"
+                aria-label="HEX 색상 코드 입력"
+                className="w-[90px] h-8 px-2.5 rounded-lg bg-[var(--editor-input-bg)] border border-[var(--editor-input-border)] hover:border-[var(--editor-input-border-hover)] focus:outline-none focus:border-[var(--app-accent)] focus:bg-[var(--editor-input-bg-focus)] text-[var(--editor-text)] placeholder:text-[var(--editor-placeholder)] font-mono text-xs uppercase tracking-wider transition-colors"
+              />
+            </div>
+
+            {/* Background Image Upload */}
+            <div className="pt-0.5">
+              <input
+                type="file"
+                ref={bgImageInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={handleBgImageUpload}
+              />
+              {features.custom_bg_image ? (
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => bgImageInputRef.current?.click()}
+                    disabled={isProcessingBgImage}
+                    title="배경 이미지 변경"
+                    aria-label="배경 이미지 변경"
+                    className="group relative h-9 aspect-[9/5] rounded-lg overflow-hidden border border-[var(--editor-control-border)] hover:border-[var(--editor-input-border-hover)] cursor-pointer shrink-0 transition-colors"
+                  >
+                    <img
+                      src={features.custom_bg_image}
+                      alt="배경 이미지"
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => bgImageInputRef.current?.click()}
+                    disabled={isProcessingBgImage}
+                    title="다른 배경 이미지 선택"
+                    className="h-9 px-3 rounded-lg border border-[var(--editor-control-border)] bg-[var(--editor-control-bg)] hover:border-[var(--editor-input-border-hover)] hover:bg-[var(--app-highlight)] text-xs font-medium text-[var(--editor-label)] hover:text-[var(--editor-text)] cursor-pointer transition-colors"
+                  >
+                    {isProcessingBgImage ? '최적화 중...' : '변경'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onChangeFeatures((prev) => ({ ...prev, custom_bg_image: '' }))
+                    }
+                    title="배경 이미지 삭제"
+                    aria-label="배경 이미지 삭제"
+                    className="h-9 w-9 rounded-lg border border-[var(--editor-control-border)] bg-[var(--editor-control-bg)] hover:border-rose-500/40 hover:bg-rose-500/10 text-[var(--editor-label)] hover:text-rose-500 inline-flex items-center justify-center cursor-pointer transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 stroke-[1.75]" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => bgImageInputRef.current?.click()}
+                  disabled={isProcessingBgImage}
+                  title="명함 배경으로 사용할 이미지 업로드"
+                  className="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg bg-[var(--editor-input-bg)] border border-dashed border-[var(--editor-input-border)] hover:border-[var(--editor-input-border-hover)] hover:bg-[var(--app-highlight)] text-xs font-medium text-[var(--editor-label)] hover:text-[var(--editor-text)] cursor-pointer transition-colors"
+                >
+                  <ImagePlus className="w-3.5 h-3.5 stroke-[1.75]" />
+                  <span>{isProcessingBgImage ? '최적화 중...' : '배경 이미지'}</span>
+                </button>
+              )}
             </div>
           </section>
 
-          {/* Architectural Layouts */}
-          <section className="border-t border-[var(--editor-divider)] pt-4 sm:pt-6 lg:pt-8 space-y-2.5 sm:space-y-3.5">
-            <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">
+          {/* Architectural Layouts (Zero Box-in-Box, Zero Name/Ratio Text — Tooltips Only) */}
+          <section className="border-t border-[var(--editor-divider)] pt-4 sm:pt-6 space-y-3 sm:space-y-3.5">
+            <h4
+              className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide inline-block"
+              title="명함 레이아웃 구도 선택 (가로 9:5 / 세로 5:8)"
+            >
               레이아웃
             </h4>
 
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
               {LAYOUT_PRESETS.map((preset) => {
                 const isSelected = layoutType === preset.id;
+                const vertical = isVerticalLayout(preset.id);
                 return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => onChangeLayout(preset.id)}
-                    className={`p-2.5 sm:p-3.5 rounded-xl border text-left cursor-pointer flex flex-col justify-between focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/50 transition-colors ${
-                      isSelected
-                        ? 'bg-[var(--app-highlight)] border-[var(--app-accent)] ring-1 ring-[var(--app-accent)]/35'
-                        : 'bg-[var(--editor-control-bg)] border-[var(--editor-control-border)] hover:border-[var(--editor-input-border-hover)]'
-                    }`}
-                  >
-                    <div className="mb-2 sm:mb-3 w-full">
+                  <div key={preset.id} className="flex items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={() => onChangeLayout(preset.id)}
+                      title={`${preset.name} (${preset.aspectRatio}) · ${preset.description}`}
+                      aria-label={`${preset.name} (${preset.aspectRatio})`}
+                      aria-pressed={isSelected}
+                      className={`${
+                        vertical ? 'w-[56%] aspect-[5/8]' : 'w-full aspect-[9/5]'
+                      } p-2.5 sm:p-3 rounded-lg border text-left cursor-pointer flex flex-col justify-between focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/50 transition-colors ${
+                        isSelected
+                          ? 'bg-[var(--app-highlight)] border-[var(--app-accent)] ring-1 ring-[var(--app-accent)]/35'
+                          : 'bg-[var(--editor-control-bg)] border-[var(--editor-control-border)] hover:border-[var(--editor-input-border-hover)]'
+                      }`}
+                    >
                       <LayoutMiniWireframe layoutId={preset.id} isSelected={isSelected} />
-                    </div>
-                    <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full">
-                      <span
-                        className={`text-[11px] sm:text-xs truncate ${
-                          isSelected
-                            ? 'text-[var(--app-highlight-fg)] font-semibold'
-                            : 'text-[var(--editor-label)] font-medium'
-                        }`}
-                      >
-                        {preset.name}
-                      </span>
-                      <span
-                        className={`text-[9px] sm:text-[10px] font-mono tabular-nums shrink-0 ${
-                          isSelected ? 'text-[var(--app-highlight-fg)]/85' : 'text-[var(--editor-muted)]'
-                        }`}
-                      >
-                        {preset.aspectRatio}
-                      </span>
-                    </div>
-                  </button>
+                    </button>
+                  </div>
                 );
               })}
             </div>

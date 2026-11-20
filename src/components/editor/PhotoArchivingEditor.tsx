@@ -334,45 +334,56 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
     <div className="space-y-4 sm:space-y-6 lg:space-y-8 animate-in fade-in duration-150">
       {/* Photo Upload Zone */}
       <section className="space-y-2.5 sm:space-y-3.5">
-        <div className="flex flex-row items-center justify-between gap-2 whitespace-nowrap">
-          {/* 2-Segment Photo Side Switch */}
+        <div className="flex flex-row items-center justify-between gap-2 whitespace-nowrap border-b border-[var(--editor-divider)] pb-0.5">
+          {/* Flat Underline Photo Side Switch (Zero Box-in-Box) */}
           <div
-            className="inline-flex items-center p-0.5 rounded-lg bg-[var(--editor-segment-track)] border border-[var(--editor-control-border)] shrink-0"
-            role="group"
+            className="inline-flex items-center gap-4 shrink-0"
+            role="tablist"
             aria-label="사진 면 선택"
           >
             <button
               type="button"
+              role="tab"
+              aria-selected={activeSide === 'front'}
               onClick={() => setActiveSide('front')}
-              className={`px-2.5 py-1 rounded-md text-xs tracking-wide transition-all whitespace-nowrap cursor-pointer ${
+              className={`relative pb-2 text-xs tracking-wide transition-colors whitespace-nowrap cursor-pointer focus-visible:outline-none ${
                 activeSide === 'front'
-                  ? 'bg-[var(--app-surface)] text-[var(--editor-text)] font-semibold shadow-sm ring-1 ring-[var(--editor-control-border)]'
+                  ? 'text-[var(--editor-text)] font-semibold'
                   : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
               }`}
               title="앞면 사진 (Front)"
               aria-label="앞면 사진"
             >
               Front
+              {activeSide === 'front' && (
+                <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
+              )}
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={activeSide === 'back'}
               onClick={() => setActiveSide('back')}
-              className={`px-2.5 py-1 rounded-md text-xs tracking-wide transition-all whitespace-nowrap cursor-pointer ${
+              className={`relative pb-2 text-xs tracking-wide transition-colors whitespace-nowrap cursor-pointer focus-visible:outline-none ${
                 activeSide === 'back'
-                  ? 'bg-[var(--app-surface)] text-[var(--editor-text)] font-semibold shadow-sm ring-1 ring-[var(--editor-control-border)]'
+                  ? 'text-[var(--editor-text)] font-semibold'
                   : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
               }`}
               title="뒷면 사진 (Back)"
               aria-label="뒷면 사진"
             >
               Back
+              {activeSide === 'back' && (
+                <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
+              )}
             </button>
           </div>
 
           <button
             type="button"
             onClick={handleLoadSample}
-            className="px-2.5 py-1 rounded-md border border-[var(--editor-control-border)] bg-[var(--editor-control-bg)] hover:border-[var(--editor-input-border-hover)] hover:bg-[var(--app-highlight)] text-xs font-medium text-[var(--editor-label)] hover:text-[var(--editor-text)] cursor-pointer whitespace-nowrap transition-colors"
+            title="샘플 명함 사진 및 예시 정보 불러오기"
+            className="mb-1.5 px-2.5 py-1 rounded-md border border-[var(--editor-control-border)] bg-[var(--editor-control-bg)] hover:border-[var(--editor-input-border-hover)] hover:bg-[var(--app-highlight)] text-xs font-medium text-[var(--editor-label)] hover:text-[var(--editor-text)] cursor-pointer whitespace-nowrap transition-colors"
           >
             샘플 불러오기
           </button>
@@ -458,8 +469,8 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
               type="button"
               onClick={handleRunLocalOcr}
               disabled={isExtracting || isCompressing}
-              title="Auto-Fill Text from Image"
-              aria-label="이미지에서 텍스트 자동 채우기 (Auto-Fill Text from Image)"
+              title="브라우저 내장 인식 우선 · 미지원 시 온디바이스 OCR 자동 로드 (외부 서버 전송 없음)"
+              aria-label="이미지에서 텍스트 자동 채우기"
               className={`w-full min-h-[42px] px-3.5 py-2.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-2 transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/50 ${
                 isExtracting
                   ? 'bg-[var(--editor-control-bg)] border-[var(--editor-control-border)] text-[var(--editor-text)] cursor-wait'
@@ -479,7 +490,7 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
               )}
             </button>
 
-            {isExtracting ? (
+            {isExtracting && (
               <div className="space-y-1.5 px-1">
                 <div className="h-1 w-full rounded-full bg-[var(--editor-control-bg)] overflow-hidden">
                   <div
@@ -492,15 +503,6 @@ export const PhotoArchivingEditor: React.FC<PhotoArchivingEditorProps> = ({
                   <span>이미지는 외부 서버로 전송되지 않고 브라우저 내에서만 분석됩니다.</span>
                 </p>
               </div>
-            ) : (
-              !ocrMessage &&
-              !ocrError &&
-              !pendingParsed && (
-                <p className="text-[11px] text-[var(--editor-muted)] flex items-center gap-1.5 px-0.5">
-                  <ShieldCheck className="w-3 h-3 text-[var(--editor-muted)] shrink-0" />
-                  <span>브라우저 내장 인식 우선 · 미지원 시 온디바이스 OCR 자동 로드</span>
-                </p>
-              )
             )}
 
             {/* Conflict Confirmation Prompt (Non-blocking inline card) */}

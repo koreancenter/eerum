@@ -1,4 +1,5 @@
 import { CardTheme, CardFeatures, CardLayoutType } from '../types/card';
+import { parseHexColor, getContrastRatio } from '../utils/cardThemeHarmony';
 
 export interface ThemePresetDefinition {
   id: CardTheme;
@@ -72,10 +73,10 @@ export const LAYOUT_PRESETS: LayoutPresetDefinition[] = [
 export const LUXURY_THEME_PRESETS: ThemePresetDefinition[] = [
   {
     id: 'pure_white',
-    name: '샴페인 샌드 (Champagne Sand)',
-    nameEn: 'Warm Champagne Sand & Deep Warm Charcoal',
-    description: '따뜻한 매트 샴페인 샌드 지류(#F5F2EC)와 깊이 있는 웜 차콜 활자(#1C1B1A), 섬세한 헤어라인 보더',
-    canvasBg: 'bg-[#F5F2EC]',
+    name: '퓨어 화이트 (Pure White)',
+    nameEn: 'Pure White & Deep Warm Charcoal',
+    description: '깨끗한 퓨어 화이트 지류(#F8F7F4)와 딥 차콜 활자',
+    canvasBg: 'bg-[#F8F7F4]',
     textPrimary: 'text-[#1C1B1A]',
     textSecondary: 'text-[#5C5955]',
     textMuted: 'text-[#5C5955]',
@@ -85,15 +86,69 @@ export const LUXURY_THEME_PRESETS: ThemePresetDefinition[] = [
     hairlineClass: 'border-[#1C1B1A]/10',
     hoverHighlight: 'hover:bg-[#1C1B1A]/5',
     qrBg: 'bg-[#FAF8F4]',
-    dotColor: '#F5F2EC',
+    dotColor: '#F8F7F4',
     isLight: true
   },
   {
+    id: 'warm_paper',
+    name: '웜 페이퍼 (Warm Paper)',
+    nameEn: 'Warm Cotton Paper & Deep Charcoal',
+    description: '차분한 웜 페이퍼 지류(#E5DFD3)와 딥 차콜 활자',
+    canvasBg: 'bg-[#E5DFD3]',
+    textPrimary: 'text-[#181715]',
+    textSecondary: 'text-[#524F49]',
+    textMuted: 'text-[#524F49]',
+    accent: '#181715',
+    accentName: '딥 차콜 (#181715)',
+    borderClass: 'border-black/10',
+    hairlineClass: 'border-black/10',
+    hoverHighlight: 'hover:bg-black/5',
+    qrBg: 'bg-[#F5F2EC]',
+    dotColor: '#E5DFD3',
+    isLight: true
+  },
+  {
+    id: 'classic_navy',
+    name: '클래식 네이비 (Classic Navy)',
+    nameEn: 'Classic Diplomatic Navy & Platinum',
+    description: '깊이 있는 클래식 네이비(#14233C)와 실버 화이트 활자',
+    canvasBg: 'bg-[#14233C]',
+    textPrimary: 'text-[#FAFAFA]',
+    textSecondary: 'text-zinc-300',
+    textMuted: 'text-zinc-300',
+    accent: '#E4E4E7',
+    accentName: '플래티넘 실버 (#E4E4E7)',
+    borderClass: 'border-white/10',
+    hairlineClass: 'border-white/10',
+    hoverHighlight: 'hover:bg-white/10',
+    qrBg: 'bg-[#121214]',
+    dotColor: '#14233C',
+    isLight: false
+  },
+  {
+    id: 'deep_forest',
+    name: '딥 포레스트 (Deep Forest)',
+    nameEn: 'Deep Evergreen Forest & Platinum',
+    description: '차분한 딥 포레스트(#142B22)와 소프트 플래티넘 서체',
+    canvasBg: 'bg-[#142B22]',
+    textPrimary: 'text-[#FAFAFA]',
+    textSecondary: 'text-zinc-300',
+    textMuted: 'text-zinc-300',
+    accent: '#E4E4E7',
+    accentName: '소프트 플래티넘 (#E4E4E7)',
+    borderClass: 'border-white/10',
+    hairlineClass: 'border-white/10',
+    hoverHighlight: 'hover:bg-white/10',
+    qrBg: 'bg-[#121214]',
+    dotColor: '#142B22',
+    isLight: false
+  },
+  {
     id: 'sumi_ink',
-    name: '수묵 블랙 (Sumi Black)',
+    name: '수묵 블랙 (Sumi Ink)',
     nameEn: 'Rich Carbon Black & Crisp White',
-    description: '깊은 카본 블랙 캔버스(#0A0A0B)와 매트 화이트 활자, 정제된 모노크롬 디테일',
-    canvasBg: 'bg-[#0A0A0B]',
+    description: '깊은 카본 블랙 캔버스(#0D0D0F)와 매트 화이트 활자',
+    canvasBg: 'bg-[#0D0D0F]',
     textPrimary: 'text-[#FAFAFA]',
     textSecondary: 'text-zinc-400',
     textMuted: 'text-zinc-400',
@@ -103,61 +158,7 @@ export const LUXURY_THEME_PRESETS: ThemePresetDefinition[] = [
     hairlineClass: 'border-white/10',
     hoverHighlight: 'hover:bg-white/10',
     qrBg: 'bg-[#121214]',
-    dotColor: '#0A0A0B',
-    isLight: false
-  },
-  {
-    id: 'warm_paper',
-    name: '파인 코튼 (Fine Cotton)',
-    nameEn: 'Soft Stone Paper & Deep Charcoal',
-    description: '차분한 코튼 스톤 지류(#F5F5F4)와 딥 차콜 활자, 모노크롬 블랙 액센트',
-    canvasBg: 'bg-[#F5F5F4]',
-    textPrimary: 'text-[#121214]',
-    textSecondary: 'text-zinc-600',
-    textMuted: 'text-zinc-600',
-    accent: '#121214',
-    accentName: '딥 차콜 (#121214)',
-    borderClass: 'border-black/5',
-    hairlineClass: 'border-black/10',
-    hoverHighlight: 'hover:bg-black/5',
-    qrBg: 'bg-[#FAFAFA]',
-    dotColor: '#F5F5F4',
-    isLight: true
-  },
-  {
-    id: 'deep_forest',
-    name: '딥 포레스트 (Deep Forest)',
-    nameEn: 'Muted Obsidian Forest & Platinum',
-    description: '절제된 다크 포레스트(#0D1914)와 소프트 플래티넘 서체, 미니멀 실버 디테일',
-    canvasBg: 'bg-[#0D1914]',
-    textPrimary: 'text-[#FAFAFA]',
-    textSecondary: 'text-zinc-400',
-    textMuted: 'text-zinc-400',
-    accent: '#E4E4E7',
-    accentName: '소프트 플래티넘 (#E4E4E7)',
-    borderClass: 'border-white/10',
-    hairlineClass: 'border-white/10',
-    hoverHighlight: 'hover:bg-white/10',
-    qrBg: 'bg-[#121214]',
-    dotColor: '#0D1914',
-    isLight: false
-  },
-  {
-    id: 'classic_navy',
-    name: '클래식 네이비 (Classic Navy)',
-    nameEn: 'Midnight Slate & Platinum',
-    description: '미드나잇 슬레이트(#0B101B)와 실버화이트 활자, 플래티넘 헤어라인',
-    canvasBg: 'bg-[#0B101B]',
-    textPrimary: 'text-[#FAFAFA]',
-    textSecondary: 'text-zinc-400',
-    textMuted: 'text-zinc-400',
-    accent: '#E4E4E7',
-    accentName: '플래티넘 실버 (#E4E4E7)',
-    borderClass: 'border-white/10',
-    hairlineClass: 'border-white/10',
-    hoverHighlight: 'hover:bg-white/10',
-    qrBg: 'bg-[#121214]',
-    dotColor: '#0B101B',
+    dotColor: '#0D0D0F',
     isLight: false
   }
 ];
@@ -193,13 +194,58 @@ const HARMONIZED_BORDER_LIGHT =
 const HARMONIZED_BORDER_DARK =
   'border-[var(--card-border,var(--card-fallback-border))] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.85)]';
 
-export function resolveThemeStyles(theme: CardTheme | undefined): ResolvedThemeStyle {
+export function normalizeHexColor(value?: string): string | null {
+  if (!value) return null;
+  const cleaned = value.trim().replace(/^#/, '');
+  if (/^[0-9a-fA-F]{3}$/.test(cleaned)) {
+    const expanded = cleaned
+      .split('')
+      .map((ch) => ch + ch)
+      .join('');
+    return `#${expanded.toUpperCase()}`;
+  }
+  if (/^[0-9a-fA-F]{6}$/.test(cleaned)) {
+    return `#${cleaned.toUpperCase()}`;
+  }
+  return null;
+}
+
+export function resolveThemeStyles(
+  theme: CardTheme | undefined,
+  customBgColor?: string
+): ResolvedThemeStyle {
+  const customHex = normalizeHexColor(customBgColor);
+  if (customHex) {
+    const rgb = parseHexColor(customHex, { r: 248, g: 247, b: 244 });
+    const darkContrast = getContrastRatio({ r: 18, g: 18, b: 17 }, rgb);
+    const lightContrast = getContrastRatio({ r: 250, g: 250, b: 250 }, rgb);
+    const isLight = darkContrast >= lightContrast;
+
+    return {
+      cardBg: '',
+      canvasHex: customHex,
+      border: isLight ? HARMONIZED_BORDER_LIGHT : HARMONIZED_BORDER_DARK,
+      textPrimary: HARMONIZED_TEXT_PRIMARY,
+      textSecondary: HARMONIZED_TEXT_SECONDARY,
+      textMuted: HARMONIZED_TEXT_MUTED,
+      accent: isLight ? '#1C1B1A' : '#FAFAFA',
+      accentHairline: HARMONIZED_HAIRLINE,
+      tagline: HARMONIZED_TEXT_PRIMARY,
+      hoverHighlight: HARMONIZED_HOVER,
+      sheen: isLight
+        ? 'from-black/[0.025] via-transparent to-transparent'
+        : 'from-white/[0.04] via-transparent to-transparent',
+      qrBg: isLight ? 'bg-[#FAF8F4]' : 'bg-[#121214]',
+      isLight,
+    };
+  }
+
   const t = (theme || 'pure_white') as string;
 
   if (t === 'pure_white' || t === 'cotton') {
     return {
-      cardBg: 'bg-[#F5F2EC]',
-      canvasHex: '#F5F2EC',
+      cardBg: 'bg-[#F8F7F4]',
+      canvasHex: '#F8F7F4',
       border: HARMONIZED_BORDER_LIGHT,
       textPrimary: HARMONIZED_TEXT_PRIMARY,
       textSecondary: HARMONIZED_TEXT_SECONDARY,
@@ -216,8 +262,8 @@ export function resolveThemeStyles(theme: CardTheme | undefined): ResolvedThemeS
 
   if (t === 'sumi_ink') {
     return {
-      cardBg: 'bg-[#0A0A0B]',
-      canvasHex: '#0A0A0B',
+      cardBg: 'bg-[#0D0D0F]',
+      canvasHex: '#0D0D0F',
       border: HARMONIZED_BORDER_DARK,
       textPrimary: HARMONIZED_TEXT_PRIMARY,
       textSecondary: HARMONIZED_TEXT_SECONDARY,
@@ -234,26 +280,26 @@ export function resolveThemeStyles(theme: CardTheme | undefined): ResolvedThemeS
 
   if (t === 'warm_paper' || t === 'sand') {
     return {
-      cardBg: 'bg-[#F5F5F4]',
-      canvasHex: '#F5F5F4',
+      cardBg: 'bg-[#E5DFD3]',
+      canvasHex: '#E5DFD3',
       border: HARMONIZED_BORDER_LIGHT,
       textPrimary: HARMONIZED_TEXT_PRIMARY,
       textSecondary: HARMONIZED_TEXT_SECONDARY,
       textMuted: HARMONIZED_TEXT_MUTED,
-      accent: '#121214',
+      accent: '#181715',
       accentHairline: HARMONIZED_HAIRLINE,
       tagline: HARMONIZED_TEXT_PRIMARY,
       hoverHighlight: HARMONIZED_HOVER,
-      sheen: 'from-white/60 via-transparent to-transparent',
-      qrBg: 'bg-[#FAFAFA]',
+      sheen: 'from-white/50 via-transparent to-transparent',
+      qrBg: 'bg-[#F5F2EC]',
       isLight: true
     };
   }
 
   if (t === 'deep_forest' || t === 'emerald') {
     return {
-      cardBg: 'bg-[#0D1914]',
-      canvasHex: '#0D1914',
+      cardBg: 'bg-[#142B22]',
+      canvasHex: '#142B22',
       border: HARMONIZED_BORDER_DARK,
       textPrimary: HARMONIZED_TEXT_PRIMARY,
       textSecondary: HARMONIZED_TEXT_SECONDARY,
@@ -270,8 +316,8 @@ export function resolveThemeStyles(theme: CardTheme | undefined): ResolvedThemeS
 
   if (t === 'classic_navy' || t === 'navy') {
     return {
-      cardBg: 'bg-[#0B101B]',
-      canvasHex: '#0B101B',
+      cardBg: 'bg-[#14233C]',
+      canvasHex: '#14233C',
       border: HARMONIZED_BORDER_DARK,
       textPrimary: HARMONIZED_TEXT_PRIMARY,
       textSecondary: HARMONIZED_TEXT_SECONDARY,
@@ -304,10 +350,10 @@ export function resolveThemeStyles(theme: CardTheme | undefined): ResolvedThemeS
     };
   }
 
-  // Default fallback (including any retired legacy theme string) -> Warm Champagne Sand (#F5F2EC)
+  // Default fallback (including any retired legacy theme string) -> Pure White (#F8F7F4)
   return {
-    cardBg: 'bg-[#F5F2EC]',
-    canvasHex: '#F5F2EC',
+    cardBg: 'bg-[#F8F7F4]',
+    canvasHex: '#F8F7F4',
     border: HARMONIZED_BORDER_LIGHT,
     textPrimary: HARMONIZED_TEXT_PRIMARY,
     textSecondary: HARMONIZED_TEXT_SECONDARY,
@@ -327,7 +373,9 @@ export const DEFAULT_CARD_FEATURES: CardFeatures = {
   show_sub_org: true,
   show_address: true,
   custom_logo: '',
-  monogram_text: ''
+  monogram_text: '',
+  custom_bg_color: '',
+  custom_bg_image: ''
 };
 
 export function generateMonogram(name: string, subName?: string): string {
