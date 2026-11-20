@@ -226,37 +226,43 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
       {/* Main High-Contrast Pass Body */}
       <div className="w-full max-w-md mx-auto px-5 py-2 pb-6 flex-1 flex flex-col items-center justify-center gap-3.5 sm:gap-4">
 
-        {/* QR Type Toggle */}
+        {/* Minimal Border-Bottom QR Type Switcher (Zero Box-in-Box) */}
         <div
           role="tablist"
           aria-label="Quick QR 코드 유형"
-          className="w-full max-w-[290px] grid grid-cols-2 p-1 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)]"
+          className="w-full max-w-[290px] flex items-center justify-center gap-6 border-b border-[var(--app-border)]"
         >
           <button
             type="button"
             role="tab"
             aria-selected={qrType === 'url'}
             onClick={() => setQrType('url')}
-            className={`py-2 px-3 rounded-lg text-xs cursor-pointer whitespace-nowrap ${
+            className={`relative pb-2.5 text-xs tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none ${
               qrType === 'url'
-                ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] font-semibold shadow-sm'
+                ? 'text-[var(--app-text)] font-semibold'
                 : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
             }`}
           >
             웹 링크 QR
+            {qrType === 'url' && (
+              <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
+            )}
           </button>
           <button
             type="button"
             role="tab"
             aria-selected={qrType === 'vcard'}
             onClick={() => setQrType('vcard')}
-            className={`py-2 px-3 rounded-lg text-xs cursor-pointer whitespace-nowrap ${
+            className={`relative pb-2.5 text-xs tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none ${
               qrType === 'vcard'
-                ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] font-semibold shadow-sm'
+                ? 'text-[var(--app-text)] font-semibold'
                 : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
             }`}
           >
             연락처(.vcf) QR
+            {qrType === 'vcard' && (
+              <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
+            )}
           </button>
         </div>
 
@@ -277,81 +283,77 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
           {qrType === 'url' ? displayUrl : data.phone || data.email || displayUrl}
         </p>
 
-        {/* Primary One-Tap Exchange Actions (.vcf & Web Share) */}
-        <div className="w-full grid grid-cols-2 gap-2.5 pt-1">
+        {/* Centered 5-Icon Toolbar with Tooltips (Matches Main Card View Icons) */}
+        <div
+          role="toolbar"
+          aria-label="Quick QR 빠른 작업"
+          className="w-full flex items-center justify-center gap-1.5 sm:gap-2.5 pt-1"
+        >
           <button
             type="button"
             onClick={handleSaveVCard}
-            className="min-h-[48px] px-4 py-3 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] shadow-md"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+            title="연락처 저장 (.vcf)"
+            aria-label="연락처 저장 (.vcf)"
           >
-            <UserPlus className="w-4 h-4 stroke-[2] shrink-0" />
-            <span>연락처 저장 (.vcf)</span>
+            <UserPlus className="w-4 h-4 stroke-[1.75]" />
           </button>
 
           <button
             type="button"
             onClick={handleWebShare}
-            className="min-h-[48px] px-4 py-3 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text)] font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+            title={copied ? '링크 복사됨' : '공유하기'}
+            aria-label={copied ? '링크 복사됨' : '공유하기'}
           >
             {copied ? (
-              <>
-                <Check className="w-4 h-4 stroke-[2] shrink-0 text-emerald-600 dark:text-emerald-400" />
-                <span>링크 복사됨</span>
-              </>
+              <Check className="w-4 h-4 stroke-[2] text-emerald-500" />
             ) : (
-              <>
-                <Share2 className="w-4 h-4 stroke-[1.75] shrink-0" />
-                <span>공유하기</span>
-              </>
+              <Share2 className="w-4 h-4 stroke-[1.75]" />
             )}
           </button>
-        </div>
 
-        {/* Lockscreen QR Wallpaper Controls */}
-        <div className="w-full flex flex-wrap sm:flex-nowrap items-center gap-2">
-          <div
-            role="group"
-            aria-label="배경화면 테마 선택"
-            className="flex items-center p-1 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] shrink-0"
+          <span className="border-r border-[var(--app-border)] h-3.5 mx-0.5 self-center" aria-hidden="true" />
+
+          <button
+            type="button"
+            onClick={() => setWallpaperTheme('dark')}
+            aria-pressed={wallpaperTheme === 'dark'}
+            className={`w-10 h-10 rounded-full flex items-center justify-center active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
+              wallpaperTheme === 'dark'
+                ? 'bg-[var(--app-surface-subtle)] text-[var(--app-text)]'
+                : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)]'
+            }`}
+            title="배경화면 테마: 다크"
+            aria-label="배경화면 테마: 다크"
           >
-            <button
-              type="button"
-              onClick={() => setWallpaperTheme('dark')}
-              className={`px-2.5 py-2 rounded-lg text-[11px] font-medium flex items-center gap-1 cursor-pointer whitespace-nowrap ${
-                wallpaperTheme === 'dark'
-                  ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] font-semibold shadow-xs'
-                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
-              }`}
-            >
-              <Moon className="w-3 h-3" />
-              <span>다크</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setWallpaperTheme('light')}
-              className={`px-2.5 py-2 rounded-lg text-[11px] font-medium flex items-center gap-1 cursor-pointer whitespace-nowrap ${
-                wallpaperTheme === 'light'
-                  ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] font-semibold shadow-xs'
-                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
-              }`}
-            >
-              <Sun className="w-3 h-3" />
-              <span>라이트</span>
-            </button>
-          </div>
+            <Moon className="w-4 h-4 stroke-[1.75]" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setWallpaperTheme('light')}
+            aria-pressed={wallpaperTheme === 'light'}
+            className={`w-10 h-10 rounded-full flex items-center justify-center active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
+              wallpaperTheme === 'light'
+                ? 'bg-[var(--app-surface-subtle)] text-[var(--app-text)]'
+                : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)]'
+            }`}
+            title="배경화면 테마: 라이트"
+            aria-label="배경화면 테마: 라이트"
+          >
+            <Sun className="w-4 h-4 stroke-[1.75]" />
+          </button>
 
           <button
             type="button"
             onClick={handleDownloadWallpaper}
             disabled={isGeneratingWallpaper}
-            className="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-[0.99] whitespace-nowrap"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+            title={isGeneratingWallpaper ? '배경화면 이미지 생성 중...' : '잠금화면 배경화면으로 저장'}
+            aria-label="잠금화면 배경화면으로 저장"
           >
-            <Wallpaper className="w-4 h-4 stroke-[1.75] shrink-0" />
-            <span>
-              {isGeneratingWallpaper
-                ? '배경화면 이미지 생성 중...'
-                : '잠금화면 배경화면으로 저장'}
-            </span>
+            <Wallpaper className={`w-4 h-4 stroke-[1.75] ${isGeneratingWallpaper ? 'animate-pulse' : ''}`} />
           </button>
         </div>
       </div>
