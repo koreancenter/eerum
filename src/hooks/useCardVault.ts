@@ -18,6 +18,14 @@ import {
 } from '../utils/vaultBackup';
 import { useAutoLock } from './useAutoLock';
 import type { ModalManager } from './useModalState';
+import {
+  CARD_THEME_MAP_UPDATED_EVENT,
+  getMostRecentCardTheme,
+  removeCardThemePreference,
+  resolveCardsWithStoredThemes,
+  saveCardThemePreference,
+  syncCardThemeMapFromCards,
+} from '../utils/cardThemeStorage';
 
 export type ActiveTab = 'my-card' | 'vault';
 
@@ -181,6 +189,16 @@ export function useCardVault({
     saveUserCards(cards);
   }, [cards, isPinConfigured, isLocked]);
 
+  // Keep in-memory cards synced whenever per-card theme mapping in localStorage updates
+  useEffect(() => {
+    const handleThemeMapSync = () => {
+      if (isPinConfigured && isLocked) return;
+      setCards((prev) => resolveCardsWithStoredThemes(prev));
+    };
+    window.addEventListener(CARD_THEME_MAP_UPDATED_EVENT, handleThemeMapSync);
+    return () => window.removeEventListener(CARD_THEME_MAP_UPDATED_EVENT, handleThemeMapSync);
+  }, [isPinConfigured, isLocked]);
+
   // Automatic background sync of wallet to Cloudflare edge (skipped while locked)
   useEffect(() => {
     if (isPinConfigured && isLocked) return;
@@ -224,6 +242,12 @@ export function useCardVault({
         myCards.find((c) => c.id === selectedMyCardId) ||
         myCards.find((c) => c.isDefault) ||
         myCards[0];
+      const recentThemePref = getMostRecentCardTheme();
+      const resolvedNewTheme: CardTheme =
+        preferredNewCardTheme || recentThemePref?.theme || activeMyCard?.theme || 'pure_white';
+      const resolvedNewCustomBgColor = preferredNewCardTheme
+        ? ''
+        : recentThemePref?.customBgColor ?? '';
       const newCardTemplate: StoredCard = {
         id: `my-card-${Date.now()}`,
         isMyCard: true,
@@ -231,13 +255,14 @@ export function useCardVault({
         slug: defaultSlug,
         ownerKey: initialOwnerKey,
         owner_key: initialOwnerKey,
-        theme: preferredNewCardTheme || activeMyCard?.theme || 'pure_white',
+        theme: resolvedNewTheme,
         layout_type: 'editorial_minimal',
         card_features: {
           show_en_name: true,
           show_sub_org: true,
           show_address: true,
           monogram_text: '',
+          ...(resolvedNewCustomBgColor ? { custom_bg_color: resolvedNewCustomBgColor } : {}),
         },
         category: '글로벌 네트워크',
         createdAt: new Date().toISOString().split('T')[0],
@@ -302,17 +327,21 @@ export function useCardVault({
   // Create New Third-Party Vault Card via Full Editor (`isMyCard: false` — never overwrites My Card)
   const handleOpenCreateVaultCardModal = useCallback(() => {
     requireUnlock(() => {
+      const recentThemePref = getMostRecentCardTheme();
       const newVaultTemplate: StoredCard = {
         id: `vault-card-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         isMyCard: false,
         isDefault: false,
-        theme: 'pure_white',
+        theme: recentThemePref?.theme || 'pure_white',
         layout_type: 'editorial_minimal',
         card_features: {
           show_en_name: true,
           show_sub_org: true,
           show_address: true,
           monogram_text: '',
+          ...(recentThemePref?.customBgColor
+            ? { custom_bg_color: recentThemePref.customBgColor }
+            : {}),
         },
         category: 'VIP 파트너',
         createdAt: new Date().toISOString().split('T')[0],
@@ -370,10 +399,9 @@ export function useCardVault({
   const handleImportCards = useCallback(
     (newCards: StoredCard[]) => {
       requireUnlock(() => {
-        setCards((prev) => {
-          const safeImported = normalizeStoredCards(newCards.map((nc) => sanitizeCardForVault(nc)));
-          return [...safeImported, ...prev];
-        });
+        const safeImported = normalizeStoredCards(newCards.map((nc) => sanitizeCardForVault(nc)));
+        syncCardThemeMapFromCards(safeImported, { overwriteExisting: false });
+        setCards((prev) => [...safeImported, ...prev]);
         showToast(`${newCards.length}개의 연락처가 보관함에 등록되었습니다.`);
       });
     },
@@ -403,6 +431,12 @@ export function useCardVault({
           interactionCount: existingVaultCopy?.interactionCount ?? sourceCard.interactionCount,
           lastInteractedAt: existingVaultCopy?.lastInteractedAt ?? new Date().toISOString(),
         });
+
+        saveCardThemePreference(
+          sanitized.id,
+          sanitized.theme,
+          sanitized.card_features?.custom_bg_color
+        );
 
         const isFirstEverCard = cards.length === 0;
 
@@ -453,6 +487,12 @@ export function useCardVault({
           ownerKey: ensuredOwnerKey,
           owner_key: ensuredOwnerKey,
         };
+
+        saveCardThemePreference(
+          normalizedMyCard.id,
+          normalizedMyCard.theme,
+          normalizedMyCard.card_features?.custom_bg_color
+        );
 
         setCards((prev) => {
           let nextCards = [...prev];
@@ -539,6 +579,12 @@ export function useCardVault({
           updatedAt: nowIso,
         });
 
+        saveCardThemePreference(
+          sanitizedVaultCard.id,
+          sanitizedVaultCard.theme,
+          sanitizedVaultCard.card_features?.custom_bg_color
+        );
+
         // 2. Update/insert ONLY as a non-MyCard entry; never mutate myCards or selectedMyCardId
         setCards((prev) => {
           const existsInVault = prev.some((c) => !c.isMyCard && c.id === sanitizedVaultCard.id);
@@ -607,6 +653,8 @@ export function useCardVault({
     (cardId: string) => {
       const target = cards.find((c) => c.id === cardId);
       if (!target) return;
+
+      removeCardThemePreference(cardId);
 
       setCards((prev) => {
         const remaining = prev.filter((c) => c.id !== cardId);
@@ -796,6 +844,11 @@ export function useCardVault({
       requireUnlock(() => {
         const existingCategories = loadVaultCategories(cards);
         const result = applyBackupRestore(payload, cards, existingCategories, mode);
+
+        syncCardThemeMapFromCards(result.cards, {
+          clearPrevious: mode === 'replace',
+          overwriteExisting: mode === 'replace',
+        });
 
         setCards(result.cards);
         saveUserCards(result.cards);

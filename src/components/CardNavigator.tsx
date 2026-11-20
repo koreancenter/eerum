@@ -5,6 +5,13 @@ import { getCardShareUrl } from '../utils/cardSerializer';
 import { shareOrCopyLink } from '../utils/share';
 import { CardContainer } from './CardContainer';
 import { ActionButtons } from './ActionButtons';
+import {
+  CARD_THEME_MAP_STORAGE_KEY,
+  CARD_THEME_MAP_UPDATED_EVENT,
+  loadCardThemeMap,
+  resolveCardWithStoredTheme,
+  type CardThemeMap,
+} from '../utils/cardThemeStorage';
 import { 
   Plus, 
   ChevronLeft, 
@@ -84,11 +91,29 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
     };
   }, []);
   
+  const [themeMap, setThemeMap] = useState<CardThemeMap>(() => loadCardThemeMap());
+
+  useEffect(() => {
+    const syncMap = () => setThemeMap(loadCardThemeMap());
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === null || e.key === CARD_THEME_MAP_STORAGE_KEY) {
+        syncMap();
+      }
+    };
+    window.addEventListener(CARD_THEME_MAP_UPDATED_EVENT, syncMap);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener(CARD_THEME_MAP_UPDATED_EVENT, syncMap);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
   // Strictly partition navigator slides based on variant ('my-cards' vs 'vault')
-  const displayCards = useMemo(
-    () => (isVaultVariant ? cards.filter((c) => !c.isMyCard) : cards.filter((c) => c.isMyCard)),
-    [cards, isVaultVariant]
-  );
+  // and automatically apply each card's last saved theme from localStorage
+  const displayCards = useMemo(() => {
+    const filtered = isVaultVariant ? cards.filter((c) => !c.isMyCard) : cards.filter((c) => c.isMyCard);
+    return filtered.map((card) => resolveCardWithStoredTheme(card, themeMap));
+  }, [cards, isVaultVariant, themeMap]);
 
   // Total slides = cards + 1 ghost card in 'my-cards' mode (vault mode has no ghost card)
   const totalSlides = isVaultVariant ? displayCards.length : displayCards.length + 1;

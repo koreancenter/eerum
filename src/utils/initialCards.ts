@@ -9,6 +9,10 @@ import {
 import { isPinSet, getSessionLocked } from './pinLock';
 import { sanitizeExternalUrl } from './sanitizeUrl';
 import { generateOwnerKey } from './ownerKey';
+import {
+  clearCardThemePreferences,
+  resolveCardsWithStoredThemes,
+} from './cardThemeStorage';
 
 const STORAGE_KEY = 'my_cards';
 const FALLBACK_STORAGE_KEY = 'user_cards';
@@ -354,7 +358,7 @@ export function loadUserCards(): StoredCard[] {
 
     // 3. Unencrypted legacy cards (when no PIN is configured)
     if (Array.isArray(parsed) && parsed.length > 0) {
-      const normalized = normalizeStoredCards(parsed);
+      const normalized = resolveCardsWithStoredThemes(normalizeStoredCards(parsed));
       memoryDecryptedCards = normalized;
       return normalized;
     }
@@ -388,13 +392,13 @@ export async function decryptStoredCards(keyOrPin?: CryptoKey | string): Promise
 
       const { decryptCardsVault } = await import('./cryptoVault');
       const decrypted = await decryptCardsVault(parsed, key);
-      const normalized = normalizeStoredCards(decrypted);
+      const normalized = resolveCardsWithStoredThemes(normalizeStoredCards(decrypted));
       memoryDecryptedCards = normalized;
       return normalized;
     }
 
     if (Array.isArray(parsed)) {
-      const normalized = normalizeStoredCards(parsed);
+      const normalized = resolveCardsWithStoredThemes(normalizeStoredCards(parsed));
       memoryDecryptedCards = normalized;
       return normalized;
     }
@@ -536,6 +540,7 @@ export function clearAllLocalData(): void {
     localStorage.removeItem('eerum_backup_nudge_dismissed_at');
     localStorage.removeItem('eerum_vault_sort_by');
     localStorage.removeItem('eerum_vault_view_scope');
+    clearCardThemePreferences();
     sessionStorage.clear();
   } catch (e) {
     console.warn('Notice resetting local data', e);

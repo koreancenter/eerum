@@ -19,6 +19,14 @@ import { usePublicCardRoute } from './hooks/usePublicCardRoute';
 import { AppThemeSelector } from './components/AppThemeSelector';
 import { applyAppTheme, loadStoredAppTheme } from './constants/appThemes';
 import {
+  CARD_THEME_MAP_STORAGE_KEY,
+  CARD_THEME_MAP_UPDATED_EVENT,
+  loadCardThemeMap,
+  resolveCardWithStoredTheme,
+  resolveCardsWithStoredThemes,
+  type CardThemeMap,
+} from './utils/cardThemeStorage';
+import {
   Check,
   CreditCard,
   FolderArchive,
@@ -77,6 +85,23 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const pwa = usePWAInstall();
   const [isPWAInstallOpen, setIsPWAInstallOpen] = useState<boolean>(false);
+
+  const [themeMap, setThemeMap] = useState<CardThemeMap>(() => loadCardThemeMap());
+
+  useEffect(() => {
+    const syncThemeMap = () => setThemeMap(loadCardThemeMap());
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === null || e.key === CARD_THEME_MAP_STORAGE_KEY) {
+        syncThemeMap();
+      }
+    };
+    window.addEventListener(CARD_THEME_MAP_UPDATED_EVENT, syncThemeMap);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener(CARD_THEME_MAP_UPDATED_EVENT, syncThemeMap);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
 
   const [printConfig, setPrintConfig] = useState<PrintConfig>({
     layout: 'single-card',
@@ -153,8 +178,9 @@ export default function App() {
 
   const handleApplySyncedCards = useCallback(
     (normalized: StoredCard[]) => {
-      vault.setCards(normalized);
-      saveStoredCards(normalized);
+      const withStoredThemes = resolveCardsWithStoredThemes(normalized);
+      vault.setCards(withStoredThemes);
+      saveStoredCards(withStoredThemes);
       vault.setSelectedVaultCardId(null);
       setActiveTab('vault');
     },
@@ -269,26 +295,70 @@ export default function App() {
     vault.handleOpenCreateModal();
   };
 
+  const resolvedMyCards = React.useMemo(
+    () => vault.myCards.map((c) => resolveCardWithStoredTheme(c, themeMap)),
+    [vault.myCards, themeMap]
+  );
+
+  const resolvedVaultCards = React.useMemo(
+    () => vault.vaultCards.map((c) => resolveCardWithStoredTheme(c, themeMap)),
+    [vault.vaultCards, themeMap]
+  );
+
+  const resolvedSelectedVaultCard = React.useMemo(
+    () =>
+      vault.selectedVaultCard
+        ? resolveCardWithStoredTheme(vault.selectedVaultCard, themeMap)
+        : undefined,
+    [vault.selectedVaultCard, themeMap]
+  );
+
+  const resolvedPublicCard = React.useMemo(
+    () => (publicCard ? resolveCardWithStoredTheme(publicCard, themeMap) : null),
+    [publicCard, themeMap]
+  );
+
   // Resolved personal card strictly from `myCards` (`isMyCard === true`), or sample card when `isSamplePreview` is active
-  const currentMyCard: StoredCard | undefined =
-    isSamplePreview
-      ? sampleCard || undefined
-      : vault.myCards.length > 0
-        ? vault.myCards.find((c) => c.id === vault.selectedMyCardId) ||
-          vault.myCards.find((c) => c.isDefault) ||
-          vault.myCards[0]
-        : undefined;
+  const currentMyCard: StoredCard | undefined = isSamplePreview
+    ? sampleCard
+      ? resolveCardWithStoredTheme(sampleCard, themeMap)
+      : undefined
+    : resolvedMyCards.length > 0
+      ? resolvedMyCards.find((c) => c.id === vault.selectedMyCardId) ||
+        resolvedMyCards.find((c) => c.isDefault) ||
+        resolvedMyCards[0]
+      : undefined;
 
   // Target card for Share / QR / Print / Export modals
   const modalTargetCard: StoredCard | undefined =
     (vault.modalTargetCardId
-      ? vault.cards.find((c) => c.id === vault.modalTargetCardId)
+      ? (() => {
+          const found = vault.cards.find((c) => c.id === vault.modalTargetCardId);
+          return found ? resolveCardWithStoredTheme(found, themeMap) : undefined;
+        })()
       : undefined) ||
-    (isPublicExternalView && publicCard
-      ? publicCard
-      : activeTab === 'vault' && vault.selectedVaultCard
-        ? vault.selectedVaultCard
+    (isPublicExternalView && resolvedPublicCard
+      ? resolvedPublicCard
+      : activeTab === 'vault' && resolvedSelectedVaultCard
+        ? resolvedSelectedVaultCard
         : currentMyCard);
+
+  // Automatically sync print theme when viewing a card in detail view
+  const activeDetailCard: StoredCard | undefined =
+    isPublicExternalView && resolvedPublicCard
+      ? resolvedPublicCard
+      : activeTab === 'vault' && resolvedSelectedVaultCard
+        ? resolvedSelectedVaultCard
+        : activeTab === 'my-card'
+          ? currentMyCard
+          : undefined;
+
+  useEffect(() => {
+    if (!activeDetailCard?.theme) return;
+    setPrintConfig((prev) =>
+      prev.theme === activeDetailCard.theme ? prev : { ...prev, theme: activeDetailCard.theme }
+    );
+  }, [activeDetailCard?.id, activeDetailCard?.theme]);
 
   const handleShare = async (cardToShare?: StoredCard) => {
     const targetCard = cardToShare || modalTargetCard;
@@ -616,11 +686,11 @@ export default function App() {
                 : 'justify-center px-3 sm:px-4 py-2 sm:py-5'
           } max-w-6xl mx-auto w-full min-w-0`}
         >
-          {isPublicExternalView && publicCard ? (
+          {isPublicExternalView && resolvedPublicCard ? (
             /* ================= PUBLIC SHARED CARD LANDING VIEW (/card/:slug) ================= */
             <div className="w-full flex flex-col items-center animate-in fade-in duration-300">
               <div className="w-full max-w-[540px] flex justify-center">
-                <LazyErrorBoundary resetKey={publicCard.id}>
+                <LazyErrorBoundary resetKey={resolvedPublicCard.id}>
                   <Suspense
                     fallback={
                       <div
@@ -630,20 +700,20 @@ export default function App() {
                     }
                   >
                     <CardContainer
-                      data={publicCard.data}
-                      theme={publicCard.theme}
-                      layout_type={publicCard.layout_type}
-                      card_features={publicCard.card_features}
-                      isPhotoCard={publicCard.isPhotoCard || publicCard.creation_mode === 'photo'}
-                      photoUrl={publicCard.scannedImage || publicCard.front_image_url}
-                      backPhotoUrl={publicCard.scannedImageBack || publicCard.back_image_url}
-                      html_front={publicCard.html_front}
-                      html_back={publicCard.html_back}
+                      data={resolvedPublicCard.data}
+                      theme={resolvedPublicCard.theme}
+                      layout_type={resolvedPublicCard.layout_type}
+                      card_features={resolvedPublicCard.card_features}
+                      isPhotoCard={resolvedPublicCard.isPhotoCard || resolvedPublicCard.creation_mode === 'photo'}
+                      photoUrl={resolvedPublicCard.scannedImage || resolvedPublicCard.front_image_url}
+                      backPhotoUrl={resolvedPublicCard.scannedImageBack || resolvedPublicCard.back_image_url}
+                      html_front={resolvedPublicCard.html_front}
+                      html_back={resolvedPublicCard.html_back}
                       isFlipped={isFlipped}
                       onFlip={() => setIsFlipped((prev) => !prev)}
-                      onOpenShare={() => handleShare(publicCard)}
+                      onOpenShare={() => handleShare(resolvedPublicCard)}
                       isOwner={false}
-                      cardUrl={getCardShareUrl(publicCard)}
+                      cardUrl={getCardShareUrl(resolvedPublicCard)}
                       onShowToast={showToast}
                     />
                   </Suspense>
@@ -654,7 +724,7 @@ export default function App() {
                 {/* Save Shared Card to Internal Vault Action */}
                 <button
                   type="button"
-                  onClick={() => vault.handleRegisterSharedCardToVault(publicCard)}
+                  onClick={() => vault.handleRegisterSharedCardToVault(resolvedPublicCard)}
                   className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--app-accent-fg)] bg-[var(--app-accent)] hover:opacity-90 transition-all tracking-wide py-2.5 px-5 rounded-xl active:scale-95 cursor-pointer shadow-[var(--app-shadow)]"
                 >
                   <BookmarkPlus className="w-3.5 h-3.5 stroke-[1.75]" />
@@ -729,9 +799,9 @@ export default function App() {
                     <span>보안 PIN 입력하여 잠금 해제</span>
                   </button>
                 </div>
-              ) : vault.selectedVaultCard && !vault.selectedVaultCard.isMyCard ? (
+              ) : resolvedSelectedVaultCard && !resolvedSelectedVaultCard.isMyCard ? (
                 <div className="w-full flex flex-col items-center gap-3 sm:gap-4 pb-6">
-                  <LazyErrorBoundary resetKey={vault.selectedVaultCard.id}>
+                  <LazyErrorBoundary resetKey={resolvedSelectedVaultCard.id}>
                     <Suspense
                       fallback={
                         <div
@@ -742,8 +812,8 @@ export default function App() {
                     >
                       <CardNavigator
                         variant="vault"
-                        cards={vault.vaultCards}
-                        activeCardId={vault.selectedVaultCard.id}
+                        cards={resolvedVaultCards}
+                        activeCardId={resolvedSelectedVaultCard.id}
                         onSelectCard={(selectedId) => {
                           setIsFlipped(false);
                           setIsMemoOpen(false);
@@ -775,9 +845,9 @@ export default function App() {
                   {isMemoOpen && (
                     <Suspense fallback={null}>
                       <CardPersonalMemo
-                        card={vault.selectedVaultCard}
+                        card={resolvedSelectedVaultCard}
                         onSaveContext={(context) =>
-                          vault.handleUpdateVaultContext(vault.selectedVaultCard!.id, context)
+                          vault.handleUpdateVaultContext(resolvedSelectedVaultCard.id, context)
                         }
                       />
                     </Suspense>
@@ -792,7 +862,7 @@ export default function App() {
                 fallback={<div className="w-full max-w-6xl min-h-[320px]" aria-hidden="true" />}
               >
                 <VaultView
-                  cards={vault.vaultCards}
+                  cards={resolvedVaultCards}
                   isLocked={vault.isPinConfigured && vault.isLocked}
                   onUnlockRequest={vault.lockApp}
                   onSelectCard={(selected) => {
@@ -1017,7 +1087,7 @@ export default function App() {
                     }
                   >
                     <CardNavigator
-                      cards={vault.myCards}
+                      cards={resolvedMyCards}
                       activeCardId={currentMyCard.id}
                       onSelectCard={vault.handleSelectMyCard}
                       onCreateNewCard={vault.handleOpenCreateModal}

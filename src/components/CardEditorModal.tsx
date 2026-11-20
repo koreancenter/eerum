@@ -20,6 +20,7 @@ import { EditorPreviewPanel } from './editor/EditorPreviewPanel';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { loadVaultCategories } from '../utils/categories';
 import { generateOwnerKey } from '../utils/ownerKey';
+import { getCardThemePreference, getMostRecentCardTheme } from '../utils/cardThemeStorage';
 
 export interface CardEditorModalProps {
   isOpen: boolean;
@@ -201,7 +202,11 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
   const [templateSubTab, setTemplateSubTab] = useState<'visual_atelier' | 'identity_profile'>(
     isCreating ? 'identity_profile' : 'visual_atelier'
   );
-  const [theme, setTheme] = useState<CardTheme>(() => activeCard.theme || 'pure_white');
+  const initialStoredThemePref =
+    !isCreating && activeCard.id ? getCardThemePreference(activeCard.id) : null;
+  const [theme, setTheme] = useState<CardTheme>(
+    () => initialStoredThemePref?.theme || activeCard.theme || 'pure_white'
+  );
   const [layoutType, setLayoutType] = useState<CardLayoutType>(() =>
     (activeCard.layout_type as CardLayoutType) ||
     ((activeCard as any).template_id as CardLayoutType) ||
@@ -213,7 +218,10 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
     show_address: activeCard.card_features?.show_address ?? true,
     custom_logo: activeCard.card_features?.custom_logo ?? '',
     monogram_text: activeCard.card_features?.monogram_text ?? '',
-    custom_bg_color: activeCard.card_features?.custom_bg_color ?? '',
+    custom_bg_color:
+      initialStoredThemePref && initialStoredThemePref.customBgColor !== undefined
+        ? initialStoredThemePref.customBgColor
+        : (activeCard.card_features?.custom_bg_color ?? ''),
     custom_bg_image: activeCard.card_features?.custom_bg_image ?? ''
   }));
 
@@ -382,7 +390,9 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
       };
       setFormData(initialDataResolved);
 
-      const resolvedTheme = safe.theme || (safe as any).theme_preset || 'pure_white';
+      const storedThemePref = !isCreating && safe.id ? getCardThemePreference(safe.id) : null;
+      const resolvedTheme =
+        storedThemePref?.theme || safe.theme || (safe as any).theme_preset || 'pure_white';
       setTheme(resolvedTheme);
 
       const resolvedLayout =
@@ -397,7 +407,10 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         show_address: safe.card_features?.show_address ?? true,
         custom_logo: safe.card_features?.custom_logo ?? '',
         monogram_text: safe.card_features?.monogram_text ?? '',
-        custom_bg_color: safe.card_features?.custom_bg_color ?? '',
+        custom_bg_color:
+          storedThemePref && storedThemePref.customBgColor !== undefined
+            ? storedThemePref.customBgColor
+            : (safe.card_features?.custom_bg_color ?? ''),
         custom_bg_image: safe.card_features?.custom_bg_image ?? ''
       });
 
@@ -522,7 +535,8 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         googleMapsUrl: '',
         naverMapsUrl: ''
       });
-      setTheme('pure_white');
+      const recentThemePref = getMostRecentCardTheme();
+      setTheme(recentThemePref?.theme || 'pure_white');
       setLayoutType('editorial_minimal');
       setCreationMode('template');
       setFeatures({
@@ -531,7 +545,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         show_address: true,
         custom_logo: '',
         monogram_text: '',
-        custom_bg_color: '',
+        custom_bg_color: recentThemePref?.customBgColor ?? '',
         custom_bg_image: ''
       });
     } else {
