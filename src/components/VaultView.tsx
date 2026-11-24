@@ -38,7 +38,7 @@ import {
   deleteVaultCategory,
   resetVaultCategories,
 } from '../utils/categories';
-import { getAccountVaultSortKey } from '../utils/accountStorage';
+import { getAccountScopedKey, getAccountVaultSortKey } from '../utils/accountStorage';
 import { matchesAnySearchField } from '../utils/koreanSearch';
 import { detectDuplicateVaultGroups } from '../utils/duplicateDetector';
 import {
@@ -55,6 +55,24 @@ import {
 } from '../utils/cardSorting';
 
 export type { VaultSortOption };
+export type VaultViewMode = 'grid' | 'list';
+
+const VAULT_VIEW_MODE_SESSION_KEY = 'eerum_vault_view_mode';
+const VAULT_CATEGORY_SESSION_PREFIX = 'eerum_vault_selected_category';
+const VAULT_SORT_SESSION_PREFIX = 'eerum_vault_sort_by';
+
+const isValidVaultSortOption = (val: string | null): val is VaultSortOption =>
+  val === 'smart' ||
+  val === 'frequency' ||
+  val === 'newest' ||
+  val === 'oldest' ||
+  val === 'name' ||
+  val === 'company';
+
+const getVaultSessionKey = (prefix: string, isSampleMode: boolean): string => {
+  if (isSampleMode) return `${prefix}_sample`;
+  return getAccountScopedKey(prefix) || prefix;
+};
 
 interface IWindowSpeechRecognition extends Window {
   SpeechRecognition?: any;
@@ -162,25 +180,53 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const [categories, setCategories] = useState<string[]>(() =>
     isSampleMode ? buildSampleCategories(cards) : loadVaultCategories(cards)
   );
-  const [selectedCategory, setSelectedCategory] = useState<string>('전체');
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+    if (typeof window === 'undefined') return '전체';
+    try {
+      const saved = sessionStorage.getItem(
+        getVaultSessionKey(VAULT_CATEGORY_SESSION_PREFIX, isSampleMode)
+      );
+      if (saved && (saved === '전체' || categories.includes(saved))) {
+        return saved;
+      }
+    } catch {
+      // Ignore sessionStorage errors
+    }
+    return '전체';
+  });
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+  const [viewMode, setViewMode] = useState<VaultViewMode>(() => {
+    if (typeof window === 'undefined') return 'grid';
+    try {
+      const saved = sessionStorage.getItem(VAULT_VIEW_MODE_SESSION_KEY);
+      if (saved === 'list') return 'list';
+      if (saved === 'grid' || saved === 'cards') return 'grid';
+    } catch {
+      // Ignore sessionStorage errors
+    }
+    return 'grid';
+  });
   const [photoArchiveCardId, setPhotoArchiveCardId] = useState<string | null>(null);
 
-  // Sorting state persisted per account (defaults to automated 'smart' ranking; ephemeral in sample mode)
+  // Sorting state persisted in sessionStorage (and localStorage per account when not in sample mode)
   const [sortBy, setSortBy] = useState<VaultSortOption>(() => {
-    if (typeof window !== 'undefined' && !isSampleMode) {
-      const sortKey = getAccountVaultSortKey();
-      const saved = sortKey ? localStorage.getItem(sortKey) : null;
-      if (
-        saved === 'smart' ||
-        saved === 'frequency' ||
-        saved === 'newest' ||
-        saved === 'oldest' ||
-        saved === 'name' ||
-        saved === 'company'
-      ) {
-        return saved;
+    if (typeof window !== 'undefined') {
+      try {
+        const sessionSaved = sessionStorage.getItem(
+          getVaultSessionKey(VAULT_SORT_SESSION_PREFIX, isSampleMode)
+        );
+        if (isValidVaultSortOption(sessionSaved)) {
+          return sessionSaved;
+        }
+      } catch {
+        // Ignore sessionStorage errors
+      }
+      if (!isSampleMode) {
+        const sortKey = getAccountVaultSortKey();
+        const saved = sortKey ? localStorage.getItem(sortKey) : null;
+        if (isValidVaultSortOption(saved)) {
+          return saved;
+        }
       }
     }
     return 'smart';
@@ -189,7 +235,37 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && !isSampleMode) {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(VAULT_VIEW_MODE_SESSION_KEY, viewMode);
+    } catch {
+      // Ignore sessionStorage errors
+    }
+  }, [viewMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(
+        getVaultSessionKey(VAULT_CATEGORY_SESSION_PREFIX, isSampleMode),
+        selectedCategory
+      );
+    } catch {
+      // Ignore sessionStorage errors
+    }
+  }, [selectedCategory, isSampleMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(
+        getVaultSessionKey(VAULT_SORT_SESSION_PREFIX, isSampleMode),
+        sortBy
+      );
+    } catch {
+      // Ignore sessionStorage errors
+    }
+    if (!isSampleMode) {
       const sortKey = getAccountVaultSortKey();
       if (sortKey) {
         localStorage.setItem(sortKey, sortBy);
@@ -820,12 +896,12 @@ export const VaultView: React.FC<VaultViewProps> = ({
             >
               <button
                 type="button"
-                onClick={() => setViewMode('cards')}
-                aria-pressed={viewMode === 'cards'}
+                onClick={() => setViewMode('grid')}
+                aria-pressed={viewMode === 'grid'}
                 aria-label="카드 뷰"
                 title="카드 뷰"
                 className={`w-7.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
-                  viewMode === 'cards'
+                  viewMode === 'grid'
                     ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)]'
                     : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
                 }`}
@@ -1037,12 +1113,12 @@ export const VaultView: React.FC<VaultViewProps> = ({
               >
                 <button
                   type="button"
-                  onClick={() => setViewMode('cards')}
-                  aria-pressed={viewMode === 'cards'}
+                  onClick={() => setViewMode('grid')}
+                  aria-pressed={viewMode === 'grid'}
                   aria-label="카드 뷰"
                   title="카드 뷰"
                   className={`w-8 sm:w-8.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
-                    viewMode === 'cards'
+                    viewMode === 'grid'
                       ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)]'
                       : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
                   }`}
@@ -1293,13 +1369,14 @@ export const VaultView: React.FC<VaultViewProps> = ({
             <span>실물 명함 등록</span>
           </button>
         </div>
-      ) : viewMode === 'cards' ? (
+      ) : viewMode === 'grid' ? (
         /* ================= CARDS GALLERY VIEW (2-Column Mobile Grid, 3-Column Desktop) ================= */
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3.5 min-w-0">
           {sortedCards.map((card) => (
             <VaultCardItem
               key={card.id}
               card={card}
+              searchQuery={searchQuery}
               onSelectCard={handleSelectCard}
               onEditCard={handleEditCard}
               onDeleteCard={handleDeleteCard}
@@ -1333,9 +1410,39 @@ export const VaultView: React.FC<VaultViewProps> = ({
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-[var(--app-border)] bg-[var(--app-surface-subtle)] text-[var(--app-text-muted)] font-mono text-[10px] uppercase tracking-wider">
-                  <th className="py-2.5 px-3.5">성명</th>
+                  <th
+                    className="py-2.5 px-3.5"
+                    aria-sort={sortBy === 'name' ? 'ascending' : 'none'}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSortBy((prev) => (prev === 'name' ? 'smart' : 'name'))}
+                      className={`inline-flex items-center gap-1 cursor-pointer transition-colors hover:text-[var(--app-text)] ${
+                        sortBy === 'name' ? 'text-[var(--app-text)] font-semibold' : ''
+                      }`}
+                      title="성명순 정렬"
+                    >
+                      <span>성명</span>
+                      <ArrowUpDown className="w-3 h-3 stroke-[1.75]" />
+                    </button>
+                  </th>
                   <th className="py-2.5 px-3.5">직함</th>
-                  <th className="py-2.5 px-3.5">소속 회사/기관</th>
+                  <th
+                    className="py-2.5 px-3.5"
+                    aria-sort={sortBy === 'company' ? 'ascending' : 'none'}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSortBy((prev) => (prev === 'company' ? 'smart' : 'company'))}
+                      className={`inline-flex items-center gap-1 cursor-pointer transition-colors hover:text-[var(--app-text)] ${
+                        sortBy === 'company' ? 'text-[var(--app-text)] font-semibold' : ''
+                      }`}
+                      title="회사명순 정렬"
+                    >
+                      <span>소속 회사/기관</span>
+                      <ArrowUpDown className="w-3 h-3 stroke-[1.75]" />
+                    </button>
+                  </th>
                   <th className="py-2.5 px-3.5">카테고리</th>
                   <th className="py-2.5 px-3.5">실물 보관</th>
                   <th className="py-2.5 px-3.5">연락처</th>
