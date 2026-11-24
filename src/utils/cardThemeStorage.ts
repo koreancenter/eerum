@@ -1,4 +1,5 @@
 import { CardTheme, StoredCard } from '../types/card';
+import { getAccountCardThemeMapKey, getAccountLastCardThemeKey } from './accountStorage';
 
 export const CARD_THEME_MAP_STORAGE_KEY = 'eerum_card_theme_map_v1';
 export const LAST_USED_CARD_THEME_STORAGE_KEY = 'eerum_last_used_card_theme_v1';
@@ -67,10 +68,12 @@ function sanitizePreference(raw: unknown): StoredCardThemePreference | null {
   };
 }
 
-export function loadCardThemeMap(): CardThemeMap {
+export function loadCardThemeMap(accountId?: string | null): CardThemeMap {
   if (typeof window === 'undefined') return {};
+  const mapKey = getAccountCardThemeMapKey(accountId);
+  if (!mapKey) return {};
   try {
-    const raw = localStorage.getItem(CARD_THEME_MAP_STORAGE_KEY);
+    const raw = localStorage.getItem(mapKey);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
@@ -89,30 +92,37 @@ export function loadCardThemeMap(): CardThemeMap {
   }
 }
 
-function writeCardThemeMap(map: CardThemeMap): void {
+function writeCardThemeMap(map: CardThemeMap, accountId?: string | null): void {
   if (typeof window === 'undefined') return;
+  const mapKey = getAccountCardThemeMapKey(accountId);
+  if (!mapKey) return;
   try {
     const entries = Object.entries(map);
     if (entries.length === 0) {
-      localStorage.removeItem(CARD_THEME_MAP_STORAGE_KEY);
+      localStorage.removeItem(mapKey);
     } else {
-      localStorage.setItem(CARD_THEME_MAP_STORAGE_KEY, JSON.stringify(map));
+      localStorage.setItem(mapKey, JSON.stringify(map));
     }
   } catch {
     // Ignore storage write errors in restricted environments
   }
 }
 
-export function getCardThemePreference(cardId?: string | null): StoredCardThemePreference | null {
+export function getCardThemePreference(
+  cardId?: string | null,
+  accountId?: string | null
+): StoredCardThemePreference | null {
   if (!cardId) return null;
-  const map = loadCardThemeMap();
+  const map = loadCardThemeMap(accountId);
   return map[cardId] || null;
 }
 
-export function getMostRecentCardTheme(): StoredCardThemePreference | null {
+export function getMostRecentCardTheme(accountId?: string | null): StoredCardThemePreference | null {
   if (typeof window === 'undefined') return null;
+  const lastKey = getAccountLastCardThemeKey(accountId);
+  if (!lastKey) return null;
   try {
-    const raw = localStorage.getItem(LAST_USED_CARD_THEME_STORAGE_KEY);
+    const raw = localStorage.getItem(lastKey);
     if (raw) {
       const parsed = sanitizePreference(JSON.parse(raw));
       if (parsed) return parsed;
@@ -121,7 +131,7 @@ export function getMostRecentCardTheme(): StoredCardThemePreference | null {
     // Fall back to scanning map
   }
 
-  const map = loadCardThemeMap();
+  const map = loadCardThemeMap(accountId);
   let latest: StoredCardThemePreference | null = null;
   for (const pref of Object.values(map)) {
     if (!latest || pref.updatedAt > latest.updatedAt) {
@@ -135,9 +145,11 @@ export function saveCardThemePreference(
   cardId: string,
   theme: CardTheme,
   customBgColor?: string,
-  options?: { updateLastUsed?: boolean }
+  options?: { updateLastUsed?: boolean; accountId?: string | null }
 ): void {
   if (typeof window === 'undefined' || !cardId) return;
+  const mapKey = getAccountCardThemeMapKey(options?.accountId);
+  if (!mapKey) return;
 
   const resolvedTheme: CardTheme = isValidCardTheme(theme) ? theme : 'pure_white';
   const normalizedColor =
@@ -150,15 +162,18 @@ export function saveCardThemePreference(
     updatedAt: now,
   };
 
-  const map = loadCardThemeMap();
+  const map = loadCardThemeMap(options?.accountId);
   map[cardId] = preference;
-  writeCardThemeMap(map);
+  writeCardThemeMap(map, options?.accountId);
 
   if (options?.updateLastUsed !== false) {
-    try {
-      localStorage.setItem(LAST_USED_CARD_THEME_STORAGE_KEY, JSON.stringify(preference));
-    } catch {
-      // Ignore storage write errors
+    const lastKey = getAccountLastCardThemeKey(options?.accountId);
+    if (lastKey) {
+      try {
+        localStorage.setItem(lastKey, JSON.stringify(preference));
+      } catch {
+        // Ignore storage write errors
+      }
     }
   }
 
@@ -171,10 +186,12 @@ export function saveCardThemePreference(
 
 export function syncCardThemeMapFromCards(
   cards: StoredCard[],
-  options?: { overwriteExisting?: boolean; clearPrevious?: boolean }
+  options?: { overwriteExisting?: boolean; clearPrevious?: boolean; accountId?: string | null }
 ): void {
   if (typeof window === 'undefined') return;
-  const nextMap: CardThemeMap = options?.clearPrevious ? {} : loadCardThemeMap();
+  const mapKey = getAccountCardThemeMapKey(options?.accountId);
+  if (!mapKey) return;
+  const nextMap: CardThemeMap = options?.clearPrevious ? {} : loadCardThemeMap(options?.accountId);
   const baseTime = Date.now();
   let changed = Boolean(options?.clearPrevious);
 
@@ -197,7 +214,39 @@ export function syncCardThemeMapFromCards(
   });
 
   if (changed) {
-    writeCardThemeMap(nextMap);
+    writeCardThemeMap(nextMap, options?.accountId);
+    window.dispatchEvent(new CustomEvent(CARD_THEME_MAP_UPDATED_EVENT));
+  }
+}
+
+export function applyCardThemeMapSnapshot(
+  incomingMap: CardThemeMap | undefined,
+  options?: { clearPrevious?: boolean; overwriteExisting?: boolean; accountId?: string | null }
+): void {
+  if (typeof window === 'undefined' || !incomingMap || typeof incomingMap !== 'object') return;
+  const mapKey = getAccountCardThemeMapKey(options?.accountId);
+  if (!mapKey) return;
+
+  const nextMap: CardThemeMap = options?.clearPrevious ? {} : loadCardThemeMap(options?.accountId);
+  let changed = Boolean(options?.clearPrevious);
+
+  for (const [cardId, rawPref] of Object.entries(incomingMap)) {
+    if (!cardId) continue;
+    const sanitized = sanitizePreference(rawPref);
+    if (!sanitized) continue;
+
+    if (!options?.overwriteExisting && nextMap[cardId]) {
+      if (sanitized.updatedAt <= nextMap[cardId].updatedAt) {
+        continue;
+      }
+    }
+
+    nextMap[cardId] = sanitized;
+    changed = true;
+  }
+
+  if (changed) {
+    writeCardThemeMap(nextMap, options?.accountId);
     window.dispatchEvent(new CustomEvent(CARD_THEME_MAP_UPDATED_EVENT));
   }
 }
@@ -234,9 +283,12 @@ export function resolveCardWithStoredTheme(
   };
 }
 
-export function resolveCardsWithStoredThemes(cards: StoredCard[]): StoredCard[] {
+export function resolveCardsWithStoredThemes(
+  cards: StoredCard[],
+  accountId?: string | null
+): StoredCard[] {
   if (!Array.isArray(cards) || cards.length === 0) return cards;
-  const map = loadCardThemeMap();
+  const map = loadCardThemeMap(accountId);
   if (Object.keys(map).length === 0) return cards;
 
   let anyChanged = false;
@@ -249,20 +301,24 @@ export function resolveCardsWithStoredThemes(cards: StoredCard[]): StoredCard[] 
   return anyChanged ? resolved : cards;
 }
 
-export function removeCardThemePreference(cardId: string): void {
+export function removeCardThemePreference(cardId: string, accountId?: string | null): void {
   if (typeof window === 'undefined' || !cardId) return;
-  const map = loadCardThemeMap();
+  const mapKey = getAccountCardThemeMapKey(accountId);
+  if (!mapKey) return;
+  const map = loadCardThemeMap(accountId);
   if (!(cardId in map)) return;
   delete map[cardId];
-  writeCardThemeMap(map);
+  writeCardThemeMap(map, accountId);
   window.dispatchEvent(new CustomEvent(CARD_THEME_MAP_UPDATED_EVENT, { detail: { cardId } }));
 }
 
-export function clearCardThemePreferences(): void {
+export function clearCardThemePreferences(accountId?: string | null): void {
   if (typeof window === 'undefined') return;
+  const mapKey = getAccountCardThemeMapKey(accountId);
+  const lastKey = getAccountLastCardThemeKey(accountId);
   try {
-    localStorage.removeItem(CARD_THEME_MAP_STORAGE_KEY);
-    localStorage.removeItem(LAST_USED_CARD_THEME_STORAGE_KEY);
+    if (mapKey) localStorage.removeItem(mapKey);
+    if (lastKey) localStorage.removeItem(lastKey);
   } catch {
     // Ignore storage removal errors
   }

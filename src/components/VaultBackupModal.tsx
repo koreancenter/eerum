@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   X,
   Download,
   Upload,
+  Share2,
   ShieldCheck,
   Lock,
   Eye,
@@ -12,6 +13,13 @@ import {
   CheckCircle2,
   GitMerge,
   RefreshCw,
+  History,
+  Trash2,
+  BookmarkPlus,
+  FolderSync,
+  FolderCheck,
+  KeyRound,
+  Unlink,
 } from 'lucide-react';
 import { StoredCard } from '../types/card';
 import { getActiveSessionPin } from '../utils/vaultSession';
@@ -21,14 +29,37 @@ import {
   type VaultBackupPayloadV1,
   type ParsedBackupFile,
   type BackupRestoreMode,
+  type BackupMergeOptions,
+  type BackupIntegrityStatus,
+  type LocalRecoverySnapshot,
+  BACKUP_UPDATED_EVENT,
   getLastBackupAt,
   createEncryptedBackupContent,
+  createPlainBackupContent,
+  canShareVaultBackupFile,
+  shareVaultBackupFile,
   downloadVaultBackupFile,
   recordBackupCompleted,
   parseBackupFileText,
   decryptBackupEnvelope,
+  verifyBackupPayloadIntegrity,
   computeBackupRestorePreview,
+  estimateBackupSizeBytes,
+  formatBytesReadable,
+  listLocalRecoverySnapshots,
+  saveLocalRecoverySnapshot,
+  deleteLocalRecoverySnapshot,
 } from '../utils/vaultBackup';
+import {
+  AUTO_BACKUP_FILENAME,
+  isLocalFolderBackupSupported,
+  connectBackupDirectory,
+  requestBackupDirectoryPermission,
+  disconnectBackupDirectory,
+  getConnectedDirectoryInfo,
+  getLastFolderBackupAt,
+  writeAutoBackupToDirectory,
+} from '../utils/localFolderBackup';
 
 export type BackupModalTab = 'export' | 'restore';
 
@@ -39,7 +70,11 @@ interface VaultBackupModalProps {
   cards: StoredCard[];
   categories: string[];
   isPinConfigured: boolean;
-  onRestoreBackup: (payload: VaultBackupPayloadV1, mode: BackupRestoreMode) => void;
+  onRestoreBackup: (
+    payload: VaultBackupPayloadV1,
+    mode: BackupRestoreMode,
+    mergeOptions?: BackupMergeOptions
+  ) => void;
   onShowToast: (msg: string) => void;
 }
 
@@ -68,14 +103,31 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<BackupModalTab>(initialTab);
   const [lastBackupAt, setLastBackupAt] = useState<number | null>(() => getLastBackupAt());
+  const [snapshots, setSnapshots] = useState<LocalRecoverySnapshot[]>(() =>
+    listLocalRecoverySnapshots()
+  );
 
   // Export state
+  const [exportFormat, setExportFormat] = useState<'eerum' | 'json'>('eerum');
   const [useCustomPassphrase, setUseCustomPassphrase] = useState(false);
   const [exportSecret, setExportSecret] = useState('');
   const [exportSecretConfirm, setExportSecretConfirm] = useState('');
   const [showExportSecret, setShowExportSecret] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isSavingSnapshot, setIsSavingSnapshot] = useState(false);
+
+  // Desktop Local Folder Auto-Backup state
+  const folderBackupSupported = useMemo(() => isLocalFolderBackupSupported(), []);
+  const [folderInfo, setFolderInfo] = useState<{
+    folderName: string;
+    hasPermission: boolean;
+  } | null>(null);
+  const [lastFolderBackupAt, setLastFolderBackupAt] = useState<number | null>(() =>
+    getLastFolderBackupAt()
+  );
+  const [isFolderActionBusy, setIsFolderActionBusy] = useState(false);
+  const [folderError, setFolderError] = useState<string | null>(null);
 
   // Restore state
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -84,13 +136,20 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
   const [decryptSecret, setDecryptSecret] = useState('');
   const [showDecryptSecret, setShowDecryptSecret] = useState(false);
   const [decryptedPayload, setDecryptedPayload] = useState<VaultBackupPayloadV1 | null>(null);
+  const [integrityStatus, setIntegrityStatus] = useState<BackupIntegrityStatus>('legacy');
   const [restoreMode, setRestoreMode] = useState<BackupRestoreMode>('merge');
+  const [updateNewerDuplicates, setUpdateNewerDuplicates] = useState(true);
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
 
   const sessionPin = isOpen ? getActiveSessionPin() : null;
-  const needsManualSecretForExport = !isPinConfigured || !sessionPin || useCustomPassphrase;
+  const needsManualSecretForExport =
+    exportFormat === 'eerum' && (!isPinConfigured || !sessionPin || useCustomPassphrase);
+  const canShareBackupFile = useMemo(
+    () => (isOpen ? canShareVaultBackupFile(exportFormat) : false),
+    [isOpen, exportFormat]
+  );
   const effectiveCategories = useMemo(
     () => (categories.length > 0 ? categories : loadVaultCategories(cards)),
     [categories, cards]
@@ -98,25 +157,56 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
 
   const myCardCount = useMemo(() => cards.filter((c) => c.isMyCard).length, [cards]);
   const vaultCardCount = cards.length - myCardCount;
+  const estimatedBackupBytes = useMemo(
+    () => (isOpen ? estimateBackupSizeBytes(cards, effectiveCategories) : 0),
+    [isOpen, cards, effectiveCategories]
+  );
+
+  const refreshFolderBackupStatus = useCallback(async () => {
+    if (!folderBackupSupported) {
+      setFolderInfo(null);
+      return;
+    }
+    const info = await getConnectedDirectoryInfo();
+    setFolderInfo(info);
+    setLastFolderBackupAt(getLastFolderBackupAt());
+  }, [folderBackupSupported]);
 
   useEffect(() => {
     if (isOpen) {
       setActiveTab(initialTab);
       setLastBackupAt(getLastBackupAt());
+      setSnapshots(listLocalRecoverySnapshots());
+      setExportFormat('eerum');
       setUseCustomPassphrase(false);
       setExportSecret('');
       setExportSecretConfirm('');
       setShowExportSecret(false);
       setExportError(null);
+      setFolderError(null);
       setSelectedFileName(null);
       setParsedFile(null);
       setDecryptSecret('');
       setShowDecryptSecret(false);
       setDecryptedPayload(null);
+      setIntegrityStatus('legacy');
       setRestoreMode('merge');
+      setUpdateNewerDuplicates(true);
       setRestoreError(null);
+      void refreshFolderBackupStatus();
     }
-  }, [isOpen, initialTab]);
+  }, [isOpen, initialTab, refreshFolderBackupStatus]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleBackupUpdated = () => {
+      setLastBackupAt(getLastBackupAt());
+      setLastFolderBackupAt(getLastFolderBackupAt());
+      void refreshFolderBackupStatus();
+    };
+    window.addEventListener(BACKUP_UPDATED_EVENT, handleBackupUpdated);
+    return () => window.removeEventListener(BACKUP_UPDATED_EVENT, handleBackupUpdated);
+  }, [isOpen, refreshFolderBackupStatus]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -131,20 +221,20 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
 
   const restorePreview = useMemo(() => {
     if (!decryptedPayload) return null;
-    return computeBackupRestorePreview(decryptedPayload, cards, effectiveCategories);
-  }, [decryptedPayload, cards, effectiveCategories]);
+    return computeBackupRestorePreview(
+      decryptedPayload,
+      cards,
+      effectiveCategories,
+      integrityStatus
+    );
+  }, [decryptedPayload, cards, effectiveCategories, integrityStatus]);
 
   if (!isOpen) return null;
 
-  const handleExportBackup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setExportError(null);
-
-    if (cards.length === 0) {
-      setExportError('백업할 명함 데이터가 없습니다.');
-      return;
-    }
-
+  const resolveExportSecret = async (): Promise<{
+    secret: string;
+    encryptedWithPin: boolean;
+  } | null> => {
     let secretToUse = sessionPin || '';
     let encryptedWithPinFlag = Boolean(isPinConfigured && !useCustomPassphrase);
 
@@ -152,44 +242,97 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
       if (isPinConfigured && !useCustomPassphrase && !sessionPin) {
         if (!exportSecret.trim()) {
           setExportError('현재 설정된 4자리 앱 PIN을 입력해 주세요.');
-          return;
+          return null;
         }
         const pinMatched = await verifyPin(exportSecret.trim());
         if (!pinMatched) {
           setExportError('앱 PIN 번호가 일치하지 않습니다.');
-          return;
+          return null;
         }
         secretToUse = exportSecret.trim();
         encryptedWithPinFlag = true;
       } else {
         if (exportSecret.trim().length < 4) {
           setExportError('백업 암호는 최소 4자 이상 입력해 주세요.');
-          return;
+          return null;
         }
         if (exportSecret !== exportSecretConfirm) {
           setExportError('백업 암호 확인이 일치하지 않습니다.');
-          return;
+          return null;
         }
         secretToUse = exportSecret;
         encryptedWithPinFlag = false;
       }
     }
 
+    return { secret: secretToUse, encryptedWithPin: encryptedWithPinFlag };
+  };
+
+  const performExport = async (deliveryMode: 'share' | 'download') => {
+    setExportError(null);
+
+    if (cards.length === 0) {
+      setExportError('백업할 명함 데이터가 없습니다.');
+      return;
+    }
+
     setIsExporting(true);
     try {
-      const content = await createEncryptedBackupContent(
-        cards,
-        effectiveCategories,
-        secretToUse,
-        encryptedWithPinFlag
-      );
-      const filename = downloadVaultBackupFile(content, 'eerum');
+      let content: string;
+
+      if (exportFormat === 'json') {
+        content = await createPlainBackupContent(cards, effectiveCategories);
+      } else {
+        const resolved = await resolveExportSecret();
+        if (!resolved) {
+          setIsExporting(false);
+          return;
+        }
+        content = await createEncryptedBackupContent(
+          cards,
+          effectiveCategories,
+          resolved.secret,
+          resolved.encryptedWithPin
+        );
+      }
+
+      let filename: string;
+      let sharedViaSheet = false;
+
+      if (deliveryMode === 'share') {
+        try {
+          const shareResult = await shareVaultBackupFile(content, exportFormat);
+          if (shareResult.outcome === 'aborted') {
+            return;
+          }
+          if (shareResult.outcome === 'shared') {
+            filename = shareResult.filename;
+            sharedViaSheet = true;
+          } else {
+            filename = downloadVaultBackupFile(content, exportFormat);
+          }
+        } catch {
+          // If Web Share fails (e.g., transient gesture expiration), fall back cleanly to direct file download
+          filename = downloadVaultBackupFile(content, exportFormat);
+        }
+      } else {
+        filename = downloadVaultBackupFile(content, exportFormat);
+      }
+
       const now = Date.now();
       recordBackupCompleted(now);
       setLastBackupAt(now);
       setExportSecret('');
       setExportSecretConfirm('');
-      onShowToast(`암호화된 백업 파일(${filename})이 저장되었습니다.`);
+      onShowToast(
+        sharedViaSheet
+          ? exportFormat === 'eerum'
+            ? `암호화 백업 파일(${filename}) 공유 시트 내보내기가 완료되었습니다.`
+            : `표준 JSON 백업 파일(${filename}) 공유 시트 내보내기가 완료되었습니다.`
+          : exportFormat === 'eerum'
+            ? `암호화된 백업 파일(${filename})이 저장되었습니다.`
+            : `표준 JSON 백업 파일(${filename})이 저장되었습니다.`
+      );
     } catch (err) {
       setExportError(
         err instanceof Error ? err.message : '백업 파일 생성 중 오류가 발생했습니다.'
@@ -199,23 +342,159 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
     }
   };
 
-  const processSelectedFile = async (file: File) => {
+  const handleExportBackup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await performExport(canShareBackupFile ? 'share' : 'download');
+  };
+
+  const handleConnectBackupFolder = async () => {
+    setFolderError(null);
+    setIsFolderActionBusy(true);
+    try {
+      const res = await connectBackupDirectory();
+      if (!res.ok) {
+        if (res.error) {
+          setFolderError(res.error);
+        }
+        return;
+      }
+
+      let autoSynced = false;
+      if (cards.length > 0) {
+        autoSynced = await writeAutoBackupToDirectory(cards, effectiveCategories);
+        if (autoSynced) {
+          const now = Date.now();
+          recordBackupCompleted(now);
+          setLastBackupAt(now);
+        }
+      }
+
+      await refreshFolderBackupStatus();
+      onShowToast(
+        autoSynced
+          ? `'${res.folderName}' 폴더가 연결되었으며 즉시 자동 백업되었습니다.`
+          : `'${res.folderName}' 폴더가 자동 백업 대상으로 연결되었습니다.`
+      );
+    } finally {
+      setIsFolderActionBusy(false);
+    }
+  };
+
+  const handleReauthorizeBackupFolder = async () => {
+    setFolderError(null);
+    setIsFolderActionBusy(true);
+    try {
+      const res = await requestBackupDirectoryPermission();
+      if (!res.ok) {
+        if (res.error) {
+          setFolderError(res.error);
+        }
+        await refreshFolderBackupStatus();
+        return;
+      }
+
+      let autoSynced = false;
+      if (cards.length > 0) {
+        autoSynced = await writeAutoBackupToDirectory(cards, effectiveCategories);
+        if (autoSynced) {
+          const now = Date.now();
+          recordBackupCompleted(now);
+          setLastBackupAt(now);
+        }
+      }
+
+      await refreshFolderBackupStatus();
+      onShowToast(
+        autoSynced
+          ? `'${res.folderName}' 폴더 권한이 재승인되어 최신 백업을 동기화했습니다.`
+          : `'${res.folderName}' 폴더 자동 백업 권한이 재승인되었습니다.`
+      );
+    } finally {
+      setIsFolderActionBusy(false);
+    }
+  };
+
+  const handleDisconnectBackupFolder = async () => {
+    setFolderError(null);
+    setIsFolderActionBusy(true);
+    try {
+      await disconnectBackupDirectory();
+      setFolderInfo(null);
+      setLastFolderBackupAt(null);
+      onShowToast('로컬 폴더 자동 백업 연결이 해제되었습니다.');
+    } finally {
+      setIsFolderActionBusy(false);
+    }
+  };
+
+  const handleCreateLocalSnapshot = async () => {
+    setExportError(null);
+    if (cards.length === 0) {
+      setExportError('스냅샷을 저장할 명함 데이터가 없습니다.');
+      return;
+    }
+
+    setIsSavingSnapshot(true);
+    try {
+      const saved = await saveLocalRecoverySnapshot(cards, effectiveCategories, {
+        reason: 'manual',
+        label: '수동 안전 스냅샷',
+        secret: sessionPin,
+        encryptedWithPin: Boolean(isPinConfigured && sessionPin),
+      });
+      if (!saved) {
+        setExportError(
+          '브라우저 저장 공간이 부족하여 스냅샷을 저장하지 못했습니다. .eerum 파일로 내보내 주세요.'
+        );
+        return;
+      }
+      setSnapshots(listLocalRecoverySnapshots());
+      const now = Date.now();
+      recordBackupCompleted(now);
+      setLastBackupAt(now);
+      onShowToast('현재 보관함의 로컬 안전 스냅샷이 저장되었습니다.');
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : '스냅샷 저장에 실패했습니다.');
+    } finally {
+      setIsSavingSnapshot(false);
+    }
+  };
+
+  const processBackupText = async (text: string, label: string) => {
     setRestoreError(null);
     setDecryptedPayload(null);
     setParsedFile(null);
     setDecryptSecret('');
-    setSelectedFileName(file.name);
+    setIntegrityStatus('legacy');
+    setSelectedFileName(label);
 
     try {
-      const text = await file.text();
       const parsed = parseBackupFileText(text);
       setParsedFile(parsed);
       if (parsed.kind === 'plain') {
+        const verifiedStatus = await verifyBackupPayloadIntegrity(parsed.payload);
+        setIntegrityStatus(verifiedStatus);
         setDecryptedPayload(parsed.payload);
       }
     } catch (err) {
       setRestoreError(err instanceof Error ? err.message : '백업 파일을 해석할 수 없습니다.');
     }
+  };
+
+  const processSelectedFile = async (file: File) => {
+    const text = await file.text();
+    await processBackupText(text, file.name);
+  };
+
+  const handleLoadSnapshot = async (snapshot: LocalRecoverySnapshot) => {
+    const title = `${snapshot.label} (${formatDateTimeKr(snapshot.createdAt)})`;
+    await processBackupText(snapshot.content, title);
+  };
+
+  const handleDeleteSnapshot = (snapshotId: string) => {
+    const updated = deleteLocalRecoverySnapshot(snapshotId);
+    setSnapshots(updated);
+    onShowToast('로컬 스냅샷이 삭제되었습니다.');
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -240,6 +519,8 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
     setIsDecrypting(true);
     try {
       const payload = await decryptBackupEnvelope(parsedFile.envelope, secret);
+      const verifiedStatus = await verifyBackupPayloadIntegrity(payload);
+      setIntegrityStatus(verifiedStatus);
       setDecryptedPayload(payload);
     } catch (err) {
       setRestoreError(err instanceof Error ? err.message : '복호화에 실패했습니다.');
@@ -250,7 +531,11 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
 
   const handleConfirmRestore = () => {
     if (!decryptedPayload) return;
-    onRestoreBackup(decryptedPayload, restoreMode);
+    onRestoreBackup(
+      decryptedPayload,
+      restoreMode,
+      restoreMode === 'merge' ? { updateNewerDuplicates } : undefined
+    );
     onClose();
   };
 
@@ -259,6 +544,7 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
     setParsedFile(null);
     setDecryptedPayload(null);
     setDecryptSecret('');
+    setIntegrityStatus('legacy');
     setRestoreError(null);
   };
 
@@ -280,8 +566,11 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
             <span className="text-[10px] font-mono tracking-widest uppercase text-[var(--app-text-muted)] block mb-1">
               LOCAL-FIRST ENCRYPTED BACKUP
             </span>
-            <h3 id="vault-backup-modal-title" className="text-base font-bold text-[var(--app-text)] tracking-tight">
-              보관함 암호화 백업 및 복원
+            <h3
+              id="vault-backup-modal-title"
+              className="text-base font-bold text-[var(--app-text)] tracking-tight"
+            >
+              보관함 백업 및 복원
             </h3>
           </div>
           <button
@@ -295,41 +584,43 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
         </div>
 
         {/* Tab Bar */}
-        <div className="px-5 pt-3">
-          <div
-            role="tablist"
-            aria-label="백업 작업 선택"
-            className="grid grid-cols-2 p-1 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] gap-1"
+        <div className="px-5 pt-3 border-b border-[var(--app-border)] flex gap-5">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'export'}
+            onClick={() => setActiveTab('export')}
+            className={`pb-2.5 text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
+              activeTab === 'export'
+                ? 'border-[var(--app-accent)] text-[var(--app-text)]'
+                : 'border-transparent text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
+            }`}
           >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'export'}
-              onClick={() => setActiveTab('export')}
-              className={`py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeTab === 'export'
-                  ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] shadow-sm'
-                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
-              }`}
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>백업 내보내기</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'restore'}
-              onClick={() => setActiveTab('restore')}
-              className={`py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeTab === 'restore'
-                  ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] shadow-sm'
-                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
-              }`}
-            >
-              <Upload className="w-3.5 h-3.5" />
-              <span>백업에서 복원</span>
-            </button>
-          </div>
+            <Download className="w-3.5 h-3.5" />
+            <span>백업 내보내기</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'restore'}
+            onClick={() => {
+              setSnapshots(listLocalRecoverySnapshots());
+              setActiveTab('restore');
+            }}
+            className={`pb-2.5 text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
+              activeTab === 'restore'
+                ? 'border-[var(--app-accent)] text-[var(--app-text)]'
+                : 'border-transparent text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
+            }`}
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>백업에서 복원</span>
+            {snapshots.length > 0 && (
+              <span className="text-[10px] font-mono text-[var(--app-text-muted)]">
+                ({snapshots.length})
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Body */}
@@ -339,144 +630,208 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
               {/* Vault Snapshot Summary */}
               <div className="rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] p-3.5 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[var(--app-text-muted)]">현재 보관 데이터</span>
+                  <span className="text-[var(--app-text-muted)]">포함 데이터 요약</span>
                   <span className="font-mono text-[var(--app-text)] font-semibold tabular-nums">
-                    총 {cards.length}장
+                    총 {cards.length}장 · 약 {formatBytesReadable(estimatedBackupBytes)}
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--app-border)] text-center">
-                  <div className="rounded-lg bg-[var(--app-surface)] p-2 border border-[var(--app-border)]">
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--app-border)] text-center text-[11px]">
+                  <div>
                     <div className="text-[10px] text-[var(--app-text-muted)]">내 명함</div>
                     <div className="text-sm font-bold text-[var(--app-text)] font-mono tabular-nums mt-0.5">
                       {myCardCount}
                     </div>
                   </div>
-                  <div className="rounded-lg bg-[var(--app-surface)] p-2 border border-[var(--app-border)]">
+                  <div className="border-x border-[var(--app-border)]">
                     <div className="text-[10px] text-[var(--app-text-muted)]">보관 명함</div>
                     <div className="text-sm font-bold text-[var(--app-text)] font-mono tabular-nums mt-0.5">
                       {vaultCardCount}
                     </div>
                   </div>
-                  <div className="rounded-lg bg-[var(--app-surface)] p-2 border border-[var(--app-border)]">
+                  <div>
                     <div className="text-[10px] text-[var(--app-text-muted)]">카테고리</div>
                     <div className="text-sm font-bold text-[var(--app-text)] font-mono tabular-nums mt-0.5">
                       {effectiveCategories.length}
                     </div>
                   </div>
                 </div>
-                <div className="pt-1 flex items-center justify-between text-[11px] text-[var(--app-text-muted)]">
-                  <span>마지막 백업</span>
-                  <span className="font-mono text-[var(--app-text)]">{formatDateTimeKr(lastBackupAt)}</span>
+                <div className="pt-2 border-t border-[var(--app-border)] flex items-center justify-between text-[11px] text-[var(--app-text-muted)]">
+                  <span>마지막 백업 · 테마/메모/SHA-256 포함</span>
+                  <span className="font-mono text-[var(--app-text)]">
+                    {formatDateTimeKr(lastBackupAt)}
+                  </span>
                 </div>
               </div>
 
-              {/* Encryption Configuration */}
-              <div className="rounded-xl bg-[var(--app-surface-subtle)]/70 border border-[var(--app-border)] p-3.5 space-y-3">
-                <div className="flex items-start gap-2.5">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                  <div className="space-y-1 flex-1">
-                    <p className="text-[var(--app-text)] font-semibold">AES-GCM 256-bit 온디바이스 암호화</p>
-                    <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
-                      {isPinConfigured && !useCustomPassphrase
-                        ? sessionPin
-                          ? '현재 활성화된 4자리 앱 PIN 키로 안전하게 암호화된 .eerum 파일을 생성합니다.'
-                          : '현재 앱 PIN을 확인한 뒤 PBKDF2-SHA256 키로 암호화된 .eerum 파일을 생성합니다.'
-                        : '백업 전용 암호를 설정하여 .eerum 파일을 암호화합니다. 복원 시 동일한 암호가 필요합니다.'}
-                    </p>
+              {/* Export Format Selector */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-medium text-[var(--app-text-muted)]">
+                    백업 파일 형식
+                  </span>
+                  <div className="flex items-center gap-3 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExportFormat('eerum');
+                        setExportError(null);
+                      }}
+                      className={`pb-0.5 border-b transition-colors cursor-pointer ${
+                        exportFormat === 'eerum'
+                          ? 'border-[var(--app-accent)] text-[var(--app-text)] font-semibold'
+                          : 'border-transparent text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
+                      }`}
+                    >
+                      암호화 (.eerum)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExportFormat('json');
+                        setExportError(null);
+                      }}
+                      className={`pb-0.5 border-b transition-colors cursor-pointer ${
+                        exportFormat === 'json'
+                          ? 'border-amber-500 text-[var(--app-text)] font-semibold'
+                          : 'border-transparent text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
+                      }`}
+                    >
+                      표준 JSON (.json)
+                    </button>
                   </div>
                 </div>
 
-                {isPinConfigured && (
-                  <label className="flex items-center gap-2 pt-1 text-[11px] text-[var(--app-text)] cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={useCustomPassphrase}
-                      onChange={(e) => {
-                        setUseCustomPassphrase(e.target.checked);
-                        setExportSecret('');
-                        setExportSecretConfirm('');
-                        setExportError(null);
-                      }}
-                      className="rounded border-[var(--app-border)] accent-[var(--app-accent)]"
-                    />
-                    <span>앱 PIN 대신 별도의 백업 암호 사용하기</span>
-                  </label>
-                )}
-
-                {needsManualSecretForExport && (
-                  <div className="space-y-2.5 pt-1">
-                    {isPinConfigured && !useCustomPassphrase && !sessionPin ? (
-                      <div>
-                        <label className="block text-[11px] text-[var(--app-text-muted)] mb-1">
-                          현재 4자리 앱 PIN 확인
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showExportSecret ? 'text' : 'password'}
-                            inputMode="numeric"
-                            maxLength={8}
-                            value={exportSecret}
-                            onChange={(e) => {
-                              setExportSecret(e.target.value);
-                              setExportError(null);
-                            }}
-                            placeholder="4자리 PIN 입력"
-                            className="w-full h-9.5 pl-3 pr-9 rounded-xl bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]/70 focus:outline-none focus:border-[var(--app-accent)] font-mono"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowExportSecret((prev) => !prev)}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-text-muted)] hover:text-[var(--app-text)] cursor-pointer"
-                            aria-label="암호 표시 전환"
-                          >
-                            {showExportSecret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
+                {exportFormat === 'eerum' ? (
+                  <div className="rounded-xl bg-[var(--app-surface-subtle)]/70 border border-[var(--app-border)] p-3.5 space-y-3">
+                    <div className="flex items-start gap-2.5">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <div className="space-y-1 flex-1">
+                        <p className="text-[var(--app-text)] font-semibold">
+                          AES-GCM 256-bit 온디바이스 암호화 + SHA-256 검증
+                        </p>
+                        <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
+                          {isPinConfigured && !useCustomPassphrase
+                            ? sessionPin
+                              ? '현재 활성화된 4자리 앱 PIN 키로 안전하게 암호화된 .eerum 파일을 생성합니다.'
+                              : '현재 앱 PIN을 확인한 뒤 PBKDF2-SHA256 키로 암호화된 .eerum 파일을 생성합니다.'
+                            : '백업 전용 암호를 설정하여 .eerum 파일을 암호화합니다. 복원 시 동일한 암호가 필요합니다.'}
+                        </p>
                       </div>
-                    ) : (
-                      <>
-                        <div>
-                          <label className="block text-[11px] text-[var(--app-text-muted)] mb-1">
-                            백업 암호 설정 (최소 4자)
-                          </label>
-                          <div className="relative">
-                            <input
-                              type={showExportSecret ? 'text' : 'password'}
-                              value={exportSecret}
-                              onChange={(e) => {
-                                setExportSecret(e.target.value);
-                                setExportError(null);
-                              }}
-                              placeholder="복원 시 입력할 암호"
-                              className="w-full h-9.5 pl-3 pr-9 rounded-xl bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]/70 focus:outline-none focus:border-[var(--app-accent)]"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowExportSecret((prev) => !prev)}
-                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-text-muted)] hover:text-[var(--app-text)] cursor-pointer"
-                              aria-label="암호 표시 전환"
-                            >
-                              {showExportSecret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                            </button>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-[11px] text-[var(--app-text-muted)] mb-1">
-                            백업 암호 확인
-                          </label>
-                          <input
-                            type={showExportSecret ? 'text' : 'password'}
-                            value={exportSecretConfirm}
-                            onChange={(e) => {
-                              setExportSecretConfirm(e.target.value);
-                              setExportError(null);
-                            }}
-                            placeholder="동일한 암호 다시 입력"
-                            className="w-full h-9.5 px-3 rounded-xl bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]/70 focus:outline-none focus:border-[var(--app-accent)]"
-                          />
-                        </div>
-                      </>
+                    </div>
+
+                    {isPinConfigured && (
+                      <label className="flex items-center gap-2 pt-1 text-[11px] text-[var(--app-text)] cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={useCustomPassphrase}
+                          onChange={(e) => {
+                            setUseCustomPassphrase(e.target.checked);
+                            setExportSecret('');
+                            setExportSecretConfirm('');
+                            setExportError(null);
+                          }}
+                          className="rounded border-[var(--app-border)] accent-[var(--app-accent)]"
+                        />
+                        <span>앱 PIN 대신 별도의 백업 암호 사용하기</span>
+                      </label>
                     )}
+
+                    {needsManualSecretForExport && (
+                      <div className="space-y-2.5 pt-1">
+                        {isPinConfigured && !useCustomPassphrase && !sessionPin ? (
+                          <div>
+                            <label className="block text-[11px] text-[var(--app-text-muted)] mb-1">
+                              현재 4자리 앱 PIN 확인
+                            </label>
+                            <div className="relative">
+                              <input
+                                type={showExportSecret ? 'text' : 'password'}
+                                inputMode="numeric"
+                                maxLength={8}
+                                value={exportSecret}
+                                onChange={(e) => {
+                                  setExportSecret(e.target.value);
+                                  setExportError(null);
+                                }}
+                                placeholder="4자리 PIN 입력"
+                                className="w-full h-9.5 pl-3 pr-9 rounded-xl bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]/70 focus:outline-none focus:border-[var(--app-accent)] font-mono"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowExportSecret((prev) => !prev)}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-text-muted)] hover:text-[var(--app-text)] cursor-pointer"
+                                aria-label="암호 표시 전환"
+                              >
+                                {showExportSecret ? (
+                                  <EyeOff className="w-3.5 h-3.5" />
+                                ) : (
+                                  <Eye className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div>
+                              <label className="block text-[11px] text-[var(--app-text-muted)] mb-1">
+                                백업 암호 설정 (최소 4자)
+                              </label>
+                              <div className="relative">
+                                <input
+                                  type={showExportSecret ? 'text' : 'password'}
+                                  value={exportSecret}
+                                  onChange={(e) => {
+                                    setExportSecret(e.target.value);
+                                    setExportError(null);
+                                  }}
+                                  placeholder="복원 시 입력할 암호"
+                                  className="w-full h-9.5 pl-3 pr-9 rounded-xl bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]/70 focus:outline-none focus:border-[var(--app-accent)]"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowExportSecret((prev) => !prev)}
+                                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-text-muted)] hover:text-[var(--app-text)] cursor-pointer"
+                                  aria-label="암호 표시 전환"
+                                >
+                                  {showExportSecret ? (
+                                    <EyeOff className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <Eye className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[11px] text-[var(--app-text-muted)] mb-1">
+                                백업 암호 확인
+                              </label>
+                              <input
+                                type={showExportSecret ? 'text' : 'password'}
+                                value={exportSecretConfirm}
+                                onChange={(e) => {
+                                  setExportSecretConfirm(e.target.value);
+                                  setExportError(null);
+                                }}
+                                placeholder="동일한 암호 다시 입력"
+                                className="w-full h-9.5 px-3 rounded-xl bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]/70 focus:outline-none focus:border-[var(--app-accent)]"
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3.5 flex items-start gap-2.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-[var(--app-text)]">
+                        비암호화 JSON 내보내기 (SHA-256 무결성 검증 포함)
+                      </p>
+                      <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
+                        명함과 메모가 평문으로 저장되므로 개인 기기·보안 드라이브 등 안전한 위치에만 보관하세요.
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -491,14 +846,168 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={isExporting || cards.length === 0}
-                className="w-full py-3 px-4 rounded-xl bg-[var(--app-accent)] hover:opacity-90 disabled:opacity-40 text-[var(--app-accent-fg)] font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] shadow-md"
-              >
-                <Download className="w-4 h-4 stroke-[2]" />
-                <span>{isExporting ? '암호화 백업 생성 중...' : '암호화 백업 파일 저장 (.eerum)'}</span>
-              </button>
+              <div className="space-y-2">
+                {canShareBackupFile ? (
+                  <>
+                    <button
+                      type="submit"
+                      disabled={isExporting || cards.length === 0}
+                      className="w-full py-3 px-4 rounded-xl bg-[var(--app-accent)] hover:opacity-90 disabled:opacity-40 text-[var(--app-accent-fg)] font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] shadow-md"
+                    >
+                      <Share2 className="w-4 h-4 stroke-[2]" />
+                      <span>
+                        {isExporting
+                          ? '백업 파일 생성 중...'
+                          : '공유 시트로 저장 (파일 앱 · iCloud · 메신저)'}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => void performExport('download')}
+                      disabled={isExporting || cards.length === 0}
+                      className="w-full py-2.5 px-4 rounded-xl border border-[var(--app-border)] hover:bg-[var(--app-surface-subtle)] disabled:opacity-40 text-[var(--app-text)] font-medium text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
+                      <span>
+                        {exportFormat === 'eerum'
+                          ? '기기에 직접 파일 다운로드 (.eerum)'
+                          : '기기에 직접 파일 다운로드 (.json)'}
+                      </span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={isExporting || cards.length === 0}
+                    className="w-full py-3 px-4 rounded-xl bg-[var(--app-accent)] hover:opacity-90 disabled:opacity-40 text-[var(--app-accent-fg)] font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] shadow-md"
+                  >
+                    <Download className="w-4 h-4 stroke-[2]" />
+                    <span>
+                      {isExporting
+                        ? '백업 파일 생성 중...'
+                        : exportFormat === 'eerum'
+                          ? '암호화 백업 파일 저장 (.eerum)'
+                          : '표준 JSON 백업 파일 저장 (.json)'}
+                    </span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleCreateLocalSnapshot}
+                  disabled={isSavingSnapshot || cards.length === 0}
+                  className="w-full py-2.5 px-4 rounded-xl border border-[var(--app-border)] hover:bg-[var(--app-surface-subtle)] disabled:opacity-40 text-[var(--app-text)] font-medium text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <BookmarkPlus className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
+                  <span>
+                    {isSavingSnapshot
+                      ? '로컬 스냅샷 저장 중...'
+                      : '브라우저 내 안전 스냅샷 저장 (즉시 복구 지점)'}
+                  </span>
+                </button>
+              </div>
+
+              {/* Desktop Local Folder Auto-Backup (File System Access API) */}
+              {folderBackupSupported && (
+                <div className="rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] p-3.5 space-y-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      {folderInfo?.hasPermission ? (
+                        <FolderCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      ) : (
+                        <FolderSync className="w-4 h-4 text-[var(--app-text-muted)] shrink-0 mt-0.5" />
+                      )}
+                      <div className="min-w-0 space-y-0.5">
+                        <p className="font-semibold text-[var(--app-text)]">
+                          로컬 폴더 자동 백업 (PC 전용)
+                        </p>
+                        <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
+                          {folderInfo
+                            ? `변경 시 ${AUTO_BACKUP_FILENAME} 파일로 자동 동기화됩니다.`
+                            : 'PC의 로컬 또는 동기화 드라이브 폴더를 지정해 변경 시마다 자동 백업합니다.'}
+                        </p>
+                      </div>
+                    </div>
+                    {folderInfo && (
+                      <span
+                        className={`shrink-0 text-[10px] font-mono font-medium ${
+                          folderInfo.hasPermission
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-amber-600 dark:text-amber-400'
+                        }`}
+                      >
+                        {folderInfo.hasPermission ? '자동 동기화 활성' : '권한 필요'}
+                      </span>
+                    )}
+                  </div>
+
+                  {folderInfo && (
+                    <div className="pt-2 border-t border-[var(--app-border)] space-y-1 text-[11px]">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[var(--app-text-muted)]">연결된 폴더</span>
+                        <span className="font-mono font-semibold text-[var(--app-text)] truncate max-w-[200px]">
+                          {folderInfo.folderName}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[var(--app-text-muted)]">마지막 자동 백업</span>
+                        <span className="font-mono text-[var(--app-text)]">
+                          {lastFolderBackupAt
+                            ? formatDateTimeKr(lastFolderBackupAt)
+                            : '변경 시 자동 저장 대기'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {folderError && (
+                    <div
+                      role="alert"
+                      className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-2.5 py-1.5 text-[11px] text-rose-700 dark:text-rose-200 flex items-center gap-1.5"
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+                      <span>{folderError}</span>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                    {folderInfo && !folderInfo.hasPermission && (
+                      <button
+                        type="button"
+                        onClick={() => void handleReauthorizeBackupFolder()}
+                        disabled={isFolderActionBusy}
+                        className="flex-1 min-w-[120px] py-2 px-3 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-800 dark:text-amber-200 font-semibold text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors disabled:opacity-50"
+                      >
+                        <KeyRound className="w-3.5 h-3.5" />
+                        <span>권한 재승인</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => void handleConnectBackupFolder()}
+                      disabled={isFolderActionBusy}
+                      className="flex-1 min-w-[120px] py-2 px-3 rounded-lg bg-[var(--app-surface-subtle)] hover:bg-[var(--app-border)] border border-[var(--app-border)] text-[var(--app-text)] font-medium text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors disabled:opacity-50"
+                    >
+                      <FolderSync className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
+                      <span>폴더 연결 / 변경</span>
+                    </button>
+
+                    {folderInfo && (
+                      <button
+                        type="button"
+                        onClick={() => void handleDisconnectBackupFolder()}
+                        disabled={isFolderActionBusy}
+                        className="py-2 px-3 rounded-lg border border-[var(--app-border)] hover:bg-rose-500/10 hover:border-rose-500/30 text-[var(--app-text-muted)] hover:text-rose-600 dark:hover:text-rose-400 font-medium text-[11px] flex items-center justify-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                      >
+                        <Unlink className="w-3.5 h-3.5" />
+                        <span>연결 해제</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </form>
           ) : (
             <div className="space-y-4">
@@ -512,35 +1021,90 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
               />
 
               {!parsedFile ? (
-                <div
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setIsDraggingFile(true);
-                  }}
-                  onDragLeave={() => setIsDraggingFile(false)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setIsDraggingFile(false);
-                    const file = e.dataTransfer.files?.[0];
-                    if (file) void processSelectedFile(file);
-                  }}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`rounded-2xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors ${
-                    isDraggingFile
-                      ? 'border-[var(--app-accent)] bg-[var(--app-highlight)]/35'
-                      : 'border-[var(--app-border)] hover:border-[var(--app-accent)]/60 bg-[var(--app-bg)]'
-                  }`}
-                >
-                  <div className="w-11 h-11 rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] flex items-center justify-center mx-auto mb-3 text-[var(--app-text)]">
-                    <FileKey2 className="w-5 h-5" />
+                <>
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDraggingFile(true);
+                    }}
+                    onDragLeave={() => setIsDraggingFile(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDraggingFile(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) void processSelectedFile(file);
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`rounded-2xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors ${
+                      isDraggingFile
+                        ? 'border-[var(--app-accent)] bg-[var(--app-highlight)]/35'
+                        : 'border-[var(--app-border)] hover:border-[var(--app-accent)]/60 bg-[var(--app-bg)]'
+                    }`}
+                  >
+                    <div className="w-11 h-11 rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] flex items-center justify-center mx-auto mb-3 text-[var(--app-text)]">
+                      <FileKey2 className="w-5 h-5" />
+                    </div>
+                    <p className="text-[var(--app-text)] font-semibold mb-1">
+                      백업 파일(.eerum / .json) 선택
+                    </p>
+                    <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
+                      클릭하거나 파일을 이곳에 끌어다 놓아 복원을 시작하세요.
+                    </p>
                   </div>
-                  <p className="text-[var(--app-text)] font-semibold mb-1">
-                    백업 파일(.eerum / .json) 선택
-                  </p>
-                  <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
-                    클릭하거나 파일을 이곳에 끌어다 놓아 복원을 시작하세요.
-                  </p>
-                </div>
+
+                  {/* Local Recovery Snapshots */}
+                  {snapshots.length > 0 && (
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between text-[11px] text-[var(--app-text-muted)]">
+                        <span className="inline-flex items-center gap-1.5 font-medium">
+                          <History className="w-3.5 h-3.5" />
+                          <span>최근 로컬 안전 스냅샷</span>
+                        </span>
+                        <span className="font-mono text-[10px]">최대 5개 보관</span>
+                      </div>
+                      <div className="divide-y divide-[var(--app-border)] rounded-xl border border-[var(--app-border)] bg-[var(--app-bg)] overflow-hidden">
+                        {snapshots.map((snap) => (
+                          <div
+                            key={snap.id}
+                            className="px-3 py-2.5 flex items-center justify-between gap-2"
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                {snap.encrypted && (
+                                  <Lock className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                )}
+                                <span className="font-medium text-[var(--app-text)] truncate">
+                                  {snap.label}
+                                </span>
+                              </div>
+                              <p className="text-[10px] font-mono text-[var(--app-text-muted)] mt-0.5">
+                                {formatDateTimeKr(snap.createdAt)} · 총 {snap.cardCount}장
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => void handleLoadSnapshot(snap)}
+                                className="px-2.5 py-1 rounded-lg bg-[var(--app-surface-subtle)] hover:bg-[var(--app-border)] text-[var(--app-text)] text-[11px] font-medium cursor-pointer"
+                              >
+                                불러오기
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSnapshot(snap.id)}
+                                className="p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-rose-600 dark:hover:text-rose-400 hover:bg-[var(--app-surface-subtle)] cursor-pointer"
+                                title="스냅샷 삭제"
+                                aria-label="스냅샷 삭제"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] p-3 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -560,7 +1124,7 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
                     onClick={resetRestoreSelection}
                     className="px-2.5 py-1 rounded-lg bg-[var(--app-surface-subtle)] hover:bg-[var(--app-border)] text-[var(--app-text)] text-[11px] cursor-pointer shrink-0"
                   >
-                    파일 변경
+                    다시 선택
                   </button>
                 </div>
               )}
@@ -593,7 +1157,11 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
                         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-text-muted)] hover:text-[var(--app-text)] cursor-pointer"
                         aria-label="암호 표시 전환"
                       >
-                        {showDecryptSecret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        {showDecryptSecret ? (
+                          <EyeOff className="w-3.5 h-3.5" />
+                        ) : (
+                          <Eye className="w-3.5 h-3.5" />
+                        )}
                       </button>
                     </div>
                     {sessionPin && (
@@ -623,12 +1191,29 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
               {/* Step 3: Preview & Merge/Replace Choice */}
               {decryptedPayload && restorePreview && (
                 <div className="space-y-3">
-                  <div className="rounded-xl bg-[var(--app-bg)] border border-emerald-500/35 p-3.5 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-semibold">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>백업 스키마 검증 완료</span>
-                      </span>
+                  <div
+                    className={`rounded-xl bg-[var(--app-bg)] border p-3.5 space-y-2 ${
+                      restorePreview.integrityStatus === 'mismatch'
+                        ? 'border-rose-500/45'
+                        : 'border-emerald-500/35'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      {restorePreview.integrityStatus === 'mismatch' ? (
+                        <span className="inline-flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-semibold">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          <span>SHA-256 무결성 불일치 주의</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-semibold">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>
+                            {restorePreview.integrityStatus === 'verified'
+                              ? 'SHA-256 무결성 검증 완료'
+                              : '백업 스키마 검증 완료'}
+                          </span>
+                        </span>
+                      )}
                       <span className="text-[10px] font-mono text-[var(--app-text-muted)]">
                         {formatDateTimeKr(restorePreview.exportedAt)}
                       </span>
@@ -637,22 +1222,34 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
                     <div className="text-[11px] text-[var(--app-text-muted)] grid grid-cols-2 gap-y-1 pt-1 border-t border-[var(--app-border)]">
                       <span>포함된 총 명함:</span>
                       <span className="text-right font-mono font-semibold text-[var(--app-text)]">
-                        {restorePreview.totalIncoming}장 (내 명함 {restorePreview.incomingMyCards} · 보관 {restorePreview.incomingVaultCards})
+                        {restorePreview.totalIncoming}장 (내 명함 {restorePreview.incomingMyCards} · 보관{' '}
+                        {restorePreview.incomingVaultCards})
                       </span>
                       <span>중복 (ID/슬러그 일치):</span>
                       <span className="text-right font-mono text-[var(--app-text-muted)]">
                         {restorePreview.duplicateCount}장
+                        {restorePreview.newerDuplicatesCount > 0
+                          ? ` (최신 ${restorePreview.newerDuplicatesCount})`
+                          : ''}
                       </span>
                       <span>병합 시 신규 추가:</span>
                       <span className="text-right font-mono font-semibold text-emerald-700 dark:text-emerald-300">
                         +{restorePreview.newCardsCount}장 (카테고리 +{restorePreview.newCategoriesCount})
                       </span>
+                      {restorePreview.hasThemePreferences && (
+                        <>
+                          <span>명함 테마/화면 설정:</span>
+                          <span className="text-right font-mono text-[var(--app-text)]">포함됨</span>
+                        </>
+                      )}
                     </div>
                   </div>
 
                   {/* Merge vs Replace Mode Selector */}
                   <div className="space-y-2">
-                    <p className="text-[11px] font-medium text-[var(--app-text-muted)]">복원 방식 선택</p>
+                    <p className="text-[11px] font-medium text-[var(--app-text-muted)]">
+                      복원 방식 선택
+                    </p>
 
                     <button
                       type="button"
@@ -666,14 +1263,30 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
                       <GitMerge className="w-4 h-4 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                       <div className="space-y-0.5">
                         <div className="font-semibold text-[var(--app-text)] flex items-center gap-1.5">
-                          <span>병합 (Merge · 중복 건너뛰기)</span>
-                          <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-300">권장</span>
+                          <span>스마트 병합 (Merge)</span>
+                          <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-300">
+                            권장
+                          </span>
                         </div>
                         <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
-                          기존 명함과 카테고리를 보존하고, 중복되지 않는 새 명함만 안전하게 추가합니다.
+                          기존 명함과 카테고리를 보존하고 새 명함을 안전하게 합칩니다.
                         </p>
                       </div>
                     </button>
+
+                    {restoreMode === 'merge' && restorePreview.newerDuplicatesCount > 0 && (
+                      <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[11px] text-[var(--app-text)] cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={updateNewerDuplicates}
+                          onChange={(e) => setUpdateNewerDuplicates(e.target.checked)}
+                          className="rounded border-[var(--app-border)] accent-[var(--app-accent)]"
+                        />
+                        <span>
+                          백업이 더 최신인 중복 명함 {restorePreview.newerDuplicatesCount}장 업데이트
+                        </span>
+                      </label>
+                    )}
 
                     <button
                       type="button"
@@ -698,7 +1311,7 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
                     <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-[11px] text-amber-800 dark:text-amber-200 flex items-start gap-2">
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                       <span>
-                        현재 기기에만 저장된 기존 명함 {cards.length}장이 백업 내용으로 대체됩니다.
+                        기존 명함 {cards.length}장이 대체되며, 실수 복구를 위해 교체 직전 로컬 안전 스냅샷이 자동 저장됩니다.
                       </span>
                     </div>
                   )}
@@ -713,7 +1326,9 @@ export const VaultBackupModal: React.FC<VaultBackupModalProps> = ({
                     }`}
                   >
                     {restoreMode === 'merge'
-                      ? `병합 복원 실행 (+${restorePreview.newCardsCount}장)`
+                      ? updateNewerDuplicates && restorePreview.newerDuplicatesCount > 0
+                        ? `스마트 병합 실행 (+${restorePreview.newCardsCount} · 갱신 ${restorePreview.newerDuplicatesCount})`
+                        : `병합 복원 실행 (+${restorePreview.newCardsCount}장)`
                       : `전체 교체 복원 실행 (${restorePreview.totalIncoming}장)`}
                   </button>
                 </div>

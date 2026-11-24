@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { CardTheme, StoredCard } from '../types/card';
 import {
   loadUserCards,
@@ -14,12 +14,36 @@ import { loadVaultCategories } from '../utils/categories';
 import {
   type VaultBackupPayloadV1,
   type BackupRestoreMode,
+  type BackupMergeOptions,
   applyBackupRestore,
+  saveLocalRecoverySnapshot,
+  recordBackupCompleted,
 } from '../utils/vaultBackup';
+import {
+  isLocalFolderBackupSupported,
+  getConnectedDirectoryInfo,
+  writeAutoBackupToDirectory,
+} from '../utils/localFolderBackup';
+import { getActiveSessionPin } from '../utils/vaultSession';
 import { useAutoLock } from './useAutoLock';
 import type { ModalManager } from './useModalState';
 import {
+  ACCOUNT_CHANGED_EVENT,
+  type CreateLocalAccountParams,
+  type LocalAccountActionResult,
+  type LocalAccountMeta,
+  createLocalAccount,
+  deleteLocalAccount,
+  getActiveAccountId,
+  listLocalAccounts,
+  loginLocalAccount,
+  loginLocalAccountWithBiometrics,
+  logoutLocalAccount,
+  syncLocalAccountSecurity,
+} from '../utils/localAccount';
+import {
   CARD_THEME_MAP_UPDATED_EVENT,
+  applyCardThemeMapSnapshot,
   getMostRecentCardTheme,
   removeCardThemePreference,
   resolveCardsWithStoredThemes,
@@ -52,12 +76,37 @@ export function useCardVault({
   onCleanPublicRoute,
   preferredNewCardTheme,
 }: UseCardVaultOptions) {
-  const [cards, setCards] = useState<StoredCard[]>(() => loadUserCards());
+  const [activeAccountId, setActiveAccountId] = useState<string | null>(() => getActiveAccountId());
+  const [accountsList, setAccountsList] = useState<LocalAccountMeta[]>(() => listLocalAccounts());
+
+  const activeAccount = useMemo(
+    () => accountsList.find((acct) => acct.id === activeAccountId) || null,
+    [accountsList, activeAccountId]
+  );
+
+  const refreshAccountsList = useCallback(() => {
+    setAccountsList(listLocalAccounts());
+    setActiveAccountId(getActiveAccountId());
+  }, []);
+
+  useEffect(() => {
+    const handleAccountChanged = () => {
+      setActiveAccountId(getActiveAccountId());
+      setAccountsList(listLocalAccounts());
+    };
+    window.addEventListener(ACCOUNT_CHANGED_EVENT, handleAccountChanged);
+    return () => window.removeEventListener(ACCOUNT_CHANGED_EVENT, handleAccountChanged);
+  }, []);
+
+  const [cards, setCards] = useState<StoredCard[]>(() =>
+    activeAccountId ? loadUserCards(activeAccountId) : []
+  );
 
   // Strictly isolated selection states:
   // 1) selectedMyCardId: exclusively references personal cards (`isMyCard === true`)
   const [selectedMyCardId, setSelectedMyCardId] = useState<string>(() => {
-    const loadedMyCards = loadUserCards().filter((c) => c.isMyCard);
+    if (!activeAccountId) return '';
+    const loadedMyCards = loadUserCards(activeAccountId).filter((c) => c.isMyCard);
     const defaultCard = loadedMyCards.find((c) => c.isDefault) || loadedMyCards[0];
     return defaultCard?.id || '';
   });
@@ -74,52 +123,219 @@ export function useCardVault({
     lockApp: rawLockApp,
     unlockApp,
     isPinConfigured,
-    refreshPinStatus,
-  } = useAutoLock();
+    refreshPinStatus: rawRefreshPinStatus,
+  } = useAutoLock(activeAccountId);
+
+  const refreshPinStatus = useCallback(() => {
+    rawRefreshPinStatus(activeAccountId);
+    if (activeAccountId) {
+      syncLocalAccountSecurity(activeAccountId);
+      setAccountsList(listLocalAccounts());
+    }
+  }, [rawRefreshPinStatus, activeAccountId]);
+
+  const autoBackupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearScheduledAutoBackup = useCallback(() => {
+    if (autoBackupTimerRef.current !== null) {
+      clearTimeout(autoBackupTimerRef.current);
+      autoBackupTimerRef.current = null;
+    }
+  }, []);
 
   const lockApp = useCallback(() => {
+    clearScheduledAutoBackup();
     clearMemoryDecryptedCards();
     setCards([]);
     setSelectedMyCardId('');
     setModalTargetCardId(null);
     modals.closeAll();
     rawLockApp();
-  }, [rawLockApp, modals.closeAll]);
+  }, [clearScheduledAutoBackup, rawLockApp, modals.closeAll]);
 
   // Ensure any lock transition (manual, visibilitychange, or 5m idle) wipes plaintext cards from memory
   useEffect(() => {
     if (isPinConfigured && isLocked) {
+      clearScheduledAutoBackup();
       clearMemoryDecryptedCards();
       setCards((prev) => (prev.length > 0 ? [] : prev));
       setSelectedMyCardId('');
       setModalTargetCardId(null);
       modals.closeAll();
     }
-  }, [isPinConfigured, isLocked, modals.closeAll]);
+  }, [isPinConfigured, isLocked, clearScheduledAutoBackup, modals.closeAll]);
 
   const requireUnlock = useCallback(
     (action: () => void) => {
+      if (!activeAccountId) {
+        modals.openCreateAccount();
+        return;
+      }
       if (isPinConfigured && isLocked) {
         lockApp();
       } else {
         action();
       }
     },
-    [isPinConfigured, isLocked, lockApp]
+    [activeAccountId, isPinConfigured, isLocked, lockApp, modals.openCreateAccount]
   );
 
   // Optional Biometric Unlock handler with automatic cryptographic vault rehydration
   const handleBiometricUnlock = useCallback(async () => {
+    if (!activeAccountId) return;
     const { verifyBiometric } = await import('../utils/biometrics');
-    const res = await verifyBiometric();
+    const res = await verifyBiometric(activeAccountId);
     if (res.success) {
-      unlockApp();
-      setCards(loadUserCards());
+      unlockApp(activeAccountId);
+      setCards(loadUserCards(activeAccountId));
       showToast('생체 인증(Biometrics)으로 잠금이 해제되었습니다.');
     } else if (res.error && !res.error.includes('취소')) {
       showToast(res.error);
     }
-  }, [unlockApp, showToast]);
+  }, [activeAccountId, unlockApp, showToast]);
+
+  const hydrateSignedInAccount = useCallback(
+    (account: LocalAccountMeta, hydratedCards: StoredCard[]) => {
+      clearScheduledAutoBackup();
+      setActiveAccountId(account.id);
+      setAccountsList(listLocalAccounts());
+      setCards(hydratedCards);
+      const myList = hydratedCards.filter((c) => c.isMyCard);
+      const nextDefault = myList.find((c) => c.isDefault) || myList[0];
+      setSelectedMyCardId(nextDefault?.id || '');
+      setSelectedVaultCardId(null);
+      setModalTargetCardId(null);
+      setCardPendingDelete(null);
+      setIsSamplePreview(false);
+      setIsFlipped(false);
+      setShowWelcomeIntro(false);
+      setActiveTab('my-card');
+      rawRefreshPinStatus(account.id);
+      unlockApp(account.id);
+    },
+    [
+      clearScheduledAutoBackup,
+      setIsSamplePreview,
+      setIsFlipped,
+      setShowWelcomeIntro,
+      setActiveTab,
+      rawRefreshPinStatus,
+      unlockApp,
+    ]
+  );
+
+  const handleCreateLocalAccount = useCallback(
+    async (params: CreateLocalAccountParams): Promise<LocalAccountActionResult> => {
+      const res = await createLocalAccount(params);
+      if (res.ok && res.account) {
+        hydrateSignedInAccount(res.account, res.cards || []);
+        modals.closeCreateAccount();
+        showToast(
+          res.biometricError
+            ? `'${res.account.displayName}' 계정이 생성되었습니다. (${res.biometricError})`
+            : `'${res.account.displayName}' 로컬 계정이 준비되었습니다.`
+        );
+      }
+      return res;
+    },
+    [hydrateSignedInAccount, modals.closeCreateAccount, showToast]
+  );
+
+  const handleLoginAccount = useCallback(
+    async (accountId: string, pin?: string): Promise<LocalAccountActionResult> => {
+      const res = await loginLocalAccount(accountId, pin);
+      if (res.ok && res.account) {
+        hydrateSignedInAccount(res.account, res.cards || []);
+        modals.closeAll();
+        showToast(`'${res.account.displayName}' 보관함으로 로그인했습니다.`);
+      }
+      return res;
+    },
+    [hydrateSignedInAccount, modals.closeAll, showToast]
+  );
+
+  const handleBiometricLoginAccount = useCallback(
+    async (accountId: string): Promise<LocalAccountActionResult> => {
+      const res = await loginLocalAccountWithBiometrics(accountId);
+      if (res.ok && res.account) {
+        hydrateSignedInAccount(res.account, res.cards || []);
+        modals.closeAll();
+        showToast(`생체 인증으로 '${res.account.displayName}' 보관함을 열었습니다.`);
+      }
+      return res;
+    },
+    [hydrateSignedInAccount, modals.closeAll, showToast]
+  );
+
+  const handleLogoutAccount = useCallback(() => {
+    clearScheduledAutoBackup();
+    logoutLocalAccount();
+    setActiveAccountId(null);
+    setAccountsList(listLocalAccounts());
+    setCards([]);
+    setSelectedMyCardId('');
+    setSelectedVaultCardId(null);
+    setModalTargetCardId(null);
+    setCardPendingDelete(null);
+    modals.closeAll();
+    setIsSamplePreview(false);
+    setIsFlipped(false);
+    setActiveTab('my-card');
+    setShowWelcomeIntro(true);
+    rawRefreshPinStatus(null);
+    showToast('로컬 계정에서 안전하게 로그아웃되었습니다.');
+  }, [
+    clearScheduledAutoBackup,
+    modals.closeAll,
+    setIsSamplePreview,
+    setIsFlipped,
+    setActiveTab,
+    setShowWelcomeIntro,
+    rawRefreshPinStatus,
+    showToast,
+  ]);
+
+  const handleDeleteLocalAccount = useCallback(
+    (accountId: string) => {
+      const target = accountsList.find((acct) => acct.id === accountId);
+      const wasActive = accountId === activeAccountId;
+      deleteLocalAccount(accountId);
+      const nextAccounts = listLocalAccounts();
+      setAccountsList(nextAccounts);
+
+      if (wasActive) {
+        clearScheduledAutoBackup();
+        setActiveAccountId(null);
+        setCards([]);
+        setSelectedMyCardId('');
+        setSelectedVaultCardId(null);
+        setModalTargetCardId(null);
+        setCardPendingDelete(null);
+        modals.closeAll();
+        setIsSamplePreview(false);
+        setIsFlipped(false);
+        setActiveTab('my-card');
+        setShowWelcomeIntro(true);
+        rawRefreshPinStatus(null);
+      }
+
+      showToast(
+        target ? `'${target.displayName}' 로컬 계정이 삭제되었습니다.` : '로컬 계정이 삭제되었습니다.'
+      );
+    },
+    [
+      accountsList,
+      activeAccountId,
+      clearScheduledAutoBackup,
+      modals.closeAll,
+      setIsSamplePreview,
+      setIsFlipped,
+      setActiveTab,
+      setShowWelcomeIntro,
+      rawRefreshPinStatus,
+      showToast,
+    ]
+  );
 
   // Strictly isolated personal cards collection (`isMyCard === true`)
   const myCards = useMemo(() => cards.filter((c) => c.isMyCard), [cards]);
@@ -183,31 +399,77 @@ export function useCardVault({
     modals.isExportOpen,
   ]);
 
-  // Persist cards to localStorage ONLY when unlocked (prevents wiping encrypted vault while locked)
+  const saveStoredCards = useCallback(
+    (cardsToSave: StoredCard[]) => {
+      if (!activeAccountId) return;
+      saveUserCards(cardsToSave, activeAccountId);
+
+      clearScheduledAutoBackup();
+      if (
+        !isLocalFolderBackupSupported() ||
+        (isPinConfigured && isLocked) ||
+        !cardsToSave ||
+        cardsToSave.length === 0
+      ) {
+        return;
+      }
+
+      const snapshotCards = cardsToSave;
+      const targetAccountId = activeAccountId;
+      autoBackupTimerRef.current = setTimeout(() => {
+        autoBackupTimerRef.current = null;
+        void (async () => {
+          try {
+            const info = await getConnectedDirectoryInfo(targetAccountId);
+            if (!info || !info.hasPermission) return;
+            const categories = loadVaultCategories(snapshotCards, targetAccountId);
+            const wrote = await writeAutoBackupToDirectory(snapshotCards, categories, targetAccountId);
+            if (wrote) {
+              recordBackupCompleted(Date.now(), targetAccountId);
+            }
+          } catch {
+            // Silent best-effort auto-backup
+          }
+        })();
+      }, 3000);
+    },
+    [activeAccountId, clearScheduledAutoBackup, isPinConfigured, isLocked]
+  );
+
   useEffect(() => {
+    return () => clearScheduledAutoBackup();
+  }, [clearScheduledAutoBackup]);
+
+  // Persist cards to localStorage ONLY when an account is signed in and unlocked
+  useEffect(() => {
+    if (!activeAccountId) return;
     if (isPinConfigured && isLocked) return;
-    saveUserCards(cards);
-  }, [cards, isPinConfigured, isLocked]);
+    saveStoredCards(cards);
+  }, [activeAccountId, cards, isPinConfigured, isLocked, saveStoredCards]);
 
   // Keep in-memory cards synced whenever per-card theme mapping in localStorage updates
   useEffect(() => {
     const handleThemeMapSync = () => {
-      if (isPinConfigured && isLocked) return;
-      setCards((prev) => resolveCardsWithStoredThemes(prev));
+      if (!activeAccountId || (isPinConfigured && isLocked)) return;
+      setCards((prev) => resolveCardsWithStoredThemes(prev, activeAccountId));
     };
     window.addEventListener(CARD_THEME_MAP_UPDATED_EVENT, handleThemeMapSync);
     return () => window.removeEventListener(CARD_THEME_MAP_UPDATED_EVENT, handleThemeMapSync);
-  }, [isPinConfigured, isLocked]);
+  }, [activeAccountId, isPinConfigured, isLocked]);
 
-  // Automatic background sync of wallet to Cloudflare edge (skipped while locked)
+  // Automatic background sync of wallet to Cloudflare edge (skipped while logged out or locked)
   useEffect(() => {
+    if (!activeAccountId) return;
     if (isPinConfigured && isLocked) return;
     if (!cards || cards.length === 0) return;
+    const targetAccountId = activeAccountId;
     const timer = setTimeout(() => {
-      import('../utils/syncWallet').then(({ pushWalletToEdge }) => pushWalletToEdge(cards));
+      import('../utils/syncWallet').then(({ pushWalletToEdge }) =>
+        pushWalletToEdge(cards, targetAccountId)
+      );
     }, 800);
     return () => clearTimeout(timer);
-  }, [cards, isPinConfigured, isLocked]);
+  }, [activeAccountId, cards, isPinConfigured, isLocked]);
 
   const maybeScheduleLazyPinPrompt = useCallback(
     (isFirstEverCard: boolean) => {
@@ -233,6 +495,10 @@ export function useCardVault({
 
   // Create New Personal My Card (`isMyCard: true`)
   const handleOpenCreateModal = useCallback(() => {
+    if (!activeAccountId) {
+      modals.openCreateAccount();
+      return;
+    }
     setShowWelcomeIntro(false);
     setIsSamplePreview(false);
     requireUnlock(() => {
@@ -315,6 +581,8 @@ export function useCardVault({
       modals.openEditor(newCardTemplate, true);
     });
   }, [
+    activeAccountId,
+    modals.openCreateAccount,
     setShowWelcomeIntro,
     setIsSamplePreview,
     requireUnlock,
@@ -411,6 +679,11 @@ export function useCardVault({
   // Register an externally shared card (/card/:slug) directly into the internal Vault and show VaultDetailView
   const handleRegisterSharedCardToVault = useCallback(
     (sourceCard: StoredCard) => {
+      if (!activeAccountId) {
+        showToast('명함을 보관하려면 먼저 로컬 계정을 만들거나 로그인해 주세요.');
+        modals.openCreateAccount();
+        return;
+      }
       requireUnlock(() => {
         const existingVaultCopy = cards.find(
           (c) =>
@@ -459,6 +732,8 @@ export function useCardVault({
       });
     },
     [
+      activeAccountId,
+      modals.openCreateAccount,
       requireUnlock,
       cards,
       onCleanPublicRoute,
@@ -472,6 +747,10 @@ export function useCardVault({
 
   const handleSaveCard = useCallback(
     (savedCard: StoredCard) => {
+      if (!activeAccountId) {
+        modals.openCreateAccount();
+        return;
+      }
       const isFirstEverCard = cards.length === 0;
 
       if (savedCard.isMyCard) {
@@ -627,18 +906,32 @@ export function useCardVault({
   );
 
   const handleConfirmReset = useCallback(() => {
+    clearScheduledAutoBackup();
     clearAllLocalData();
     onCleanPublicRoute();
+    setActiveAccountId(null);
+    setAccountsList([]);
     setCards([]);
     setSelectedMyCardId('');
     setSelectedVaultCardId(null);
     setModalTargetCardId(null);
+    setCardPendingDelete(null);
     setIsSamplePreview(false);
+    setShowWelcomeIntro(true);
     setActiveTab('my-card');
-    refreshPinStatus();
-    unlockApp();
+    rawRefreshPinStatus(null);
+    unlockApp(null);
     showToast('모든 로컬 데이터가 안전하게 초기화되었습니다.');
-  }, [onCleanPublicRoute, setIsSamplePreview, setActiveTab, refreshPinStatus, unlockApp, showToast]);
+  }, [
+    clearScheduledAutoBackup,
+    onCleanPublicRoute,
+    setIsSamplePreview,
+    setShowWelcomeIntro,
+    setActiveTab,
+    rawRefreshPinStatus,
+    unlockApp,
+    showToast,
+  ]);
 
   const handleRequestDeleteCard = useCallback(
     (card: StoredCard) => {
@@ -673,7 +966,6 @@ export function useCardVault({
         const remainingMyCards = myCards.filter((c) => c.id !== cardId);
         if (remainingMyCards.length === 0) {
           setSelectedMyCardId('');
-          setShowWelcomeIntro(true);
         } else if (selectedMyCardId === cardId) {
           const nextCard = remainingMyCards.find((c) => c.isDefault) || remainingMyCards[0];
           setSelectedMyCardId(nextCard?.id || '');
@@ -685,7 +977,7 @@ export function useCardVault({
       }
       showToast(target.isMyCard ? '내 명함이 삭제되었습니다.' : '명함이 삭제되었습니다.');
     },
-    [cards, myCards, selectedMyCardId, selectedVaultCardId, setShowWelcomeIntro, showToast]
+    [cards, myCards, selectedMyCardId, selectedVaultCardId, showToast]
   );
 
   const handleRenameCategory = useCallback(
@@ -840,21 +1132,55 @@ export function useCardVault({
   );
 
   const handleRestoreVaultBackup = useCallback(
-    (payload: VaultBackupPayloadV1, mode: BackupRestoreMode) => {
+    (
+      payload: VaultBackupPayloadV1,
+      mode: BackupRestoreMode,
+      mergeOptions?: BackupMergeOptions
+    ) => {
       requireUnlock(() => {
         const existingCategories = loadVaultCategories(cards);
-        const result = applyBackupRestore(payload, cards, existingCategories, mode);
+
+        // Save automatic local safety snapshot before destructive replace restore
+        if (mode === 'replace' && cards.length > 0) {
+          const activePin = getActiveSessionPin();
+          void saveLocalRecoverySnapshot(cards, existingCategories, {
+            reason: 'pre_restore',
+            label: '전체 교체 전 자동 안전 스냅샷',
+            secret: activePin,
+            encryptedWithPin: Boolean(isPinConfigured && activePin),
+          });
+        }
+
+        const result = applyBackupRestore(payload, cards, existingCategories, mode, mergeOptions);
 
         syncCardThemeMapFromCards(result.cards, {
           clearPrevious: mode === 'replace',
           overwriteExisting: mode === 'replace',
         });
 
-        setCards(result.cards);
-        saveUserCards(result.cards);
+        if (payload.cardThemeMap) {
+          applyCardThemeMapSnapshot(payload.cardThemeMap, {
+            clearPrevious: mode === 'replace',
+            overwriteExisting: mode === 'replace' || Boolean(mergeOptions?.updateNewerDuplicates),
+          });
+        }
 
-        const restoredMyCards = result.cards.filter((c) => c.isMyCard);
-        const restoredVaultCards = result.cards.filter((c) => !c.isMyCard);
+        const resolvedCards = resolveCardsWithStoredThemes(result.cards);
+
+        if (mode === 'replace' && payload.appTheme) {
+          try {
+            localStorage.setItem('eerum_app_theme', payload.appTheme);
+            document.documentElement.classList.toggle('dark', payload.appTheme === 'dark');
+          } catch {
+            // Ignore theme storage errors
+          }
+        }
+
+        setCards(resolvedCards);
+        saveStoredCards(resolvedCards);
+
+        const restoredMyCards = resolvedCards.filter((c) => c.isMyCard);
+        const restoredVaultCards = resolvedCards.filter((c) => !c.isMyCard);
 
         // Strictly isolate selectedMyCardId to personal cards (`isMyCard: true`)
         if (restoredMyCards.length === 0) {
@@ -886,9 +1212,13 @@ export function useCardVault({
         }
 
         if (mode === 'replace') {
-          showToast(`백업 파일의 명함 ${result.cards.length}장으로 보관함이 복원되었습니다.`);
-        } else if (result.addedCount === 0 && result.skippedCount > 0) {
-          showToast(`모든 명함(${result.skippedCount}장)이 이미 보관함에 있어 건너뛰었습니다.`);
+          showToast(`백업 파일의 명함 ${resolvedCards.length}장으로 보관함이 복원되었습니다.`);
+        } else if (result.addedCount === 0 && result.updatedCount === 0 && result.skippedCount > 0) {
+          showToast(`모든 명함(${result.skippedCount}장)이 이미 최신 상태로 보관함에 있습니다.`);
+        } else if (result.updatedCount > 0) {
+          showToast(
+            `신규 ${result.addedCount}장 추가, ${result.updatedCount}장 업데이트 완료 (건너뜀 ${result.skippedCount}장).`
+          );
         } else if (result.skippedCount > 0) {
           showToast(
             `명함 ${result.addedCount}장이 병합 복원되었습니다 (중복 ${result.skippedCount}장 건너뜀).`
@@ -901,8 +1231,10 @@ export function useCardVault({
     [
       requireUnlock,
       cards,
+      isPinConfigured,
       selectedMyCardId,
       selectedVaultCardId,
+      saveStoredCards,
       setIsSamplePreview,
       setIsFlipped,
       setShowWelcomeIntro,
@@ -911,6 +1243,15 @@ export function useCardVault({
   );
 
   return {
+    activeAccountId,
+    activeAccount,
+    accountsList,
+    refreshAccountsList,
+    handleCreateLocalAccount,
+    handleLoginAccount,
+    handleBiometricLoginAccount,
+    handleLogoutAccount,
+    handleDeleteLocalAccount,
     cards,
     setCards,
     myCards,

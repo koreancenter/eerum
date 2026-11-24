@@ -1,59 +1,102 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { isPinSet, getSessionLocked, setSessionLocked } from '../utils/pinLock';
+import { isBiometricRegistered } from '../utils/biometrics';
 import { clearMemoryDecryptedCards } from '../utils/initialCards';
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-const BIOMETRIC_CREDENTIAL_KEY = 'app_biometric_credential_id';
 
-export function useAutoLock() {
-  const isSecurityActive = () =>
-    isPinSet() ||
-    (typeof window !== 'undefined' && Boolean(localStorage.getItem(BIOMETRIC_CREDENTIAL_KEY)));
+export function useAutoLock(activeAccountId: string | null) {
+  const isSecurityActive = useCallback(
+    (targetAccountId: string | null = activeAccountId) => {
+      if (!targetAccountId) return false;
+      return isPinSet(targetAccountId) || isBiometricRegistered(targetAccountId);
+    },
+    [activeAccountId]
+  );
 
   const [isLocked, setIsLockedState] = useState<boolean>(() => {
-    return isSecurityActive() && getSessionLocked();
+    if (!activeAccountId) return false;
+    return isSecurityActive(activeAccountId) && getSessionLocked(activeAccountId);
   });
 
-  const [isPinConfigured, setIsPinConfigured] = useState<boolean>(() => isSecurityActive());
+  const [isPinConfigured, setIsPinConfigured] = useState<boolean>(() =>
+    isSecurityActive(activeAccountId)
+  );
   const idleTimerRef = useRef<number | null>(null);
 
   // Synchronize state with sessionStorage and wipe plaintext memory cache on lock
-  const setIsLocked = useCallback((locked: boolean) => {
-    if (locked) {
-      clearMemoryDecryptedCards();
+  const setIsLocked = useCallback(
+    (locked: boolean, targetAccountId: string | null = activeAccountId) => {
+      if (!targetAccountId) {
+        setIsLockedState(false);
+        return;
+      }
+      if (locked) {
+        clearMemoryDecryptedCards();
+      }
+      setIsLockedState(locked);
+      setSessionLocked(locked, targetAccountId);
+    },
+    [activeAccountId]
+  );
+
+  // Re-evaluate lock & PIN configuration immediately whenever the active account changes
+  useEffect(() => {
+    if (!activeAccountId) {
+      setIsPinConfigured(false);
+      setIsLockedState(false);
+      return;
     }
-    setIsLockedState(locked);
-    setSessionLocked(locked);
-  }, []);
+    const configured = isSecurityActive(activeAccountId);
+    setIsPinConfigured(configured);
+    setIsLockedState(configured && getSessionLocked(activeAccountId));
+  }, [activeAccountId, isSecurityActive]);
 
   // Manual instant lock
   const lockApp = useCallback(() => {
-    if (isSecurityActive()) {
-      setIsLocked(true);
+    if (activeAccountId && isSecurityActive(activeAccountId)) {
+      setIsLocked(true, activeAccountId);
     }
-  }, [setIsLocked]);
+  }, [activeAccountId, isSecurityActive, setIsLocked]);
 
   // Unlock helper
-  const unlockApp = useCallback(() => {
-    setIsLocked(false);
-  }, [setIsLocked]);
+  const unlockApp = useCallback(
+    (targetAccountId?: string | null) => {
+      const id = targetAccountId ?? activeAccountId;
+      if (!id) {
+        setIsLockedState(false);
+        return;
+      }
+      setIsLocked(false, id);
+    },
+    [activeAccountId, setIsLocked]
+  );
 
   // Refresh PIN / Biometric configured status
-  const refreshPinStatus = useCallback(() => {
-    const configured = isSecurityActive();
-    setIsPinConfigured(configured);
-    if (!configured) {
-      setIsLocked(false);
-    }
-  }, [setIsLocked]);
+  const refreshPinStatus = useCallback(
+    (targetAccountId?: string | null) => {
+      const id = targetAccountId ?? activeAccountId;
+      if (!id) {
+        setIsPinConfigured(false);
+        setIsLockedState(false);
+        return;
+      }
+      const configured = isSecurityActive(id);
+      setIsPinConfigured(configured);
+      if (!configured) {
+        setIsLocked(false, id);
+      }
+    },
+    [activeAccountId, isSecurityActive, setIsLocked]
+  );
 
   // 1. Page Visibility Lock (`visibilitychange`)
   // When switching tabs, minimizing browser, or locking phone
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        if (isSecurityActive()) {
-          setIsLocked(true);
+        if (activeAccountId && isSecurityActive(activeAccountId)) {
+          setIsLocked(true, activeAccountId);
         }
       }
     };
@@ -62,7 +105,7 @@ export function useAutoLock() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [setIsLocked]);
+  }, [activeAccountId, isSecurityActive, setIsLocked]);
 
   // 2. Idle Timeout Lock (5 minutes)
   const resetIdleTimer = useCallback(() => {
@@ -70,17 +113,17 @@ export function useAutoLock() {
       window.clearTimeout(idleTimerRef.current);
     }
 
-    if (isSecurityActive() && !isLocked) {
+    if (activeAccountId && isSecurityActive(activeAccountId) && !isLocked) {
       idleTimerRef.current = window.setTimeout(() => {
-        if (isSecurityActive()) {
-          setIsLocked(true);
+        if (activeAccountId && isSecurityActive(activeAccountId)) {
+          setIsLocked(true, activeAccountId);
         }
       }, IDLE_TIMEOUT_MS);
     }
-  }, [isLocked, setIsLocked]);
+  }, [activeAccountId, isSecurityActive, isLocked, setIsLocked]);
 
   useEffect(() => {
-    if (!isPinConfigured || isLocked) {
+    if (!activeAccountId || !isPinConfigured || isLocked) {
       if (idleTimerRef.current) {
         window.clearTimeout(idleTimerRef.current);
         idleTimerRef.current = null;
@@ -110,7 +153,7 @@ export function useAutoLock() {
         window.removeEventListener(event, handleActivity);
       });
     };
-  }, [isPinConfigured, isLocked, resetIdleTimer]);
+  }, [activeAccountId, isPinConfigured, isLocked, resetIdleTimer]);
 
   return {
     isLocked,

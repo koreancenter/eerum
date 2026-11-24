@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Delete, X, AlertCircle, Fingerprint, Check } from 'lucide-react';
+import { Delete, X, AlertCircle, Fingerprint, Check, LogOut, UserCheck } from 'lucide-react';
 import { verifyPin, setAppPin, clearAppPin, isPinSet } from '../utils/pinLock';
 import { 
   isBiometricSupported, 
@@ -21,6 +21,8 @@ interface PinLockModalProps {
   onUnlock?: () => void;
   onBiometricUnlock?: () => void;
   allowCancel?: boolean;
+  accountName?: string;
+  onLogoutToWelcome?: () => void;
 }
 
 export const PinLockModal: React.FC<PinLockModalProps> = ({
@@ -31,6 +33,8 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
   onUnlock,
   onBiometricUnlock,
   allowCancel = true,
+  accountName,
+  onLogoutToWelcome,
 }) => {
   const [pin, setPin] = useState<string>('');
   const [step, setStep] = useState<'current' | 'new' | 'confirm'>('new');
@@ -290,6 +294,14 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
           </button>
         )}
 
+        {/* Account Badge in Unlock Mode */}
+        {mode === 'unlock' && accountName && (
+          <div className="mb-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[11px] font-semibold text-[var(--app-text)]">
+            <UserCheck className="w-3.5 h-3.5 text-[var(--app-accent)] shrink-0" />
+            <span className="truncate max-w-[180px]">{accountName}</span>
+          </div>
+        )}
+
         {/* Header Text */}
         <h3 className="text-lg font-bold text-[var(--app-text)] mb-1 tracking-tight text-center mt-1">
           {title}
@@ -440,6 +452,18 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
             className="mt-3 text-xs text-[var(--app-text-muted)] hover:text-[var(--app-text)] underline underline-offset-4 cursor-pointer transition-colors"
           >
             PIN 및 생체 인증 잠금 해제 (보안 기능 끄기)
+          </button>
+        )}
+
+        {/* Account Switch / Logout escape hatch when locked */}
+        {mode === 'unlock' && onLogoutToWelcome && (
+          <button
+            type="button"
+            onClick={onLogoutToWelcome}
+            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>다른 계정으로 전환 / 로그아웃</span>
           </button>
         )}
       </div>

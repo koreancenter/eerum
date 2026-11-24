@@ -10,9 +10,30 @@ import {
   linkBiometricsToVault,
   getActiveSessionPin
 } from './cryptoVault';
+import {
+  resolveAccountId,
+  getAccountBioCredKey,
+  getAccountBioModeKey,
+  readStoredAccountsList,
+  writeStoredAccountsList,
+} from './accountStorage';
 
-const BIOMETRIC_CREDENTIAL_KEY = 'app_biometric_credential_id';
-const BIOMETRIC_MODE_KEY = 'app_biometric_mode';
+function updateStoredAccountBiometricsFlag(accountId: string | null, enabled: boolean): void {
+  if (!accountId || typeof window === 'undefined') return;
+  const accounts = readStoredAccountsList();
+  let changed = false;
+  const updated = accounts.map((acct) => {
+    if (acct.id !== accountId) return acct;
+    if (acct.biometricsEnabled !== enabled) {
+      changed = true;
+      return { ...acct, biometricsEnabled: enabled };
+    }
+    return acct;
+  });
+  if (changed) {
+    writeStoredAccountsList(updated);
+  }
+}
 
 // Security Threshold: 7 days without 4-digit PIN verification forces re-authentication
 export const SECURITY_THRESHOLD_DAYS = 7;
@@ -132,11 +153,13 @@ export async function isBiometricSupported(): Promise<boolean> {
 }
 
 /**
- * Returns whether biometric authentication has been registered on this device.
+ * Returns whether biometric authentication has been registered for this account.
  */
-export function isBiometricRegistered(): boolean {
+export function isBiometricRegistered(accountId?: string | null): boolean {
   if (typeof window === 'undefined') return false;
-  return Boolean(localStorage.getItem(BIOMETRIC_CREDENTIAL_KEY));
+  const credKey = getAccountBioCredKey(accountId);
+  if (!credKey) return false;
+  return Boolean(localStorage.getItem(credKey));
 }
 
 /**
@@ -162,8 +185,11 @@ export function getBiometricLabel(): string {
  * If 7 days have passed since the last PIN unlock/verification, biometric credentials are invalidated
  * until the user re-verifies with their 4-digit PIN.
  */
-export function getBiometricSecurityThresholdStatus(): BiometricSecurityThresholdStatus {
-  if (typeof window === 'undefined') {
+export function getBiometricSecurityThresholdStatus(
+  accountId?: string | null
+): BiometricSecurityThresholdStatus {
+  const resolvedId = resolveAccountId(accountId);
+  if (typeof window === 'undefined' || !resolvedId) {
     return {
       isThresholdEnforced: false,
       isExpired: false,
@@ -174,7 +200,7 @@ export function getBiometricSecurityThresholdStatus(): BiometricSecurityThreshol
     };
   }
 
-  const pinConfigured = isPinSet();
+  const pinConfigured = isPinSet(resolvedId);
   if (!pinConfigured) {
     return {
       isThresholdEnforced: false,
@@ -186,7 +212,7 @@ export function getBiometricSecurityThresholdStatus(): BiometricSecurityThreshol
     };
   }
 
-  const lastVerified = getLastPinVerifiedAt();
+  const lastVerified = getLastPinVerifiedAt(resolvedId);
   if (!lastVerified) {
     return {
       isThresholdEnforced: true,
@@ -235,8 +261,8 @@ export function getBiometricSecurityThresholdStatus(): BiometricSecurityThreshol
 /**
  * Returns whether the 7-day Security Threshold has expired, requiring 4-digit PIN verification.
  */
-export function isBiometricThresholdExpired(): boolean {
-  const status = getBiometricSecurityThresholdStatus();
+export function isBiometricThresholdExpired(accountId?: string | null): boolean {
+  const status = getBiometricSecurityThresholdStatus(accountId);
   return status.isThresholdEnforced && status.isExpired;
 }
 
@@ -244,9 +270,20 @@ export function isBiometricThresholdExpired(): boolean {
  * Registers biometric authentication via WebAuthn platform authenticator,
  * with graceful fallback to secure on-device enclave in iframe environments.
  */
-export async function registerBiometric(): Promise<{ success: boolean; error?: string }> {
+export async function registerBiometric(
+  accountId?: string | null
+): Promise<{ success: boolean; error?: string }> {
   if (typeof window === 'undefined') {
     return { success: false, error: '브라우저 환경이 아닙니다.' };
+  }
+  const resolvedId = resolveAccountId(accountId);
+  if (!resolvedId) {
+    return { success: false, error: '로컬 계정에 먼저 로그인해 주세요.' };
+  }
+  const credKey = getAccountBioCredKey(resolvedId);
+  const modeKey = getAccountBioModeKey(resolvedId);
+  if (!credKey || !modeKey) {
+    return { success: false, error: '계정 보안 키를 초기화하지 못했습니다.' };
   }
 
   // If in an iframe preview or Permissions Policy restricts WebAuthn, create a local secure credential
@@ -256,16 +293,17 @@ export async function registerBiometric(): Promise<{ success: boolean; error?: s
       window.crypto.getRandomValues(randomId);
       const credentialId = bufferToBase64Url(randomId.buffer);
 
-      localStorage.setItem(BIOMETRIC_CREDENTIAL_KEY, credentialId);
-      localStorage.setItem(BIOMETRIC_MODE_KEY, 'isolated-enclave');
+      localStorage.setItem(credKey, credentialId);
+      localStorage.setItem(modeKey, 'isolated-enclave');
+      updateStoredAccountBiometricsFlag(resolvedId, true);
 
       const activePin = getActiveSessionPin();
       if (activePin) {
-        await linkBiometricsToVault(activePin, credentialId);
+        await linkBiometricsToVault(activePin, credentialId, resolvedId);
       }
 
-      if (isPinSet() && !getLastPinVerifiedAt()) {
-        recordPinVerified();
+      if (isPinSet(resolvedId) && !getLastPinVerifiedAt(resolvedId)) {
+        recordPinVerified(resolvedId);
       }
 
       return { success: true };
@@ -280,18 +318,18 @@ export async function registerBiometric(): Promise<{ success: boolean; error?: s
     const challenge = new Uint8Array(32);
     window.crypto.getRandomValues(challenge);
 
-    const userId = new TextEncoder().encode('korean_center_executive_user');
+    const userId = new TextEncoder().encode(`eerum_local_${resolvedId}`);
 
     const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
       challenge,
       rp: {
-        name: 'Korean Center Card Studio',
+        name: 'eerum Local Card Studio',
         id: window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname,
       },
       user: {
         id: userId,
-        name: 'user@koreancenter.net',
-        displayName: 'Executive Cardholder',
+        name: `${resolvedId}@eerum.local`,
+        displayName: 'eerum Local Vault',
       },
       pubKeyCredParams: [
         { alg: -7, type: 'public-key' },
@@ -315,16 +353,17 @@ export async function registerBiometric(): Promise<{ success: boolean; error?: s
     }
 
     const rawIdBase64 = bufferToBase64Url(credential.rawId);
-    localStorage.setItem(BIOMETRIC_CREDENTIAL_KEY, rawIdBase64);
-    localStorage.setItem(BIOMETRIC_MODE_KEY, 'webauthn');
+    localStorage.setItem(credKey, rawIdBase64);
+    localStorage.setItem(modeKey, 'webauthn');
+    updateStoredAccountBiometricsFlag(resolvedId, true);
 
     const activePin = getActiveSessionPin();
     if (activePin) {
-      await linkBiometricsToVault(activePin, rawIdBase64);
+      await linkBiometricsToVault(activePin, rawIdBase64, resolvedId);
     }
 
-    if (isPinSet() && !getLastPinVerifiedAt()) {
-      recordPinVerified();
+    if (isPinSet(resolvedId) && !getLastPinVerifiedAt(resolvedId)) {
+      recordPinVerified(resolvedId);
     }
 
     return { success: true };
@@ -342,11 +381,17 @@ export async function registerBiometric(): Promise<{ success: boolean; error?: s
         const randomId = new Uint8Array(32);
         window.crypto.getRandomValues(randomId);
         const credentialId = bufferToBase64Url(randomId.buffer);
-        localStorage.setItem(BIOMETRIC_CREDENTIAL_KEY, credentialId);
-        localStorage.setItem(BIOMETRIC_MODE_KEY, 'isolated-enclave');
+        localStorage.setItem(credKey, credentialId);
+        localStorage.setItem(modeKey, 'isolated-enclave');
+        updateStoredAccountBiometricsFlag(resolvedId, true);
 
-        if (isPinSet() && !getLastPinVerifiedAt()) {
-          recordPinVerified();
+        const activePin = getActiveSessionPin();
+        if (activePin) {
+          await linkBiometricsToVault(activePin, credentialId, resolvedId);
+        }
+
+        if (isPinSet(resolvedId) && !getLastPinVerifiedAt(resolvedId)) {
+          recordPinVerified(resolvedId);
         }
         return { success: true };
       } catch {
@@ -370,7 +415,10 @@ export async function registerBiometric(): Promise<{ success: boolean; error?: s
  * Verifies identity using registered biometric credentials via WebAuthn,
  * or via local secure enclave with 7-day security threshold enforcement.
  */
-export async function verifyBiometric(): Promise<{ 
+export async function verifyBiometric(
+  accountId?: string | null,
+  options?: { activateSession?: boolean }
+): Promise<{ 
   success: boolean; 
   error?: string; 
   requiresPinRevalidation?: boolean; 
@@ -378,14 +426,20 @@ export async function verifyBiometric(): Promise<{
   if (typeof window === 'undefined') {
     return { success: false, error: '브라우저 환경이 아닙니다.' };
   }
+  const resolvedId = resolveAccountId(accountId);
+  if (!resolvedId) {
+    return { success: false, error: '선택된 로컬 계정이 없습니다.' };
+  }
 
-  const storedRawId = localStorage.getItem(BIOMETRIC_CREDENTIAL_KEY);
+  const credKey = getAccountBioCredKey(resolvedId);
+  const modeKey = getAccountBioModeKey(resolvedId);
+  const storedRawId = credKey ? localStorage.getItem(credKey) : null;
   if (!storedRawId) {
     return { success: false, error: '등록된 생체 인증 정보가 없습니다.' };
   }
 
   // Enforce Security Threshold (7 Days PIN Invalidation Policy)
-  const threshold = getBiometricSecurityThresholdStatus();
+  const threshold = getBiometricSecurityThresholdStatus(resolvedId);
   if (threshold.isThresholdEnforced && threshold.isExpired) {
     return { 
       success: false, 
@@ -394,16 +448,18 @@ export async function verifyBiometric(): Promise<{
     };
   }
 
-  const mode = localStorage.getItem(BIOMETRIC_MODE_KEY);
+  const mode = modeKey ? localStorage.getItem(modeKey) : null;
+  const activateSession = options?.activateSession !== false;
 
   // Helper to unlock crypto vault and decrypt cards upon successful biometric verification
   const unlockVaultOnSuccess = async () => {
-    setSessionLocked(false);
+    if (!activateSession) return;
+    setSessionLocked(false, resolvedId);
     try {
-      const vaultKey = await unlockVaultWithBiometrics(storedRawId);
+      const vaultKey = await unlockVaultWithBiometrics(storedRawId, resolvedId);
       if (vaultKey) {
         const { decryptStoredCards } = await import('./initialCards');
-        await decryptStoredCards(vaultKey);
+        await decryptStoredCards(vaultKey, resolvedId);
       }
     } catch (e) {
       console.warn('Biometric vault unlock notice:', e);
@@ -412,7 +468,6 @@ export async function verifyBiometric(): Promise<{
 
   // If created via local isolated enclave or in iframe with restricted permissions policy
   if (mode === 'isolated-enclave' || isPermissionsPolicyRestricted() || !window.PublicKeyCredential) {
-    // Provide realistic brief verification feedback delay
     await new Promise((res) => setTimeout(res, 350));
     await unlockVaultOnSuccess();
     return { success: true };
@@ -473,11 +528,16 @@ export async function verifyBiometric(): Promise<{
 export const authenticateBiometric = verifyBiometric;
 
 /**
- * Removes registered biometric credential.
+ * Removes registered biometric credential for the target/active account.
  */
-export function removeBiometric(): void {
+export function removeBiometric(accountId?: string | null): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem(BIOMETRIC_CREDENTIAL_KEY);
-  localStorage.removeItem(BIOMETRIC_MODE_KEY);
-  clearBiometricVault();
+  const resolvedId = resolveAccountId(accountId);
+  if (!resolvedId) return;
+  const credKey = getAccountBioCredKey(resolvedId);
+  const modeKey = getAccountBioModeKey(resolvedId);
+  if (credKey) localStorage.removeItem(credKey);
+  if (modeKey) localStorage.removeItem(modeKey);
+  clearBiometricVault(resolvedId);
+  updateStoredAccountBiometricsFlag(resolvedId, false);
 }

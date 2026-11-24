@@ -17,23 +17,104 @@ import {
   isPlatformDomain,
   isValidSyncId,
   normalizeQueryToken,
+  P2P_SIGNAL_MAX_BYTES,
+  P2P_SIGNAL_TTL_MS,
+  isValidP2PRoomId,
+  isValidP2PSignalRole,
+  isValidP2PSignalType,
+  sanitizeP2PSdpPayload,
+  sanitizeP2PIcePayload,
   type GetCardsResponse,
+  type GetP2PSignalResponse,
   type GetSyncWalletResponse,
+  type P2PIceCandidateSignal,
+  type P2PSessionDescriptionSignal,
+  type PostP2PSignalResponse,
   type PostSyncWalletResponse,
   type ResolveCardResponse,
   type ResolveMatchType,
   type UpsertCardResponse,
 } from './src/types/api';
 
+interface KVNamespaceLike {
+  get: (key: string, type?: 'text' | 'json') => Promise<unknown>;
+  put: (key: string, value: string, options?: { expirationTtl?: number }) => Promise<void>;
+}
+
 export interface Env {
   DB: D1DatabaseLike;
   R2?: unknown;
+  P2P_SIGNAL_KV?: KVNamespaceLike;
   ASSETS: { fetch: (request: Request) => Promise<Response> };
   BASE_DOMAIN?: string;
 }
 
 const MAX_BODY_BYTES = 3 * 1024 * 1024; // 3MB
 const MAX_SYNC_CARDS = 500;
+const MAX_P2P_SIGNAL_ROOMS = 1000;
+const MAX_ICE_CANDIDATES_PER_SIDE = 64;
+
+interface EphemeralSignalRoom {
+  offer: P2PSessionDescriptionSignal | null;
+  answer: P2PSessionDescriptionSignal | null;
+  senderIce: P2PIceCandidateSignal[];
+  receiverIce: P2PIceCandidateSignal[];
+  expiresAt: number;
+}
+
+const ephemeralSignalRooms = new Map<string, EphemeralSignalRoom>();
+
+function purgeExpiredEdgeSignalRooms(now = Date.now()) {
+  for (const [id, room] of ephemeralSignalRooms.entries()) {
+    if (room.expiresAt <= now) {
+      ephemeralSignalRooms.delete(id);
+    }
+  }
+}
+
+async function loadEdgeSignalRoom(
+  roomId: string,
+  env: Env,
+  now = Date.now()
+): Promise<EphemeralSignalRoom | null> {
+  if (env.P2P_SIGNAL_KV) {
+    const raw = await env.P2P_SIGNAL_KV.get(`p2p_signal:${roomId}`, 'json');
+    const room = raw as EphemeralSignalRoom | null;
+    if (!room || typeof room.expiresAt !== 'number' || room.expiresAt <= now) {
+      return null;
+    }
+    return room;
+  }
+
+  purgeExpiredEdgeSignalRooms(now);
+  const room = ephemeralSignalRooms.get(roomId);
+  if (!room || room.expiresAt <= now) {
+    ephemeralSignalRooms.delete(roomId);
+    return null;
+  }
+  return room;
+}
+
+async function saveEdgeSignalRoom(
+  roomId: string,
+  room: EphemeralSignalRoom,
+  env: Env,
+  now = Date.now()
+): Promise<void> {
+  if (env.P2P_SIGNAL_KV) {
+    const remainingSec = Math.max(1, Math.ceil((room.expiresAt - now) / 1000));
+    await env.P2P_SIGNAL_KV.put(`p2p_signal:${roomId}`, JSON.stringify(room), {
+      expirationTtl: Math.min(60, remainingSec),
+    });
+    return;
+  }
+
+  if (!ephemeralSignalRooms.has(roomId) && ephemeralSignalRooms.size >= MAX_P2P_SIGNAL_ROOMS) {
+    const oldestKey = ephemeralSignalRooms.keys().next().value;
+    if (oldestKey !== undefined) ephemeralSignalRooms.delete(oldestKey);
+  }
+  ephemeralSignalRooms.set(roomId, room);
+}
 
 function sanitizeIdParam(val: unknown): string | null {
   if (typeof val !== 'string') return null;
@@ -60,10 +141,18 @@ function extractOwnerKey(request: Request, payload: Record<string, unknown>): st
 }
 
 async function readJsonWithLimit(
-  request: Request
+  request: Request,
+  maxBytes = MAX_BODY_BYTES
 ): Promise<{ ok: true; data: unknown } | { ok: false; status: number; error: string }> {
   const contentLength = request.headers.get('content-length');
-  if (contentLength && Number(contentLength) > MAX_BODY_BYTES) {
+  if (contentLength && Number(contentLength) >= maxBytes && maxBytes === P2P_SIGNAL_MAX_BYTES) {
+    return {
+      ok: false,
+      status: 413,
+      error: 'P2P signaling payload must be smaller than 32KB',
+    };
+  }
+  if (contentLength && Number(contentLength) > maxBytes) {
     return {
       ok: false,
       status: 413,
@@ -72,7 +161,15 @@ async function readJsonWithLimit(
   }
 
   const rawText = await request.text();
-  if (new TextEncoder().encode(rawText).byteLength > MAX_BODY_BYTES) {
+  const byteLen = new TextEncoder().encode(rawText).byteLength;
+  if (maxBytes === P2P_SIGNAL_MAX_BYTES && byteLen >= maxBytes) {
+    return {
+      ok: false,
+      status: 413,
+      error: 'P2P signaling payload must be smaller than 32KB',
+    };
+  }
+  if (byteLen > maxBytes) {
     return {
       ok: false,
       status: 413,
@@ -466,6 +563,164 @@ export default {
           500
         );
       }
+    }
+
+    // 6b. Ephemeral WebRTC Signaling Endpoint (/api/p2p/signal) — 60s TTL, <32KB, never persists cards
+    if (url.pathname === '/api/p2p/signal' && request.method === 'GET') {
+      const noStoreHeaders = { ...corsHeaders, 'Cache-Control': 'no-store' };
+      const rawRoom = (url.searchParams.get('room') || '').trim();
+      const rawRole = (url.searchParams.get('role') || '').trim();
+
+      if (!isValidP2PRoomId(rawRoom) || !isValidP2PSignalRole(rawRole)) {
+        return jsonResponse<GetP2PSignalResponse>(
+          createApiError('Valid P2P room and role (sender|receiver) are required'),
+          noStoreHeaders,
+          400
+        );
+      }
+
+      const now = Date.now();
+      const room = await loadEdgeSignalRoom(rawRoom, env, now);
+      if (!room) {
+        return jsonResponse<GetP2PSignalResponse>(
+          createApiError('P2P signaling room not found or expired', true),
+          noStoreHeaders,
+          404
+        );
+      }
+
+      return jsonResponse<GetP2PSignalResponse>(
+        {
+          success: true,
+          roomId: rawRoom,
+          role: rawRole,
+          expiresAt: room.expiresAt,
+          offer: rawRole === 'receiver' ? room.offer : null,
+          answer: rawRole === 'sender' ? room.answer : null,
+          iceCandidates: rawRole === 'sender' ? room.receiverIce : room.senderIce,
+        },
+        noStoreHeaders
+      );
+    }
+
+    if (url.pathname === '/api/p2p/signal' && request.method === 'POST') {
+      const noStoreHeaders = { ...corsHeaders, 'Cache-Control': 'no-store' };
+      const parsed = await readJsonWithLimit(request, P2P_SIGNAL_MAX_BYTES);
+      if (!parsed.ok) {
+        return jsonResponse<PostP2PSignalResponse>(
+          createApiError(parsed.error),
+          noStoreHeaders,
+          parsed.status
+        );
+      }
+
+      const rawBody = parsed.data as Record<string, unknown> | null;
+      if (!rawBody || typeof rawBody !== 'object' || Array.isArray(rawBody)) {
+        return jsonResponse<PostP2PSignalResponse>(
+          createApiError('Invalid P2P signaling payload'),
+          noStoreHeaders,
+          400
+        );
+      }
+
+      const rawRoom = typeof rawBody.roomId === 'string' ? rawBody.roomId.trim() : '';
+      const rawRole = rawBody.role;
+      const rawType = rawBody.type;
+
+      if (
+        !isValidP2PRoomId(rawRoom) ||
+        !isValidP2PSignalRole(rawRole) ||
+        !isValidP2PSignalType(rawType)
+      ) {
+        return jsonResponse<PostP2PSignalResponse>(
+          createApiError('Invalid P2P signaling parameters'),
+          noStoreHeaders,
+          400
+        );
+      }
+
+      const now = Date.now();
+      let room = await loadEdgeSignalRoom(rawRoom, env, now);
+
+      if (rawType === 'offer') {
+        if (rawRole !== 'sender') {
+          return jsonResponse<PostP2PSignalResponse>(
+            createApiError('Only sender can publish an offer'),
+            noStoreHeaders,
+            400
+          );
+        }
+        const offer = sanitizeP2PSdpPayload(rawBody.payload, 'offer');
+        if (!offer) {
+          return jsonResponse<PostP2PSignalResponse>(
+            createApiError('Malformed SDP offer payload'),
+            noStoreHeaders,
+            400
+          );
+        }
+        room = {
+          offer,
+          answer: null,
+          senderIce: [],
+          receiverIce: [],
+          expiresAt: now + P2P_SIGNAL_TTL_MS,
+        };
+      } else if (rawType === 'answer') {
+        if (rawRole !== 'receiver') {
+          return jsonResponse<PostP2PSignalResponse>(
+            createApiError('Only receiver can publish an answer'),
+            noStoreHeaders,
+            400
+          );
+        }
+        if (!room) {
+          return jsonResponse<PostP2PSignalResponse>(
+            createApiError('P2P signaling room not found or expired', true),
+            noStoreHeaders,
+            404
+          );
+        }
+        const answer = sanitizeP2PSdpPayload(rawBody.payload, 'answer');
+        if (!answer) {
+          return jsonResponse<PostP2PSignalResponse>(
+            createApiError('Malformed SDP answer payload'),
+            noStoreHeaders,
+            400
+          );
+        }
+        room.answer = answer;
+      } else {
+        if (!room) {
+          return jsonResponse<PostP2PSignalResponse>(
+            createApiError('P2P signaling room not found or expired', true),
+            noStoreHeaders,
+            404
+          );
+        }
+        const ice = sanitizeP2PIcePayload(rawBody.payload);
+        if (!ice) {
+          return jsonResponse<PostP2PSignalResponse>(
+            createApiError('Malformed ICE candidate payload'),
+            noStoreHeaders,
+            400
+          );
+        }
+        const targetList = rawRole === 'sender' ? room.senderIce : room.receiverIce;
+        if (targetList.length < MAX_ICE_CANDIDATES_PER_SIDE) {
+          targetList.push(ice);
+        }
+      }
+
+      await saveEdgeSignalRoom(rawRoom, room, env, now);
+
+      return jsonResponse<PostP2PSignalResponse>(
+        {
+          success: true,
+          roomId: rawRoom,
+          expiresAt: room.expiresAt,
+        },
+        noStoreHeaders
+      );
     }
 
     // 7. Static Asset Fallback (Vite Single Page App with /card/:slug route support)

@@ -5,7 +5,16 @@ import { loadUserCards } from '../utils/initialCards';
 import { markLazyPinDismissed } from '../utils/pinLock';
 import { loadVaultCategories } from '../utils/categories';
 import { getCardShareUrl } from '@/utils/cardSerializer';
-import type { VaultBackupPayloadV1, BackupRestoreMode } from '../utils/vaultBackup';
+import type {
+  VaultBackupPayloadV1,
+  BackupRestoreMode,
+  BackupMergeOptions,
+} from '../utils/vaultBackup';
+import type { P2PVaultTransferPayload } from '../utils/p2pSync';
+import type {
+  CreateLocalAccountParams,
+  LocalAccountActionResult,
+} from '../utils/localAccount';
 import { lazyWithRetry, LazyErrorBoundary } from '../utils/lazyWithRetry';
 
 const ShareModal = lazyWithRetry(() =>
@@ -38,6 +47,9 @@ const CardEditorModal = lazyWithRetry(() =>
 const DeviceSyncModal = lazyWithRetry(() =>
   import('./DeviceSyncModal').then((m) => ({ default: m.DeviceSyncModal }))
 );
+const P2PReceiveModal = lazyWithRetry(() =>
+  import('./P2PReceiveModal').then((m) => ({ default: m.P2PReceiveModal }))
+);
 const PinLockModal = lazyWithRetry(() =>
   import('./PinLockModal').then((m) => ({ default: m.PinLockModal }))
 );
@@ -62,11 +74,18 @@ const VaultBackupModal = lazyWithRetry(() =>
 const AboutModal = lazyWithRetry(() =>
   import('./AboutModal').then((m) => ({ default: m.AboutModal }))
 );
+const CreateLocalAccountModal = lazyWithRetry(() =>
+  import('./CreateLocalAccountModal').then((m) => ({ default: m.CreateLocalAccountModal }))
+);
 
 export interface AppModalsProps {
   modals: ModalManager;
   activeCard?: StoredCard;
   isOwner: boolean;
+  isSamplePreview?: boolean;
+  activeAccountName?: string;
+  onLogoutAccount?: () => void;
+  onCreateLocalAccount?: (params: CreateLocalAccountParams) => Promise<LocalAccountActionResult>;
   printConfig: PrintConfig;
   setPrintConfig: React.Dispatch<React.SetStateAction<PrintConfig>>;
   onSaveCard: (card: StoredCard) => void;
@@ -82,7 +101,12 @@ export interface AppModalsProps {
   categories?: string[];
   onImportCards?: (cards: StoredCard[]) => void;
   onDeleteCard?: (cardId: string) => void;
-  onRestoreBackup?: (payload: VaultBackupPayloadV1, mode: BackupRestoreMode) => void;
+  onRestoreBackup?: (
+    payload: VaultBackupPayloadV1,
+    mode: BackupRestoreMode,
+    mergeOptions?: BackupMergeOptions
+  ) => void;
+  onApplyP2PPayload?: (payload: P2PVaultTransferPayload, mode: 'merge' | 'replace') => void;
 }
 
 /**
@@ -94,6 +118,10 @@ export const AppModals: React.FC<AppModalsProps> = ({
   modals,
   activeCard,
   isOwner,
+  isSamplePreview = false,
+  activeAccountName,
+  onLogoutAccount,
+  onCreateLocalAccount,
   printConfig,
   setPrintConfig,
   onSaveCard,
@@ -110,8 +138,9 @@ export const AppModals: React.FC<AppModalsProps> = ({
   onImportCards,
   onDeleteCard,
   onRestoreBackup,
+  onApplyP2PPayload,
 }) => {
-  const isLockScreenActive = isLocked && isPinConfigured;
+  const isLockScreenActive = isLocked && isPinConfigured && Boolean(activeAccountName);
 
   const handleImport = (importedCards: StoredCard[]) => {
     if (onImportCards) {
@@ -158,8 +187,8 @@ export const AppModals: React.FC<AppModalsProps> = ({
   };
 
   const resolvedCategories = React.useMemo(
-    () => categories || loadVaultCategories(existingCards),
-    [categories, existingCards]
+    () => (isSamplePreview ? categories || [] : categories || loadVaultCategories(existingCards)),
+    [categories, existingCards, isSamplePreview]
   );
 
   return (
@@ -268,6 +297,24 @@ export const AppModals: React.FC<AppModalsProps> = ({
           <DeviceSyncModal
             isOpen={modals.isSyncOpen}
             onClose={modals.closeSync}
+            cards={existingCards}
+            categories={resolvedCategories}
+            onJoinP2PRoom={modals.openP2PReceive}
+            onShowToast={showToast}
+          />
+        )}
+
+        {/* P2P Direct Vault Transfer Confirmation Modal */}
+        {modals.p2pReceiveRoomId && onApplyP2PPayload && (
+          <P2PReceiveModal
+            isOpen={Boolean(modals.p2pReceiveRoomId)}
+            roomId={modals.p2pReceiveRoomId}
+            existingCards={existingCards}
+            existingCategories={resolvedCategories}
+            isLocked={isLocked}
+            isPinConfigured={isPinConfigured}
+            onApplyPayload={onApplyP2PPayload}
+            onClose={modals.closeP2PReceive}
           />
         )}
 
@@ -277,8 +324,19 @@ export const AppModals: React.FC<AppModalsProps> = ({
             isOpen={true}
             mode="unlock"
             allowCancel={false}
+            accountName={activeAccountName}
+            onLogoutToWelcome={onLogoutAccount}
             onUnlock={handlePinUnlock}
             onBiometricUnlock={onBiometricUnlock}
+          />
+        )}
+
+        {/* Create Local Vault Account Modal */}
+        {modals.isCreateAccountOpen && onCreateLocalAccount && (
+          <CreateLocalAccountModal
+            isOpen={modals.isCreateAccountOpen}
+            onClose={modals.closeCreateAccount}
+            onCreateAccount={onCreateLocalAccount}
           />
         )}
 
