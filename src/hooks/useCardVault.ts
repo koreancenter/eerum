@@ -50,6 +50,29 @@ import {
   saveCardThemePreference,
   syncCardThemeMapFromCards,
 } from '../utils/cardThemeStorage';
+import { getAccountOnboardingImportPromptDoneKey } from '../utils/accountStorage';
+
+function isOnboardingImportPromptDone(accountId?: string | null): boolean {
+  if (typeof window === 'undefined') return false;
+  const key = getAccountOnboardingImportPromptDoneKey(accountId);
+  if (!key) return false;
+  try {
+    return localStorage.getItem(key) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function markOnboardingImportPromptDone(accountId?: string | null): void {
+  if (typeof window === 'undefined') return;
+  const key = getAccountOnboardingImportPromptDoneKey(accountId);
+  if (!key) return;
+  try {
+    localStorage.setItem(key, 'true');
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 export type ActiveTab = 'my-card' | 'vault';
 
@@ -116,6 +139,8 @@ export function useCardVault({
   const [modalTargetCardId, setModalTargetCardId] = useState<string | null>(null);
   // 4) cardPendingDelete: transient target awaiting user confirmation in DeleteConfirmModal
   const [cardPendingDelete, setCardPendingDelete] = useState<StoredCard | null>(null);
+  // 5) Post-creation onboarding prompt ("Next Step: fill your vault") shown after saving the very first personal card
+  const [showOnboardingImportPrompt, setShowOnboardingImportPrompt] = useState<boolean>(false);
 
   // Local-First 4-Digit PIN App Lock with Auto-Lock (Manual, Visibility, Idle 5m)
   const {
@@ -206,6 +231,7 @@ export function useCardVault({
       setSelectedVaultCardId(null);
       setModalTargetCardId(null);
       setCardPendingDelete(null);
+      setShowOnboardingImportPrompt(false);
       setIsSamplePreview(false);
       setIsFlipped(false);
       setShowWelcomeIntro(false);
@@ -277,6 +303,7 @@ export function useCardVault({
     setSelectedVaultCardId(null);
     setModalTargetCardId(null);
     setCardPendingDelete(null);
+    setShowOnboardingImportPrompt(false);
     modals.closeAll();
     setIsSamplePreview(false);
     setIsFlipped(false);
@@ -311,6 +338,7 @@ export function useCardVault({
         setSelectedVaultCardId(null);
         setModalTargetCardId(null);
         setCardPendingDelete(null);
+        setShowOnboardingImportPrompt(false);
         modals.closeAll();
         setIsSamplePreview(false);
         setIsFlipped(false);
@@ -341,6 +369,24 @@ export function useCardVault({
   const myCards = useMemo(() => cards.filter((c) => c.isMyCard), [cards]);
   // Strictly isolated third-party Vault cards collection (`isMyCard === false`)
   const vaultCards = useMemo(() => cards.filter((c) => !c.isMyCard), [cards]);
+
+  const dismissOnboardingImportPrompt = useCallback(() => {
+    setShowOnboardingImportPrompt(false);
+    if (activeAccountId) {
+      markOnboardingImportPromptDone(activeAccountId);
+    }
+  }, [activeAccountId]);
+
+  useEffect(() => {
+    if (!activeAccountId) {
+      setShowOnboardingImportPrompt(false);
+      return;
+    }
+    if (vaultCards.length > 0 && showOnboardingImportPrompt) {
+      setShowOnboardingImportPrompt(false);
+      markOnboardingImportPromptDone(activeAccountId);
+    }
+  }, [activeAccountId, vaultCards.length, showOnboardingImportPrompt]);
 
   // Resolved Vault detail card strictly restricted to third-party cards (`!c.isMyCard`)
   const selectedVaultCard: StoredCard | undefined = useMemo(
@@ -804,6 +850,10 @@ export function useCardVault({
             : '내 명함 정보가 수정되었습니다.'
         );
 
+        if (hadNoMyCards && vaultCards.length === 0 && !isOnboardingImportPromptDone(activeAccountId)) {
+          setShowOnboardingImportPrompt(true);
+        }
+
         if (normalizedMyCard.slug) {
           import('../utils/syncWallet')
             .then(({ publishPublicCardToEdge }) => publishPublicCardToEdge(normalizedMyCard))
@@ -892,10 +942,13 @@ export function useCardVault({
       maybeScheduleLazyPinPrompt(isFirstEverCard);
     },
     [
+      activeAccountId,
       cards,
       myCards.length,
+      vaultCards.length,
       activeTab,
       modals.isCreatingCard,
+      modals.openCreateAccount,
       setIsSamplePreview,
       onCleanPublicRoute,
       setActiveTab,
@@ -916,6 +969,7 @@ export function useCardVault({
     setSelectedVaultCardId(null);
     setModalTargetCardId(null);
     setCardPendingDelete(null);
+    setShowOnboardingImportPrompt(false);
     setIsSamplePreview(false);
     setShowWelcomeIntro(true);
     setActiveTab('my-card');
@@ -1289,5 +1343,7 @@ export function useCardVault({
     handleRecordCardInteraction,
     handleMergeDuplicateCards,
     handleRestoreVaultBackup,
+    showOnboardingImportPrompt,
+    dismissOnboardingImportPrompt,
   };
 }

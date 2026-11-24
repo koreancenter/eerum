@@ -183,6 +183,10 @@ export function getAccountVaultSortKey(accountId?: string | null): string | null
   return getAccountScopedKey('eerum_vault_sort_by', accountId);
 }
 
+export function getAccountOnboardingImportPromptDoneKey(accountId?: string | null): string | null {
+  return getAccountScopedKey('eerum_onboarding_import_prompt_done', accountId);
+}
+
 export function clearAllAccountScopedStorage(accountId: string): void {
   if (typeof window === 'undefined') return;
   const cleanId = sanitizeAccountId(accountId);
@@ -206,6 +210,7 @@ export function clearAllAccountScopedStorage(accountId: string): void {
     getAccountLastFolderBackupKey(cleanId),
     getAccountSyncIdKey(cleanId),
     getAccountVaultSortKey(cleanId),
+    getAccountOnboardingImportPromptDoneKey(cleanId),
   ];
 
   for (const key of localKeys) {

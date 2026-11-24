@@ -49,6 +49,7 @@ import {
   UserPlus,
   ChevronDown,
   X,
+  Plus,
 } from 'lucide-react';
 
 const AppModals = lazyWithRetry(() =>
@@ -1455,49 +1456,153 @@ export default function App() {
           ) : (
             /* ================= MY CARDS STUDIO & CAROUSEL VIEW (`activeTab === 'my-card'`) ================= */
             <div className="w-full min-h-0 flex flex-col items-center justify-center">
-              <LazyErrorBoundary resetKey={currentMyCard?.id || 'my-card-empty'}>
-                <Suspense
-                  fallback={
-                    <div
-                      className="w-full max-w-[540px] aspect-[9/5] rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)]"
-                      aria-hidden="true"
-                    />
-                  }
+              {resolvedMyCards.length === 0 && !(vault.isPinConfigured && vault.isLocked) ? (
+                <section
+                  aria-label="내 명함 시작하기"
+                  className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] mx-auto rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] px-6 py-12 sm:px-10 sm:py-16 flex flex-col items-center text-center animate-in fade-in duration-300"
                 >
-                  <CardNavigator
-                    cards={resolvedMyCards}
-                    activeCardId={currentMyCard?.id || ''}
-                    onSelectCard={vault.handleSelectMyCard}
-                    onCreateNewCard={vault.handleOpenCreateModal}
-                    onOpenEdit={(cardToEdit) => {
-                      vault.requireUnlock(() => {
-                        modals.openEditor(cardToEdit, false);
-                      });
-                    }}
-                    onOpenShare={(cardToShare) => {
-                      vault.setModalTargetCardId(cardToShare.id);
-                      modals.openShare();
-                    }}
-                    onOpenQuickQr={(cardForQuickQr) => {
-                      vault.setModalTargetCardId(cardForQuickQr.id);
-                      modals.openQuickQr();
-                    }}
-                    onOpenNfc={(cardForNfc) => {
-                      vault.setModalTargetCardId(cardForNfc.id);
-                      modals.openNfc();
-                    }}
-                    onOpenPrint={(cardForPrint) => {
-                      vault.setModalTargetCardId(cardForPrint.id);
-                      modals.openPrint();
-                    }}
-                    onDeleteCard={(cardToDelete) => {
-                      vault.handleRequestDeleteCard(cardToDelete);
-                    }}
-                    onShowToast={showToast}
-                    mode="carousel"
-                  />
-                </Suspense>
-              </LazyErrorBoundary>
+                  <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[var(--app-text)]">
+                    내 명함이 아직 없습니다
+                  </h2>
+                  <p className="text-xs text-[var(--app-text-muted)] mt-1.5 leading-relaxed max-w-xs">
+                    첫 번째 디지털 명함을 만들어 QR·링크로 바로 공유해 보세요.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={vault.handleOpenCreateModal}
+                    className="mt-6 h-11 px-6 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-sm font-semibold inline-flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+                  >
+                    <Plus className="w-4 h-4 stroke-[2.2]" aria-hidden="true" />
+                    <span>내 명함 만들기</span>
+                  </button>
+
+                  <div className="mt-5 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-xs text-[var(--app-text-muted)]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        vault.requireUnlock(() => {
+                          modals.openImportContacts();
+                        });
+                      }}
+                      className="hover:text-[var(--app-text)] underline underline-offset-4 decoration-[var(--app-border)] hover:decoration-[var(--app-text-muted)] transition-colors cursor-pointer py-1 whitespace-nowrap"
+                    >
+                      주소록 가져오기 (.vcf)
+                    </button>
+                    <span aria-hidden="true" className="opacity-45">·</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        vault.requireUnlock(() => {
+                          modals.openBackup('restore');
+                        });
+                      }}
+                      className="hover:text-[var(--app-text)] underline underline-offset-4 decoration-[var(--app-border)] hover:decoration-[var(--app-text-muted)] transition-colors cursor-pointer py-1 whitespace-nowrap"
+                    >
+                      백업 파일 복원 (.eerum)
+                    </button>
+                  </div>
+                </section>
+              ) : (
+                <>
+                  <LazyErrorBoundary resetKey={currentMyCard?.id || 'my-card-empty'}>
+                    <Suspense
+                      fallback={
+                        <div
+                          className="w-full max-w-[540px] aspect-[9/5] rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)]"
+                          aria-hidden="true"
+                        />
+                      }
+                    >
+                      <CardNavigator
+                        cards={resolvedMyCards}
+                        activeCardId={currentMyCard?.id || ''}
+                        onSelectCard={vault.handleSelectMyCard}
+                        onCreateNewCard={vault.handleOpenCreateModal}
+                        onOpenEdit={(cardToEdit) => {
+                          vault.requireUnlock(() => {
+                            modals.openEditor(cardToEdit, false);
+                          });
+                        }}
+                        onOpenShare={(cardToShare) => {
+                          vault.setModalTargetCardId(cardToShare.id);
+                          modals.openShare();
+                        }}
+                        onOpenQuickQr={(cardForQuickQr) => {
+                          vault.setModalTargetCardId(cardForQuickQr.id);
+                          modals.openQuickQr();
+                        }}
+                        onOpenNfc={(cardForNfc) => {
+                          vault.setModalTargetCardId(cardForNfc.id);
+                          modals.openNfc();
+                        }}
+                        onOpenPrint={(cardForPrint) => {
+                          vault.setModalTargetCardId(cardForPrint.id);
+                          modals.openPrint();
+                        }}
+                        onDeleteCard={(cardToDelete) => {
+                          vault.handleRequestDeleteCard(cardToDelete);
+                        }}
+                        onShowToast={showToast}
+                        mode="carousel"
+                      />
+                    </Suspense>
+                  </LazyErrorBoundary>
+
+                  {vault.showOnboardingImportPrompt &&
+                    vault.vaultCards.length === 0 &&
+                    !(vault.isPinConfigured && vault.isLocked) && (
+                      <aside
+                        aria-label="다음 단계 안내"
+                        className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] mt-5 rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] p-4 sm:p-5 relative animate-in fade-in slide-in-from-bottom-2 duration-200"
+                      >
+                        <button
+                          type="button"
+                          onClick={vault.dismissOnboardingImportPrompt}
+                          aria-label="안내 닫기"
+                          title="닫기"
+                          className="absolute top-3.5 right-3.5 w-7 h-7 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5 stroke-[1.75]" />
+                        </button>
+
+                        <div className="pr-8">
+                          <h3 className="text-sm font-semibold tracking-tight text-[var(--app-text)]">
+                            내 명함이 완성되었습니다
+                          </h3>
+                          <p className="text-xs text-[var(--app-text-muted)] mt-1 leading-relaxed">
+                            이제 기존 휴대폰 주소록이나 실물 명함을 가져와 나만의 보관함을 채워보세요.
+                          </p>
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              vault.requireUnlock(() => {
+                                modals.openImportContacts();
+                              });
+                            }}
+                            className="h-9 px-3.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] whitespace-nowrap"
+                          >
+                            주소록 가져오기
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              vault.requireUnlock(() => {
+                                modals.openScan();
+                              });
+                            }}
+                            className="h-9 px-3.5 rounded-xl bg-[var(--app-surface-subtle)] hover:bg-[var(--app-highlight)]/60 border border-[var(--app-border)] text-[var(--app-text)] text-xs font-medium transition-colors cursor-pointer active:scale-[0.98] whitespace-nowrap"
+                          >
+                            실물 명함 스캔
+                          </button>
+                        </div>
+                      </aside>
+                    )}
+                </>
+              )}
             </div>
           )}
         </main>
