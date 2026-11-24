@@ -1,21 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  X,
-  UserPlus,
-  Lock,
-  Fingerprint,
-  ShieldCheck,
-  AlertCircle,
-  HardDriveDownload,
-  Loader2,
-} from 'lucide-react';
+import { X, AlertCircle, Loader2 } from 'lucide-react';
 import {
   hasLegacySingleVaultData,
   isLegacyVaultPinProtected,
   type CreateLocalAccountParams,
   type LocalAccountActionResult,
 } from '../utils/localAccount';
-import { isBiometricSupported, getBiometricLabel } from '../utils/biometrics';
+import { isBiometricSupported } from '../utils/biometrics';
 
 interface CreateLocalAccountModalProps {
   isOpen: boolean;
@@ -34,7 +25,6 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
   const [confirmPin, setConfirmPin] = useState('');
   const [enableBiometrics, setEnableBiometrics] = useState(false);
   const [bioSupported, setBioSupported] = useState(false);
-  const [bioLabel, setBioLabel] = useState('생체 인증');
 
   const [hasLegacyData, setHasLegacyData] = useState(false);
   const [legacyPinProtected, setLegacyPinProtected] = useState(false);
@@ -62,7 +52,6 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
     setLegacyPinProtected(legacyLocked);
     setImportLegacyData(legacyAvailable);
     setLegacyPin('');
-    setBioLabel(getBiometricLabel());
 
     void isBiometricSupported().then((supported) => setBioSupported(supported));
 
@@ -96,7 +85,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
 
     const trimmedName = displayName.trim();
     if (!trimmedName) {
-      setError('계정 이름(예: 개인 명함첩, 홍길동)을 입력해 주세요.');
+      setError('계정 이름을 입력해 주세요.');
       return;
     }
 
@@ -150,7 +139,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
         role="dialog"
         aria-modal="true"
         aria-labelledby="create-local-account-title"
-        className="w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] shadow-[var(--app-shadow)] p-5 sm:p-7 relative animate-in zoom-in-95 duration-200"
+        className="w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] shadow-[var(--app-shadow)] p-6 sm:p-7 relative animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -158,37 +147,32 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
           onClick={onClose}
           disabled={isSubmitting}
           aria-label="닫기"
-          className="absolute top-4 right-4 p-2 rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer disabled:opacity-40"
+          className="absolute top-5 right-5 p-2 rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer disabled:opacity-40"
         >
           <X className="w-4 h-4" />
         </button>
 
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-5 pr-8">
-          <div className="w-11 h-11 rounded-2xl bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] flex items-center justify-center shrink-0">
-            <UserPlus className="w-5 h-5 stroke-[1.75]" />
-          </div>
-          <div>
-            <h2
-              id="create-local-account-title"
-              className="text-base sm:text-lg font-bold tracking-tight text-[var(--app-text)]"
-            >
-              로컬 계정 만들기
-            </h2>
-            <p className="text-xs text-[var(--app-text-muted)] mt-0.5">
-              서버 전송 없이 이 기기에만 독립 암호화 보관함을 생성합니다.
-            </p>
-          </div>
+        {/* Minimal Typography-Only Header */}
+        <div className="mb-6 pr-8">
+          <h2
+            id="create-local-account-title"
+            className="text-lg font-semibold tracking-tight text-[var(--app-text)]"
+          >
+            로컬 계정 만들기
+          </h2>
+          <p className="text-xs text-[var(--app-text-muted)] mt-1">
+            서버 전송 없이 이 기기에만 저장되는 암호화 계정입니다.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* 1. Account Nickname */}
+          {/* 1. Account Name */}
           <div>
             <label
               htmlFor="local-account-name"
-              className="block text-xs font-semibold text-[var(--app-text)] mb-1.5"
+              className="block text-xs font-medium text-[var(--app-text)] mb-1.5"
             >
-              계정 이름 (별칭)
+              계정 이름
             </label>
             <input
               ref={nameInputRef}
@@ -200,25 +184,17 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
                 setDisplayName(e.target.value);
                 if (error) setError(null);
               }}
-              placeholder="예: 개인 명함첩, 홍길동, 비즈니스"
+              placeholder="예: 개인, 비즈니스"
               className="w-full h-11 px-3.5 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-sm text-[var(--app-text)] placeholder:text-[var(--app-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]/35 focus:border-[var(--app-accent)] transition-all"
             />
           </div>
 
-          {/* 2. Optional / Recommended 4-Digit PIN */}
-          <div className="rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] p-3.5 space-y-3">
+          {/* 2. 4-Digit PIN */}
+          <div className="rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] p-4 space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <Lock className="w-4 h-4 text-[var(--app-accent)] shrink-0" />
-                <div>
-                  <p className="text-xs font-semibold text-[var(--app-text)]">
-                    4자리 보안 PIN (권장)
-                  </p>
-                  <p className="text-[11px] text-[var(--app-text-muted)] leading-snug">
-                    AES-256 온디바이스 암호화로 보관함을 잠급니다.
-                  </p>
-                </div>
-              </div>
+              <span className="text-xs font-medium text-[var(--app-text)]">
+                보안 PIN (4자리)
+              </span>
               <button
                 type="button"
                 role="switch"
@@ -227,18 +203,18 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
                   setUsePin((prev) => !prev);
                   setError(null);
                 }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                   usePin
                     ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] border-transparent'
                     : 'bg-[var(--app-surface)] text-[var(--app-text-muted)] border-[var(--app-border)]'
                 }`}
               >
-                {usePin ? '사용함' : '건너뛰기'}
+                {usePin ? '사용함' : '미사용'}
               </button>
             </div>
 
             {usePin && (
-              <div className="grid grid-cols-2 gap-2.5 pt-1">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label
                     htmlFor="local-account-pin"
@@ -285,10 +261,9 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
                 </div>
 
                 {bioSupported && (
-                  <label className="col-span-2 flex items-center justify-between gap-2 pt-1.5 border-t border-[var(--app-border)] cursor-pointer select-none">
-                    <span className="flex items-center gap-2 text-xs text-[var(--app-text)]">
-                      <Fingerprint className="w-3.5 h-3.5 text-[var(--app-accent)] shrink-0" />
-                      <span>{bioLabel} 빠른 잠금 해제 함께 등록</span>
+                  <label className="col-span-2 flex items-center justify-between gap-2 pt-2 border-t border-[var(--app-border)] cursor-pointer select-none">
+                    <span className="text-xs text-[var(--app-text)]">
+                      지문 · Face ID 빠른 잠금 해제
                     </span>
                     <input
                       type="checkbox"
@@ -304,8 +279,11 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
 
           {/* 3. Optional Legacy Vault Import */}
           {hasLegacyData && (
-            <div className="rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] p-3.5 space-y-2.5">
-              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+            <div className="rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] p-4 space-y-2.5">
+              <label className="flex items-center justify-between gap-3 cursor-pointer select-none">
+                <span className="text-xs font-medium text-[var(--app-text)]">
+                  기존 기기 명함 데이터 가져오기
+                </span>
                 <input
                   type="checkbox"
                   checked={importLegacyData}
@@ -313,17 +291,8 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
                     setImportLegacyData(e.target.checked);
                     if (error) setError(null);
                   }}
-                  className="mt-0.5 w-4 h-4 accent-[var(--app-accent)] rounded cursor-pointer shrink-0"
+                  className="w-4 h-4 accent-[var(--app-accent)] rounded cursor-pointer shrink-0"
                 />
-                <div className="min-w-0">
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--app-text)]">
-                    <HardDriveDownload className="w-3.5 h-3.5 text-[var(--app-accent)] shrink-0" />
-                    <span>기존 기기 명함 보관함 데이터 가져오기</span>
-                  </span>
-                  <p className="text-[11px] text-[var(--app-text-muted)] mt-0.5 leading-snug">
-                    이 브라우저에 저장되어 있던 이전 명함과 카테고리를 새 계정에 연결합니다.
-                  </p>
-                </div>
               </label>
 
               {importLegacyData && legacyPinProtected && (
@@ -363,14 +332,8 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
             </div>
           )}
 
-          {/* Zero-Server Notice */}
-          <div className="flex items-center gap-2 text-[11px] text-[var(--app-text-muted)] px-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-[var(--app-accent)] shrink-0" />
-            <span>계정 정보와 명함 데이터는 외부 서버에 전송되지 않고 이 기기에만 저장됩니다.</span>
-          </div>
-
-          {/* Submit */}
-          <div className="flex items-center gap-2 pt-1">
+          {/* Action Footer */}
+          <div className="flex items-center gap-2.5 pt-2">
             <button
               type="button"
               onClick={onClose}
@@ -382,7 +345,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
             <button
               type="submit"
               disabled={isSubmitting || !displayName.trim() || !isPinReady}
-              className="flex-1 h-11 px-4 rounded-xl bg-[var(--app-accent)] hover:opacity-90 disabled:opacity-45 text-[var(--app-accent-fg)] text-xs sm:text-sm font-semibold transition-all cursor-pointer active:scale-[0.98] inline-flex items-center justify-center gap-2 whitespace-nowrap shadow-[var(--app-shadow)]"
+              className="flex-1 h-11 px-4 rounded-xl bg-[var(--app-accent)] hover:opacity-90 disabled:opacity-45 text-[var(--app-accent-fg)] text-xs sm:text-sm font-semibold transition-all cursor-pointer active:scale-[0.98] inline-flex items-center justify-center gap-2 whitespace-nowrap"
             >
               {isSubmitting ? (
                 <>
@@ -390,10 +353,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
                   <span>계정 생성 중...</span>
                 </>
               ) : (
-                <>
-                  <UserPlus className="w-4 h-4 stroke-[2]" />
-                  <span>로컬 계정 만들고 시작하기</span>
-                </>
+                <span>계정 만들기</span>
               )}
             </button>
           </div>
