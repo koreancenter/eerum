@@ -20,6 +20,7 @@ import { EditorPreviewPanel } from './editor/EditorPreviewPanel';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { loadVaultCategories } from '../utils/categories';
 import { generateOwnerKey } from '../utils/ownerKey';
+import { getCardThemePreference, getMostRecentCardTheme } from '../utils/cardThemeStorage';
 
 export interface CardEditorModalProps {
   isOpen: boolean;
@@ -42,38 +43,45 @@ export const THEME_OPTIONS: {
 }[] = [
   {
     id: 'pure_white',
-    name: '샴페인 샌드',
-    description: 'Champagne Sand',
-    dotColor: '#F5F2EC',
+    name: '퓨어 화이트',
+    description: 'Pure White',
+    dotColor: '#F8F7F4',
     accent: '#1C1B1A'
   },
   {
     id: 'warm_paper',
-    name: '파인 코튼',
-    description: 'Warm Cotton',
-    dotColor: '#EAE7E0',
-    accent: '#1C1C1F'
+    name: '웜 페이퍼',
+    description: 'Warm Paper',
+    dotColor: '#E5DFD3',
+    accent: '#181715'
+  },
+  {
+    id: 'classic_navy',
+    name: '클래식 네이비',
+    description: 'Classic Navy',
+    dotColor: '#14233C',
+    accent: '#E4E4E7'
+  },
+  {
+    id: 'deep_forest',
+    name: '딥 포레스트',
+    description: 'Deep Forest',
+    dotColor: '#142B22',
+    accent: '#E4E4E7'
   },
   {
     id: 'sumi_ink',
-    name: '수묵 인크',
+    name: '수묵 블랙',
     description: 'Sumi Ink',
-    dotColor: '#141416',
-    accent: '#EAEAE6'
-  },
-  {
-    id: 'obsidian',
-    name: '웜 슬레이트',
-    description: 'Warm Slate',
-    dotColor: '#202024',
-    accent: '#D4D4D8'
+    dotColor: '#0D0D0F',
+    accent: '#FAFAFA'
   }
 ];
 
-const CREATION_MODES: { id: CardCreationMode; label: string }[] = [
-  { id: 'template', label: '디자인 템플릿' },
-  { id: 'photo', label: '실물 사진' },
-  { id: 'custom_html', label: '커스텀 코드' }
+const CREATION_MODES: { id: CardCreationMode; label: string; tooltip: string }[] = [
+  { id: 'template', label: '디자인 템플릿', tooltip: '지류·레이아웃 프리셋과 인적 정보로 명함 제작' },
+  { id: 'photo', label: '실물 사진', tooltip: '실물 명함 앞·뒷면 사진 업로드 및 자동 텍스트 추출' },
+  { id: 'custom_html', label: '커스텀 코드', tooltip: 'HTML/Tailwind 코드로 명함 직접 제작' }
 ];
 
 /**
@@ -194,7 +202,11 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
   const [templateSubTab, setTemplateSubTab] = useState<'visual_atelier' | 'identity_profile'>(
     isCreating ? 'identity_profile' : 'visual_atelier'
   );
-  const [theme, setTheme] = useState<CardTheme>(() => activeCard.theme || 'pure_white');
+  const initialStoredThemePref =
+    !isCreating && activeCard.id ? getCardThemePreference(activeCard.id) : null;
+  const [theme, setTheme] = useState<CardTheme>(
+    () => initialStoredThemePref?.theme || activeCard.theme || 'pure_white'
+  );
   const [layoutType, setLayoutType] = useState<CardLayoutType>(() =>
     (activeCard.layout_type as CardLayoutType) ||
     ((activeCard as any).template_id as CardLayoutType) ||
@@ -205,7 +217,12 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
     show_sub_org: activeCard.card_features?.show_sub_org ?? true,
     show_address: activeCard.card_features?.show_address ?? true,
     custom_logo: activeCard.card_features?.custom_logo ?? '',
-    monogram_text: activeCard.card_features?.monogram_text ?? ''
+    monogram_text: activeCard.card_features?.monogram_text ?? '',
+    custom_bg_color:
+      initialStoredThemePref && initialStoredThemePref.customBgColor !== undefined
+        ? initialStoredThemePref.customBgColor
+        : (activeCard.card_features?.custom_bg_color ?? ''),
+    custom_bg_image: activeCard.card_features?.custom_bg_image ?? ''
   }));
 
   // Common Profile Data
@@ -373,7 +390,9 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
       };
       setFormData(initialDataResolved);
 
-      const resolvedTheme = safe.theme || (safe as any).theme_preset || 'pure_white';
+      const storedThemePref = !isCreating && safe.id ? getCardThemePreference(safe.id) : null;
+      const resolvedTheme =
+        storedThemePref?.theme || safe.theme || (safe as any).theme_preset || 'pure_white';
       setTheme(resolvedTheme);
 
       const resolvedLayout =
@@ -387,7 +406,12 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         show_sub_org: safe.card_features?.show_sub_org ?? true,
         show_address: safe.card_features?.show_address ?? true,
         custom_logo: safe.card_features?.custom_logo ?? '',
-        monogram_text: safe.card_features?.monogram_text ?? ''
+        monogram_text: safe.card_features?.monogram_text ?? '',
+        custom_bg_color:
+          storedThemePref && storedThemePref.customBgColor !== undefined
+            ? storedThemePref.customBgColor
+            : (safe.card_features?.custom_bg_color ?? ''),
+        custom_bg_image: safe.card_features?.custom_bg_image ?? ''
       });
 
       const currentDynamicCats = loadVaultCategories();
@@ -511,9 +535,19 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         googleMapsUrl: '',
         naverMapsUrl: ''
       });
-      setTheme('pure_white');
+      const recentThemePref = getMostRecentCardTheme();
+      setTheme(recentThemePref?.theme || 'pure_white');
       setLayoutType('editorial_minimal');
       setCreationMode('template');
+      setFeatures({
+        show_en_name: true,
+        show_sub_org: true,
+        show_address: true,
+        custom_logo: '',
+        monogram_text: '',
+        custom_bg_color: recentThemePref?.customBgColor ?? '',
+        custom_bg_image: ''
+      });
     } else {
       const origWeb = (activeCard.data.website ?? '').trim();
       setFormData({
@@ -541,6 +575,15 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         ((activeCard as any).template_id as CardLayoutType) ||
         'editorial_minimal'
       );
+      setFeatures({
+        show_en_name: activeCard.card_features?.show_en_name ?? true,
+        show_sub_org: activeCard.card_features?.show_sub_org ?? true,
+        show_address: activeCard.card_features?.show_address ?? true,
+        custom_logo: activeCard.card_features?.custom_logo ?? '',
+        monogram_text: activeCard.card_features?.monogram_text ?? '',
+        custom_bg_color: activeCard.card_features?.custom_bg_color ?? '',
+        custom_bg_image: activeCard.card_features?.custom_bg_image ?? ''
+      });
       setCreationMode(resolveCardCreationMode(activeCard));
     }
   };
@@ -722,6 +765,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                   key={mode.id}
                   type="button"
                   onClick={() => setCreationMode(mode.id)}
+                  title={mode.tooltip}
                   className={`relative pb-2 sm:pb-3.5 text-xs sm:text-[13px] tracking-wide whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none ${
                     isActive
                       ? 'text-[var(--editor-text)] font-semibold'

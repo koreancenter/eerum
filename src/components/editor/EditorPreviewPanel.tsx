@@ -175,6 +175,7 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
                   data={cardDataForPreview}
                   theme={theme}
                   layout_type={layoutType}
+                  card_features={features}
                   isPrintPreview={false}
                   hideBorder={true}
                 />
@@ -195,6 +196,7 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
                     data={cardDataForPreview}
                     theme={theme}
                     layout_type={layoutType}
+                    card_features={features}
                     isPrintPreview={false}
                     hideBorder={true}
                   />
@@ -216,6 +218,7 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
                   data={cardDataForPreview}
                   theme={theme}
                   layout_type={layoutType}
+                  card_features={features}
                   isPrintPreview={false}
                   hideBorder={true}
                 />

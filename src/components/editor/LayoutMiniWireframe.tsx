@@ -7,17 +7,14 @@ interface WireframeStyleTokens {
   isSelected: boolean;
 }
 
-const LANDSCAPE_FRAME_CLASS =
-  'w-full aspect-[9/5] p-2.5 rounded-md bg-[var(--app-surface)] border border-[var(--editor-control-border)] flex flex-col justify-between';
-const PORTRAIT_FRAME_CLASS =
-  'w-[68%] mx-auto aspect-[5/8] p-2.5 rounded-md bg-[var(--app-surface)] border border-[var(--editor-control-border)] flex flex-col justify-between';
+const FRAME_CLASS = 'w-full h-full flex flex-col justify-between';
 
 const LAYOUT_WIREFRAME_RENDERERS: Record<
   CardLayoutType,
   (tokens: WireframeStyleTokens) => React.ReactNode
 > = {
   editorial_minimal: ({ strokeClass, subClass }) => (
-    <div className={LANDSCAPE_FRAME_CLASS}>
+    <div className={FRAME_CLASS}>
       <div className="space-y-1">
         <div className={`w-10 h-[3px] rounded-full ${subClass}`} />
         <div className={`w-16 h-1 rounded-full ${strokeClass}`} />
@@ -34,7 +31,7 @@ const LAYOUT_WIREFRAME_RENDERERS: Record<
   ),
 
   monogram_executive: ({ strokeClass, subClass, isSelected }) => (
-    <div className={`${LANDSCAPE_FRAME_CLASS} items-center text-center`}>
+    <div className={`${FRAME_CLASS} items-center text-center`}>
       <div className="flex flex-col items-center gap-1">
         <div
           className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
@@ -54,7 +51,7 @@ const LAYOUT_WIREFRAME_RENDERERS: Record<
   ),
 
   vertical_atelier: ({ strokeClass, subClass }) => (
-    <div className={PORTRAIT_FRAME_CLASS}>
+    <div className={FRAME_CLASS}>
       <div className="space-y-1 pb-1.5 border-b border-[var(--editor-divider)]">
         <div className={`w-7 h-[2px] rounded-full ${subClass}`} />
         <div className={`w-11 h-[3px] rounded-full ${strokeClass}`} />
@@ -71,7 +68,7 @@ const LAYOUT_WIREFRAME_RENDERERS: Record<
   ),
 
   serenity_vertical: ({ strokeClass, subClass }) => (
-    <div className={PORTRAIT_FRAME_CLASS}>
+    <div className={FRAME_CLASS}>
       <div className="space-y-1">
         <div className={`w-13 h-1.5 rounded-full ${strokeClass}`} />
         <div className={`w-8 h-[3px] rounded-full ${subClass}`} />
@@ -87,7 +84,7 @@ const LAYOUT_WIREFRAME_RENDERERS: Record<
   ),
 
   swiss_typo_bold: ({ strokeClass, subClass }) => (
-    <div className={LANDSCAPE_FRAME_CLASS}>
+    <div className={FRAME_CLASS}>
       <div className={`w-20 h-1 rounded-full ${strokeClass}`} />
       <div className="space-y-1 my-auto">
         <div className={`w-16 h-2 rounded-full ${strokeClass}`} />
@@ -101,7 +98,7 @@ const LAYOUT_WIREFRAME_RENDERERS: Record<
   ),
 
   warm_organic: ({ strokeClass, subClass }) => (
-    <div className={LANDSCAPE_FRAME_CLASS}>
+    <div className={FRAME_CLASS}>
       <div className="flex justify-between items-start">
         <div className={`w-12 h-[3px] rounded-full ${subClass}`} />
         <div className={`w-1.5 h-1.5 rounded-full ${strokeClass}`} />

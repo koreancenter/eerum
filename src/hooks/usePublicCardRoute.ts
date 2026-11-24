@@ -13,21 +13,27 @@ import {
   normalizeDomain,
 } from '@/utils/cardSerializer';
 
+import { isValidP2PRoomId } from '../types/api';
+
 export interface UsePublicCardRouteOptions {
+  isAuthenticatedAccount: boolean;
   hasLocalCards: boolean;
   isPinConfigured: boolean;
   showToast: (msg: string) => void;
   onResolveOwnedMyCard: (ownedCardId?: string) => void;
   onApplySyncedCards: (normalizedCards: StoredCard[]) => void;
+  onDetectP2PRoom?: (roomId: string) => void;
   onResetFlip: () => void;
 }
 
 export function usePublicCardRoute({
+  isAuthenticatedAccount,
   hasLocalCards,
   isPinConfigured,
   showToast,
   onResolveOwnedMyCard,
   onApplySyncedCards,
+  onDetectP2PRoom,
   onResetFlip,
 }: UsePublicCardRouteOptions) {
   // External Public Shared Landing State (strictly isolated from internal studio & vault views)
@@ -38,6 +44,7 @@ export function usePublicCardRoute({
     showToast,
     onResolveOwnedMyCard,
     onApplySyncedCards,
+    onDetectP2PRoom,
     onResetFlip,
   });
 
@@ -46,9 +53,10 @@ export function usePublicCardRoute({
       showToast,
       onResolveOwnedMyCard,
       onApplySyncedCards,
+      onDetectP2PRoom,
       onResetFlip,
     };
-  }, [showToast, onResolveOwnedMyCard, onApplySyncedCards, onResetFlip]);
+  }, [showToast, onResolveOwnedMyCard, onApplySyncedCards, onDetectP2PRoom, onResetFlip]);
 
   const cleanPublicUrlToRoot = useCallback(() => {
     if (typeof window !== 'undefined' && isPublicSlugRoute()) {
@@ -58,10 +66,28 @@ export function usePublicCardRoute({
     setIsPublicExternalView(false);
   }, []);
 
-  // 1. URL Sync Detection & Initialization (Cross-device anonymous wallet)
+  // 1. URL Sync & P2P Pairing Detection (Cross-device anonymous wallet)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const searchParams = new URLSearchParams(window.location.search);
+
+    const p2pRoomId = searchParams.get('p2p');
+    if (p2pRoomId) {
+      const trimmedRoom = p2pRoomId.trim();
+      const url = new URL(window.location.href);
+      url.searchParams.delete('p2p');
+      window.history.replaceState({}, document.title, url.pathname + (url.search || ''));
+
+      if (isValidP2PRoomId(trimmedRoom)) {
+        setPublicCard(null);
+        setIsPublicExternalView(false);
+        callbacksRef.current.onDetectP2PRoom?.(trimmedRoom);
+      } else {
+        callbacksRef.current.showToast('유효하지 않은 P2P 연결 코드입니다.');
+      }
+      return;
+    }
+
     const syncId = searchParams.get('sync');
     if (syncId) {
       import('../utils/syncWallet').then(({ pullWalletFromEdge }) =>
@@ -172,9 +198,10 @@ export function usePublicCardRoute({
   }, [evaluatePublicRoute]);
 
   // Strict visitor classification:
-  // True ONLY when an unauthenticated external visitor (no local wallet/cards/PIN) visits a public shared link (/card/:slug)
+  // True when viewing a public shared link (/card/:slug) without an active signed-in local account session
   const hasLocalUserSession =
-    hasLocalCards || isPinConfigured || hasLocalWalletInitialized();
+    isAuthenticatedAccount &&
+    (hasLocalCards || isPinConfigured || hasLocalWalletInitialized());
   const isUnauthenticatedExternalVisitor =
     isPublicExternalView && Boolean(publicCard) && !hasLocalUserSession;
 

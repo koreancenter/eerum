@@ -107,3 +107,90 @@ export function createApiError(error: string, notFound = false): ApiErrorRespons
     ? { success: false, notFound: true, error, message: error }
     : { success: false, error, message: error };
 }
+
+export const P2P_ROOM_ID_PATTERN = /^[a-zA-Z0-9_-]{6,32}$/;
+export const P2P_SIGNAL_TTL_MS = 60_000;
+export const P2P_SIGNAL_MAX_BYTES = 32 * 1024; // Strict < 32KB limit
+
+export type P2PSignalRole = 'sender' | 'receiver';
+export type P2PSignalType = 'offer' | 'answer' | 'ice';
+
+export interface P2PSessionDescriptionSignal {
+  type: 'offer' | 'answer';
+  sdp: string;
+}
+
+export interface P2PIceCandidateSignal {
+  candidate: string;
+  sdpMid?: string | null;
+  sdpMLineIndex?: number | null;
+  usernameFragment?: string | null;
+}
+
+export interface PostP2PSignalRequest {
+  roomId: string;
+  role: P2PSignalRole;
+  type: P2PSignalType;
+  payload: P2PSessionDescriptionSignal | P2PIceCandidateSignal;
+}
+
+export interface PostP2PSignalSuccessResponse {
+  success: true;
+  roomId: string;
+  expiresAt: number;
+}
+
+export type PostP2PSignalResponse = PostP2PSignalSuccessResponse | ApiErrorResponse;
+
+export interface GetP2PSignalSuccessResponse {
+  success: true;
+  roomId: string;
+  role: P2PSignalRole;
+  expiresAt: number;
+  offer: P2PSessionDescriptionSignal | null;
+  answer: P2PSessionDescriptionSignal | null;
+  iceCandidates: P2PIceCandidateSignal[];
+}
+
+export type GetP2PSignalResponse = GetP2PSignalSuccessResponse | ApiErrorResponse;
+
+export function isValidP2PRoomId(value: unknown): value is string {
+  return typeof value === 'string' && P2P_ROOM_ID_PATTERN.test(value.trim());
+}
+
+export function isValidP2PSignalRole(value: unknown): value is P2PSignalRole {
+  return value === 'sender' || value === 'receiver';
+}
+
+export function isValidP2PSignalType(value: unknown): value is P2PSignalType {
+  return value === 'offer' || value === 'answer' || value === 'ice';
+}
+
+export function sanitizeP2PSdpPayload(
+  raw: unknown,
+  expectedType: 'offer' | 'answer'
+): P2PSessionDescriptionSignal | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const obj = raw as Record<string, unknown>;
+  if (obj.type !== expectedType || typeof obj.sdp !== 'string') return null;
+  const sdp = obj.sdp;
+  if (!sdp || sdp.length > 28 * 1024) return null;
+  return { type: expectedType, sdp };
+}
+
+export function sanitizeP2PIcePayload(raw: unknown): P2PIceCandidateSignal | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const obj = raw as Record<string, unknown>;
+  if (typeof obj.candidate !== 'string' || obj.candidate.length > 4096) return null;
+  return {
+    candidate: obj.candidate,
+    ...(typeof obj.sdpMid === 'string' || obj.sdpMid === null ? { sdpMid: obj.sdpMid } : {}),
+    ...(typeof obj.sdpMLineIndex === 'number' || obj.sdpMLineIndex === null
+      ? { sdpMLineIndex: obj.sdpMLineIndex }
+      : {}),
+    ...(typeof obj.usernameFragment === 'string' || obj.usernameFragment === null
+      ? { usernameFragment: obj.usernameFragment }
+      : {}),
+  };
+}
+

@@ -11,8 +11,19 @@ import {
   isPlatformDomain,
   isValidSyncId,
   normalizeQueryToken,
+  P2P_SIGNAL_MAX_BYTES,
+  P2P_SIGNAL_TTL_MS,
+  isValidP2PRoomId,
+  isValidP2PSignalRole,
+  isValidP2PSignalType,
+  sanitizeP2PSdpPayload,
+  sanitizeP2PIcePayload,
   type GetCardsResponse,
+  type GetP2PSignalResponse,
   type GetSyncWalletResponse,
+  type P2PIceCandidateSignal,
+  type P2PSessionDescriptionSignal,
+  type PostP2PSignalResponse,
   type PostSyncWalletResponse,
   type ResolveCardResponse,
   type UpsertCardResponse,
@@ -170,6 +181,32 @@ export async function createServerApp(options: CreateAppOptions = {}) {
   const apiRateLimiter = createIpRateLimiter(windowMs, maxRequests);
   app.use(['/api/cards', '/api/sync'], apiRateLimiter);
 
+  const p2pSignalRateLimiter = createIpRateLimiter(windowMs, Math.max(240, maxRequests * 4));
+  app.use('/api/p2p/signal', p2pSignalRateLimiter);
+
+  interface EphemeralSignalRoom {
+    offer: P2PSessionDescriptionSignal | null;
+    answer: P2PSessionDescriptionSignal | null;
+    senderIce: P2PIceCandidateSignal[];
+    receiverIce: P2PIceCandidateSignal[];
+    expiresAt: number;
+  }
+
+  const MAX_P2P_SIGNAL_ROOMS = 1000;
+  const MAX_ICE_CANDIDATES_PER_SIDE = 64;
+  const p2pSignalRooms = new Map<string, EphemeralSignalRoom>();
+
+  const purgeExpiredSignalRooms = (now = Date.now()) => {
+    for (const [id, room] of p2pSignalRooms.entries()) {
+      if (room.expiresAt <= now) {
+        p2pSignalRooms.delete(id);
+      }
+    }
+  };
+
+  const p2pCleanupTimer = setInterval(() => purgeExpiredSignalRooms(), 15_000);
+  p2pCleanupTimer.unref();
+
   // SEO Crawler Endpoints for Lighthouse & Search Engines
   app.get('/robots.txt', (req, res) => {
     res.type('text/plain; charset=utf-8');
@@ -257,6 +294,141 @@ export async function createServerApp(options: CreateAppOptions = {}) {
       const msg = err instanceof Error ? err.message : 'Sync write failed';
       return res.status(500).json(createApiError(msg));
     }
+  });
+
+  // 1b. Ephemeral WebRTC Signaling Endpoint (/api/p2p/signal) — 60s TTL, <32KB, never persists cards
+  app.get('/api/p2p/signal', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const rawRoom = typeof req.query.room === 'string' ? req.query.room.trim() : '';
+    const rawRole = typeof req.query.role === 'string' ? req.query.role.trim() : '';
+
+    if (!isValidP2PRoomId(rawRoom) || !isValidP2PSignalRole(rawRole)) {
+      return res
+        .status(400)
+        .json(createApiError('Valid P2P room and role (sender|receiver) are required'));
+    }
+
+    const now = Date.now();
+    purgeExpiredSignalRooms(now);
+
+    const room = p2pSignalRooms.get(rawRoom);
+    if (!room || room.expiresAt <= now) {
+      p2pSignalRooms.delete(rawRoom);
+      return res
+        .status(404)
+        .json(createApiError('P2P signaling room not found or expired', true));
+    }
+
+    const body: GetP2PSignalResponse = {
+      success: true,
+      roomId: rawRoom,
+      role: rawRole,
+      expiresAt: room.expiresAt,
+      offer: rawRole === 'receiver' ? room.offer : null,
+      answer: rawRole === 'sender' ? room.answer : null,
+      iceCandidates: rawRole === 'sender' ? room.receiverIce : room.senderIce,
+    };
+    return res.json(body);
+  });
+
+  app.post('/api/p2p/signal', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const contentLength = Number(req.headers['content-length'] || 0);
+    if (Number.isFinite(contentLength) && contentLength >= P2P_SIGNAL_MAX_BYTES) {
+      return res
+        .status(413)
+        .json(createApiError('P2P signaling payload must be smaller than 32KB'));
+    }
+
+    const rawBody = req.body as Record<string, unknown> | null;
+    if (!rawBody || typeof rawBody !== 'object' || Array.isArray(rawBody)) {
+      return res.status(400).json(createApiError('Invalid P2P signaling payload'));
+    }
+
+    const serializedBytes = Buffer.byteLength(JSON.stringify(rawBody), 'utf8');
+    if (serializedBytes >= P2P_SIGNAL_MAX_BYTES) {
+      return res
+        .status(413)
+        .json(createApiError('P2P signaling payload must be smaller than 32KB'));
+    }
+
+    const rawRoom = typeof rawBody.roomId === 'string' ? rawBody.roomId.trim() : '';
+    const rawRole = rawBody.role;
+    const rawType = rawBody.type;
+
+    if (
+      !isValidP2PRoomId(rawRoom) ||
+      !isValidP2PSignalRole(rawRole) ||
+      !isValidP2PSignalType(rawType)
+    ) {
+      return res.status(400).json(createApiError('Invalid P2P signaling parameters'));
+    }
+
+    const now = Date.now();
+    purgeExpiredSignalRooms(now);
+
+    let room = p2pSignalRooms.get(rawRoom);
+    if (room && room.expiresAt <= now) {
+      p2pSignalRooms.delete(rawRoom);
+      room = undefined;
+    }
+
+    if (rawType === 'offer') {
+      if (rawRole !== 'sender') {
+        return res.status(400).json(createApiError('Only sender can publish an offer'));
+      }
+      const offer = sanitizeP2PSdpPayload(rawBody.payload, 'offer');
+      if (!offer) {
+        return res.status(400).json(createApiError('Malformed SDP offer payload'));
+      }
+      if (!room && p2pSignalRooms.size >= MAX_P2P_SIGNAL_ROOMS) {
+        const oldestKey = p2pSignalRooms.keys().next().value;
+        if (oldestKey !== undefined) p2pSignalRooms.delete(oldestKey);
+      }
+      room = {
+        offer,
+        answer: null,
+        senderIce: [],
+        receiverIce: [],
+        expiresAt: now + P2P_SIGNAL_TTL_MS,
+      };
+      p2pSignalRooms.set(rawRoom, room);
+    } else if (rawType === 'answer') {
+      if (rawRole !== 'receiver') {
+        return res.status(400).json(createApiError('Only receiver can publish an answer'));
+      }
+      if (!room) {
+        return res
+          .status(404)
+          .json(createApiError('P2P signaling room not found or expired', true));
+      }
+      const answer = sanitizeP2PSdpPayload(rawBody.payload, 'answer');
+      if (!answer) {
+        return res.status(400).json(createApiError('Malformed SDP answer payload'));
+      }
+      room.answer = answer;
+    } else {
+      if (!room) {
+        return res
+          .status(404)
+          .json(createApiError('P2P signaling room not found or expired', true));
+      }
+      const ice = sanitizeP2PIcePayload(rawBody.payload);
+      if (!ice) {
+        return res.status(400).json(createApiError('Malformed ICE candidate payload'));
+      }
+      const targetList = rawRole === 'sender' ? room.senderIce : room.receiverIce;
+      if (targetList.length < MAX_ICE_CANDIDATES_PER_SIDE) {
+        targetList.push(ice);
+      }
+    }
+
+    const okBody: PostP2PSignalResponse = {
+      success: true,
+      roomId: rawRoom,
+      expiresAt: room.expiresAt,
+    };
+    return res.json(okBody);
   });
 
   // 2. Card Resolution & Fetch Endpoints (/api/resolve & /api/cards)

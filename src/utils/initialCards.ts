@@ -1,5 +1,6 @@
 import { StoredCard } from '../types/card';
 import { CARD_DATA } from '../constants/masterCardData';
+export { SAMPLE_MY_CARDS, SAMPLE_VAULT_CARDS } from '../constants/sampleCards';
 import {
   isEncryptedEnvelope,
   getActiveSessionKey,
@@ -9,19 +10,37 @@ import {
 import { isPinSet, getSessionLocked } from './pinLock';
 import { sanitizeExternalUrl } from './sanitizeUrl';
 import { generateOwnerKey } from './ownerKey';
+import {
+  clearCardThemePreferences,
+  resolveCardsWithStoredThemes,
+} from './cardThemeStorage';
+import {
+  LOCAL_ACCOUNTS_KEY,
+  LEGACY_MIGRATED_FLAG_KEY,
+  readStoredAccountsList,
+  resolveAccountId,
+  getAccountCardsKey,
+  clearAllAccountScopedStorage,
+  setActiveAccountSessionId,
+} from './accountStorage';
 
-const STORAGE_KEY = 'my_cards';
-const FALLBACK_STORAGE_KEY = 'user_cards';
-const LEGACY_STORAGE_KEY = 'koreancenter_stored_cards_v2';
+export const LEGACY_CARDS_STORAGE_KEYS = [
+  'my_cards',
+  'user_cards',
+  'koreancenter_stored_cards_v2',
+  'saved_cards',
+] as const;
 
-// In-memory decrypted cards cache to protect against DevTools plain-text extraction
+// In-memory decrypted cards cache scoped per signed-in accountId
 let memoryDecryptedCards: StoredCard[] | null = null;
+let memoryDecryptedAccountId: string | null = null;
 
 /**
  * Immediately wipes decrypted cards and session cryptographic keys from runtime memory.
  */
 export function clearMemoryDecryptedCards(): void {
   memoryDecryptedCards = null;
+  memoryDecryptedAccountId = null;
   clearActiveSessionKey();
 }
 
@@ -308,54 +327,66 @@ export function normalizeStoredCards(rawCards: StoredCard[]): StoredCard[] {
 }
 
 /**
- * Checks whether this browser has an initialized local wallet (plain cards, encrypted vault, or active PIN)
+ * Checks whether this browser has an initialized local wallet (any local account, active PIN, or legacy single-vault data).
  */
 export function hasLocalWalletInitialized(): boolean {
   if (typeof window === 'undefined') return false;
+  if (readStoredAccountsList().length > 0) return true;
   if (memoryDecryptedCards && memoryDecryptedCards.length > 0) return true;
   if (isPinSet()) return true;
 
   try {
-    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(FALLBACK_STORAGE_KEY);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
-    if (isEncryptedEnvelope(parsed)) return true;
-    return Array.isArray(parsed) && parsed.length > 0;
+    if (localStorage.getItem('app_pin_hash') || localStorage.getItem('app_pin_vault_token')) {
+      return true;
+    }
+    for (const key of LEGACY_CARDS_STORAGE_KEYS) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (isEncryptedEnvelope(parsed)) return true;
+      if (Array.isArray(parsed) && parsed.length > 0) return true;
+    }
+    return false;
   } catch {
     return false;
   }
 }
 
-export function loadUserCards(): StoredCard[] {
+export function loadUserCards(accountId?: string | null): StoredCard[] {
   if (typeof window === 'undefined') return [];
 
+  const resolvedId = resolveAccountId(accountId);
+  if (!resolvedId) return [];
+
   // Never expose plaintext cards from memory or storage while session lock is active
-  if (isPinSet() && getSessionLocked()) {
+  if (isPinSet(resolvedId) && getSessionLocked(resolvedId)) {
     return [];
   }
 
-  // 1. If cards have been decrypted into memory during the authenticated session, return them
-  if (memoryDecryptedCards !== null) {
+  // 1. If cards have been decrypted into memory during the authenticated session for this account, return them
+  if (memoryDecryptedCards !== null && memoryDecryptedAccountId === resolvedId) {
     return memoryDecryptedCards;
   }
 
+  const cardsKey = getAccountCardsKey(resolvedId);
+  if (!cardsKey) return [];
+
   try {
-    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(FALLBACK_STORAGE_KEY);
+    const raw = localStorage.getItem(cardsKey);
     if (!raw) return [];
 
     const parsed = JSON.parse(raw);
 
-    // 2. If storage holds an AES-GCM Encrypted Envelope and session is locked, return empty
-    // to prevent unauthenticated plain-text extraction via browser DevTools
+    // 2. If storage holds an AES-GCM Encrypted Envelope, return empty until asynchronously decrypted
     if (isEncryptedEnvelope(parsed)) {
-      // Data is encrypted with AES-256-GCM. Will be decrypted asynchronously upon PIN/biometric unlock.
       return [];
     }
 
-    // 3. Unencrypted legacy cards (when no PIN is configured)
+    // 3. Unencrypted cards (when no PIN is configured for this account)
     if (Array.isArray(parsed) && parsed.length > 0) {
-      const normalized = normalizeStoredCards(parsed);
+      const normalized = resolveCardsWithStoredThemes(normalizeStoredCards(parsed), resolvedId);
       memoryDecryptedCards = normalized;
+      memoryDecryptedAccountId = resolvedId;
       return normalized;
     }
     return [];
@@ -368,14 +399,27 @@ export function loadUserCards(): StoredCard[] {
 export const loadStoredCards = loadUserCards;
 
 /**
- * Asynchronously decrypts AES-GCM encrypted cards from localStorage upon successful authentication
+ * Asynchronously decrypts AES-GCM encrypted cards for the active (or specified) account upon authentication.
  */
-export async function decryptStoredCards(keyOrPin?: CryptoKey | string): Promise<StoredCard[]> {
+export async function decryptStoredCards(
+  keyOrPin?: CryptoKey | string,
+  accountId?: string | null
+): Promise<StoredCard[]> {
   if (typeof window === 'undefined') return [];
 
+  const resolvedId = resolveAccountId(accountId);
+  if (!resolvedId) return [];
+
+  const cardsKey = getAccountCardsKey(resolvedId);
+  if (!cardsKey) return [];
+
   try {
-    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(FALLBACK_STORAGE_KEY);
-    if (!raw) return [];
+    const raw = localStorage.getItem(cardsKey);
+    if (!raw) {
+      memoryDecryptedCards = [];
+      memoryDecryptedAccountId = resolvedId;
+      return [];
+    }
 
     const parsed = JSON.parse(raw);
 
@@ -388,14 +432,16 @@ export async function decryptStoredCards(keyOrPin?: CryptoKey | string): Promise
 
       const { decryptCardsVault } = await import('./cryptoVault');
       const decrypted = await decryptCardsVault(parsed, key);
-      const normalized = normalizeStoredCards(decrypted);
+      const normalized = resolveCardsWithStoredThemes(normalizeStoredCards(decrypted), resolvedId);
       memoryDecryptedCards = normalized;
+      memoryDecryptedAccountId = resolvedId;
       return normalized;
     }
 
     if (Array.isArray(parsed)) {
-      const normalized = normalizeStoredCards(parsed);
+      const normalized = resolveCardsWithStoredThemes(normalizeStoredCards(parsed), resolvedId);
       memoryDecryptedCards = normalized;
+      memoryDecryptedAccountId = resolvedId;
       return normalized;
     }
 
@@ -407,21 +453,25 @@ export async function decryptStoredCards(keyOrPin?: CryptoKey | string): Promise
 }
 
 /**
- * Saves cards to storage. If PIN lock is configured, card data is immediately encrypted
- * via AES-GCM 256-bit using PBKDF2 derived keys before writing to localStorage,
- * completely neutralizing DevTools plain-text data extraction attacks.
+ * Saves cards to per-account storage. Strictly performs ZERO writes when no local account is signed in.
  */
-export function saveUserCards(cards: StoredCard[]): void {
+export function saveUserCards(cards: StoredCard[], accountId?: string | null): void {
   if (typeof window === 'undefined') return;
 
-  const pinActive = isPinSet();
+  const resolvedId = resolveAccountId(accountId);
+  if (!resolvedId) return;
+
+  const cardsKey = getAccountCardsKey(resolvedId);
+  if (!cardsKey) return;
+
+  const pinActive = isPinSet(resolvedId);
   const activeKey = getActiveSessionKey();
   const activePin = getActiveSessionPin();
 
   // Guard: Never overwrite or delete an encrypted localStorage vault while the session is locked
   if (pinActive && !activeKey && !activePin) {
     try {
-      const existingRaw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(FALLBACK_STORAGE_KEY);
+      const existingRaw = localStorage.getItem(cardsKey);
       if (existingRaw) {
         const parsed = JSON.parse(existingRaw);
         if (isEncryptedEnvelope(parsed)) {
@@ -438,13 +488,11 @@ export function saveUserCards(cards: StoredCard[]): void {
 
   const normalizedCards = cards && cards.length > 0 ? normalizeStoredCards(cards) : [];
   memoryDecryptedCards = normalizedCards;
+  memoryDecryptedAccountId = resolvedId;
 
   try {
     if (normalizedCards.length === 0) {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(FALLBACK_STORAGE_KEY);
-      localStorage.removeItem(LEGACY_STORAGE_KEY);
-      localStorage.removeItem('saved_cards');
+      localStorage.removeItem(cardsKey);
       return;
     }
 
@@ -452,10 +500,7 @@ export function saveUserCards(cards: StoredCard[]): void {
       import('./cryptoVault')
         .then(({ encryptCardsVault }) => encryptCardsVault(normalizedCards, activeKey || activePin!))
         .then((envelope) => {
-          const encryptedPayload = JSON.stringify(envelope);
-          localStorage.setItem(STORAGE_KEY, encryptedPayload);
-          localStorage.setItem(FALLBACK_STORAGE_KEY, encryptedPayload);
-          localStorage.setItem('saved_cards', encryptedPayload);
+          localStorage.setItem(cardsKey, JSON.stringify(envelope));
         })
         .catch((err) => {
           console.warn('Background encryption save notice:', err);
@@ -463,11 +508,8 @@ export function saveUserCards(cards: StoredCard[]): void {
       return;
     }
 
-    // Default unencrypted write when PIN protection is disabled
-    const plainJson = JSON.stringify(normalizedCards);
-    localStorage.setItem(STORAGE_KEY, plainJson);
-    localStorage.setItem(FALLBACK_STORAGE_KEY, plainJson);
-    localStorage.setItem('saved_cards', plainJson);
+    // Default unencrypted write when PIN protection is disabled for this account
+    localStorage.setItem(cardsKey, JSON.stringify(normalizedCards));
   } catch (e) {
     console.warn('Notice saving cards to storage', e);
   }
@@ -476,50 +518,69 @@ export function saveUserCards(cards: StoredCard[]): void {
 export const saveStoredCards = saveUserCards;
 
 /**
- * Re-encrypts all current cards when a new PIN is created or changed
+ * Re-encrypts all current cards when a new PIN is created or changed for the active account.
  */
-export async function reEncryptCardsOnPinChange(pin: string): Promise<void> {
-  const currentCards = memoryDecryptedCards || loadUserCards();
+export async function reEncryptCardsOnPinChange(
+  pin: string,
+  accountId?: string | null
+): Promise<void> {
+  const resolvedId = resolveAccountId(accountId);
+  if (!resolvedId) return;
+  const cardsKey = getAccountCardsKey(resolvedId);
+  if (!cardsKey) return;
+
+  const currentCards =
+    memoryDecryptedCards !== null && memoryDecryptedAccountId === resolvedId
+      ? memoryDecryptedCards
+      : loadUserCards(resolvedId);
   if (!currentCards || currentCards.length === 0) return;
 
   try {
     const { encryptCardsVault } = await import('./cryptoVault');
     const envelope = await encryptCardsVault(currentCards, pin);
-    const payload = JSON.stringify(envelope);
-    localStorage.setItem(STORAGE_KEY, payload);
-    localStorage.setItem(FALLBACK_STORAGE_KEY, payload);
-    localStorage.setItem('saved_cards', payload);
+    localStorage.setItem(cardsKey, JSON.stringify(envelope));
   } catch (err) {
     console.warn('Notice re-encrypting cards on PIN change:', err);
   }
 }
 
 /**
- * Re-saves cards in plain text format when PIN lock is completely removed
+ * Re-saves cards in plain text format when PIN lock is completely removed for the active account.
  */
-export function reSaveUnencryptedCards(): void {
-  const currentCards = memoryDecryptedCards || loadUserCards();
+export function reSaveUnencryptedCards(accountId?: string | null): void {
+  const resolvedId = resolveAccountId(accountId);
+  if (!resolvedId) return;
+  const cardsKey = getAccountCardsKey(resolvedId);
+  if (!cardsKey) return;
+
+  const currentCards =
+    memoryDecryptedCards !== null && memoryDecryptedAccountId === resolvedId
+      ? memoryDecryptedCards
+      : loadUserCards(resolvedId);
   if (!currentCards || currentCards.length === 0) return;
 
-  const plainJson = JSON.stringify(currentCards);
-  localStorage.setItem(STORAGE_KEY, plainJson);
-  localStorage.setItem(FALLBACK_STORAGE_KEY, plainJson);
-  localStorage.setItem('saved_cards', plainJson);
+  localStorage.setItem(cardsKey, JSON.stringify(currentCards));
 }
 
 /**
- * Completely clears all local data stored by GOGUMA CARD STUDIO:
- * user cards, encrypted vault tokens, PIN hashes, biometric keys, sync IDs, and lazy preferences.
+ * Completely clears all local data stored by eerum (all accounts, legacy single-vault keys, sessionStorage, and folder handles).
  */
 export function clearAllLocalData(): void {
   if (typeof window === 'undefined') return;
   try {
-    memoryDecryptedCards = null;
-    clearActiveSessionKey();
+    const accounts = readStoredAccountsList();
+    clearMemoryDecryptedCards();
+    setActiveAccountSessionId(null);
 
+    for (const account of accounts) {
+      clearAllAccountScopedStorage(account.id);
+    }
+
+    localStorage.removeItem(LOCAL_ACCOUNTS_KEY);
+    localStorage.removeItem(LEGACY_MIGRATED_FLAG_KEY);
     localStorage.removeItem('my_cards');
-    localStorage.removeItem(FALLBACK_STORAGE_KEY);
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    localStorage.removeItem('user_cards');
+    localStorage.removeItem('koreancenter_stored_cards_v2');
     localStorage.removeItem('saved_cards');
     localStorage.removeItem('app_pin_hash');
     localStorage.removeItem('app_pin_vault_token');
@@ -533,10 +594,19 @@ export function clearAllLocalData(): void {
     localStorage.removeItem('vault_categories_v1');
     localStorage.removeItem('eerum_first_launch_done');
     localStorage.removeItem('eerum_last_backup_at');
+    localStorage.removeItem('eerum_last_folder_backup_at');
     localStorage.removeItem('eerum_backup_nudge_dismissed_at');
     localStorage.removeItem('eerum_vault_sort_by');
     localStorage.removeItem('eerum_vault_view_scope');
+    clearCardThemePreferences();
     sessionStorage.clear();
+    void import('./localFolderBackup')
+      .then(async ({ removeDirectoryHandleForAccount }) => {
+        for (const account of accounts) {
+          await removeDirectoryHandleForAccount(account.id);
+        }
+      })
+      .catch(() => {});
   } catch (e) {
     console.warn('Notice resetting local data', e);
   }

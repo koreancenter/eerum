@@ -1,4 +1,5 @@
 import { StoredCard } from '../types/card';
+import { getAccountBioVaultKey } from './accountStorage';
 import {
   type EncryptedEnvelope,
   isEncryptedEnvelope,
@@ -19,7 +20,6 @@ export {
 
 const PBKDF2_ITERATIONS = 100000;
 const VAULT_VERIFY_PAYLOAD = 'GOGUMA_CARD_VAULT_INTEGRITY_CHECK_TOKEN_v1';
-const BIOMETRIC_VAULT_STORAGE_KEY = 'app_biometric_vault_token';
 
 // Helpers for Base64 and ArrayBuffer conversion
 export function bufferToBase64(buf: ArrayBuffer | Uint8Array): string {
@@ -153,7 +153,11 @@ export async function createPinVerificationToken(pin: string): Promise<string> {
 /**
  * Verifies if entered PIN can decrypt the stored integrity verification token.
  */
-export async function verifyPinWithToken(enteredPin: string, tokenString: string): Promise<{ valid: boolean; key?: CryptoKey }> {
+export async function verifyPinWithToken(
+  enteredPin: string,
+  tokenString: string,
+  options?: { activateSession?: boolean }
+): Promise<{ valid: boolean; key?: CryptoKey }> {
   try {
     const envelope = JSON.parse(tokenString) as EncryptedEnvelope;
     if (!isEncryptedEnvelope(envelope)) return { valid: false };
@@ -163,7 +167,9 @@ export async function verifyPinWithToken(enteredPin: string, tokenString: string
     const decrypted = await decryptTextWithKey(envelope, key);
 
     if (decrypted === VAULT_VERIFY_PAYLOAD) {
-      setActiveSessionKey(key, enteredPin);
+      if (options?.activateSession !== false) {
+        setActiveSessionKey(key, enteredPin);
+      }
       return { valid: true, key };
     }
     return { valid: false };
@@ -202,8 +208,14 @@ export async function decryptCardsVault(envelope: EncryptedEnvelope, keyOrPin: C
  * Derives a device-bound biometric wrapping key to securely unlock the cards vault
  * upon successful WebAuthn / Enclave biometric verification.
  */
-export async function linkBiometricsToVault(pin: string, credentialId: string): Promise<void> {
+export async function linkBiometricsToVault(
+  pin: string,
+  credentialId: string,
+  accountId?: string | null
+): Promise<void> {
   if (typeof window === 'undefined' || !credentialId) return;
+  const storageKey = getAccountBioVaultKey(accountId);
+  if (!storageKey) return;
   try {
     const salt = new Uint8Array(16);
     crypto.getRandomValues(salt);
@@ -239,7 +251,7 @@ export async function linkBiometricsToVault(pin: string, credentialId: string): 
       wrapped: bufferToBase64(wrappedKeyBuffer),
     };
 
-    localStorage.setItem(BIOMETRIC_VAULT_STORAGE_KEY, JSON.stringify(vaultToken));
+    localStorage.setItem(storageKey, JSON.stringify(vaultToken));
   } catch (err) {
     console.warn('Biometric vault link notice:', err);
   }
@@ -248,10 +260,15 @@ export async function linkBiometricsToVault(pin: string, credentialId: string): 
 /**
  * Unwraps the vault encryption key upon successful biometric authentication
  */
-export async function unlockVaultWithBiometrics(credentialId: string): Promise<CryptoKey | null> {
+export async function unlockVaultWithBiometrics(
+  credentialId: string,
+  accountId?: string | null
+): Promise<CryptoKey | null> {
   if (typeof window === 'undefined' || !credentialId) return null;
+  const storageKey = getAccountBioVaultKey(accountId);
+  if (!storageKey) return null;
   try {
-    const rawToken = localStorage.getItem(BIOMETRIC_VAULT_STORAGE_KEY);
+    const rawToken = localStorage.getItem(storageKey);
     if (!rawToken) return null;
     const token = JSON.parse(rawToken);
 
@@ -291,7 +308,24 @@ export async function unlockVaultWithBiometrics(credentialId: string): Promise<C
   }
 }
 
-export function clearBiometricVault(): void {
+export function getBiometricVaultSalt(accountId?: string | null): Uint8Array<ArrayBuffer> | null {
+  if (typeof window === 'undefined') return null;
+  const storageKey = getAccountBioVaultKey(accountId);
+  if (!storageKey) return null;
+  try {
+    const rawToken = localStorage.getItem(storageKey);
+    if (!rawToken) return null;
+    const token = JSON.parse(rawToken) as { salt?: unknown };
+    if (typeof token?.salt !== 'string' || !token.salt) return null;
+    return base64ToBuffer(token.salt);
+  } catch {
+    return null;
+  }
+}
+
+export function clearBiometricVault(accountId?: string | null): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem(BIOMETRIC_VAULT_STORAGE_KEY);
+  const storageKey = getAccountBioVaultKey(accountId);
+  if (!storageKey) return;
+  localStorage.removeItem(storageKey);
 }

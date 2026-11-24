@@ -1,4 +1,5 @@
 import { StoredCard } from '../types/card';
+import { getAccountCategoriesKey } from './accountStorage';
 
 export const DEFAULT_VAULT_CATEGORIES = [
   'VIP 파트너',
@@ -9,7 +10,6 @@ export const DEFAULT_VAULT_CATEGORIES = [
 ] as const;
 
 export const FALLBACK_CATEGORY = '기타';
-const CATEGORIES_STORAGE_KEY = 'vault_categories_v1';
 export const CATEGORIES_UPDATED_EVENT = 'vault-categories-updated';
 
 function sanitizeCategoryList(rawList: string[]): string[] {
@@ -41,12 +41,13 @@ function notifyCategoriesUpdated(): void {
 /**
  * Loads user-configured categories merged with defaults (if uninitialized) and any categories present on stored cards.
  */
-export function loadVaultCategories(cards?: StoredCard[]): string[] {
+export function loadVaultCategories(cards?: StoredCard[], accountId?: string | null): string[] {
   let baseList: string[] = [...DEFAULT_VAULT_CATEGORIES];
+  const storageKey = getAccountCategoriesKey(accountId);
 
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && storageKey) {
     try {
-      const raw = localStorage.getItem(CATEGORIES_STORAGE_KEY);
+      const raw = localStorage.getItem(storageKey);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -85,11 +86,12 @@ export function loadVaultCategories(cards?: StoredCard[]): string[] {
   return baseList;
 }
 
-export function saveVaultCategories(categories: string[]): string[] {
+export function saveVaultCategories(categories: string[], accountId?: string | null): string[] {
   const cleaned = sanitizeCategoryList(categories);
-  if (typeof window !== 'undefined') {
+  const storageKey = getAccountCategoriesKey(accountId);
+  if (typeof window !== 'undefined' && storageKey) {
     try {
-      localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(cleaned));
+      localStorage.setItem(storageKey, JSON.stringify(cleaned));
       notifyCategoriesUpdated();
     } catch (e) {
       console.warn('Notice saving vault categories', e);
@@ -299,10 +301,12 @@ export function resetVaultCategories(): string[] {
   return saveVaultCategories(defaults);
 }
 
-export function clearStoredCategories(): void {
+export function clearStoredCategories(accountId?: string | null): void {
   if (typeof window === 'undefined') return;
+  const storageKey = getAccountCategoriesKey(accountId);
+  if (!storageKey) return;
   try {
-    localStorage.removeItem(CATEGORIES_STORAGE_KEY);
+    localStorage.removeItem(storageKey);
     notifyCategoriesUpdated();
   } catch {
     // Ignore storage cleanup errors

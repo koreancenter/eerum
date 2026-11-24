@@ -117,43 +117,53 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
     <div className="space-y-4 sm:space-y-6 lg:space-y-8 animate-in fade-in duration-150">
       {/* Code Editor Section */}
       <section className="space-y-2.5 sm:space-y-3.5">
-        <div className="flex flex-row items-center justify-between gap-2 whitespace-nowrap">
-          {/* 2-Segment Face Toggle Switch */}
+        <div className="flex flex-row items-center justify-between gap-2 whitespace-nowrap border-b border-[var(--editor-divider)] pb-0.5">
+          {/* Flat Underline Face Toggle Switch (Zero Box-in-Box) */}
           <div
-            className="inline-flex items-center p-0.5 rounded-lg bg-[var(--editor-segment-track)] border border-[var(--editor-control-border)] shrink-0"
-            role="group"
+            className="inline-flex items-center gap-4 shrink-0"
+            role="tablist"
             aria-label="명함 면 선택"
           >
             <button
               type="button"
+              role="tab"
+              aria-selected={activeFace === 'front'}
               onClick={() => onChangeActiveFace('front')}
-              className={`px-2.5 py-1 rounded-md text-xs tracking-wide transition-all whitespace-nowrap cursor-pointer ${
+              className={`relative pb-2 text-xs tracking-wide transition-colors whitespace-nowrap cursor-pointer focus-visible:outline-none ${
                 activeFace === 'front'
-                  ? 'bg-[var(--app-surface)] text-[var(--editor-text)] font-semibold shadow-sm ring-1 ring-[var(--editor-control-border)]'
+                  ? 'text-[var(--editor-text)] font-semibold'
                   : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
               }`}
               title="앞면 코드 편집 (Front)"
               aria-label="앞면 코드 편집"
             >
               Front
+              {activeFace === 'front' && (
+                <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
+              )}
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={activeFace === 'back'}
               onClick={() => onChangeActiveFace('back')}
-              className={`px-2.5 py-1 rounded-md text-xs tracking-wide transition-all whitespace-nowrap cursor-pointer ${
+              className={`relative pb-2 text-xs tracking-wide transition-colors whitespace-nowrap cursor-pointer focus-visible:outline-none ${
                 activeFace === 'back'
-                  ? 'bg-[var(--app-surface)] text-[var(--editor-text)] font-semibold shadow-sm ring-1 ring-[var(--editor-control-border)]'
+                  ? 'text-[var(--editor-text)] font-semibold'
                   : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
               }`}
               title="뒷면 코드 편집 (Back)"
               aria-label="뒷면 코드 편집"
             >
               Back
+              {activeFace === 'back' && (
+                <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
+              )}
             </button>
           </div>
 
           {/* Compact Icon Actions */}
-          <div className="flex flex-row items-center gap-1.5 shrink-0 whitespace-nowrap">
+          <div className="mb-1 flex flex-row items-center gap-1.5 shrink-0 whitespace-nowrap">
             <button
               type="button"
               onClick={handleCopyPrompt}

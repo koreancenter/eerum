@@ -3,7 +3,7 @@ import { CARD_DATA } from './masterCardData.ts';
 
 export { CARD_DATA };
 
-export const INITIAL_CARDS: StoredCard[] = [
+export const SAMPLE_MY_CARDS: StoredCard[] = [
   {
     id: 'sample-card-goguma-master',
     isMyCard: true,
@@ -28,6 +28,53 @@ export const INITIAL_CARDS: StoredCard[] = [
       websiteDisplay: 'eerum.goguma.app/master',
     },
   },
+  {
+    id: 'sample-card-studio-creative',
+    isMyCard: true,
+    isDefault: false,
+    slug: 'studio-sample',
+    owner_key: 'owner_studio_sample',
+    customDomain: 'eerum.goguma.app/studio-sample',
+    category: 'IT·기술',
+    theme: 'sumi_ink',
+    layout_type: 'swiss_typo_bold',
+    card_features: {
+      show_en_name: true,
+      show_sub_org: true,
+      show_address: false,
+      monogram_text: 'KH',
+    },
+    createdAt: '2026-03-10',
+    notes: '대외 컨퍼런스 · 세미나용 보조 샘플 명함',
+    data: {
+      organization: 'EERUM DESIGN LAB',
+      organizationKr: '이름 디자인 연구소',
+      subOrg: 'Brand & Digital Identity',
+      name: '김하늘',
+      nameEn: 'Haneul Kim',
+      nameKr: '김하늘',
+      title: 'Principal Product Architect',
+      titleKr: '수석 프로덕트 아키텍트',
+      phone: '+82 10-7741-2090',
+      phoneRaw: '+821077412090',
+      whatsappUrl: 'https://wa.me/821077412090',
+      email: 'haneul@eerum.studio',
+      website: 'https://eerum.goguma.app/studio-sample',
+      websiteDisplay: 'eerum.goguma.app/studio-sample',
+      addressLines: ['서울특별시 성동구 연무장길 42'],
+      addressKr: '서울특별시 성동구 연무장길 42',
+      address_en: '42 Yeonmujang-gil, Seongdong-gu, Seoul',
+      addressEn: '42 Yeonmujang-gil, Seongdong-gu, Seoul',
+      backTitle: 'EERUM',
+      backSubtitle: 'PRIVATE CARD STUDIO',
+      backTagline: '소유하는 디지털 명함의 기준',
+      googleMapsUrl: 'https://maps.google.com/?q=Seongsu-dong+Seoul',
+      naverMapsUrl: 'https://map.naver.com',
+    },
+  },
+];
+
+export const SAMPLE_VAULT_CARDS: StoredCard[] = [
   {
     id: 'sample-card-elena-rostova',
     isMyCard: false,
@@ -170,4 +217,47 @@ export const INITIAL_CARDS: StoredCard[] = [
       naverMapsUrl: 'https://map.naver.com',
     },
   },
+  {
+    id: 'card-park-jihoon',
+    isMyCard: false,
+    slug: 'jihoon-park',
+    category: 'IT·기술',
+    theme: 'slate',
+    layout_type: 'editorial_minimal',
+    card_features: {
+      show_en_name: true,
+      show_sub_org: true,
+      show_address: true,
+      monogram_text: 'JP',
+    },
+    createdAt: '2026-03-29',
+    metAt: '2026-03-28',
+    metLocation: '판교 테크노밸리 R&D 포럼',
+    notes: '로보틱스 · 온디바이스 보안 아키텍처 기술 교류',
+    data: {
+      organization: 'Aether Robotics Inc.',
+      organizationKr: '에이서 로보틱스',
+      subOrg: 'On-Device Security Lab',
+      name: '박지훈',
+      nameEn: 'Jihoon Park',
+      nameKr: '박지훈',
+      title: 'Chief Technology Officer',
+      titleKr: '최고기술책임자 (CTO)',
+      phone: '+82 10-5192-4800',
+      phoneRaw: '+821051924800',
+      whatsappUrl: 'https://wa.me/821051924800',
+      email: 'jh.park@aetherrobotics.kr',
+      website: 'https://aetherrobotics.kr',
+      websiteDisplay: 'aetherrobotics.kr',
+      addressLines: ['경기도 성남시 분당구 판교역로 235', '에이치스퀘어 N동 8층'],
+      addressKr: '경기도 성남시 분당구 판교역로 235 에이치스퀘어 N동 8층',
+      googleMapsUrl: 'https://maps.google.com/?q=Pangyo+Techno+Valley',
+      naverMapsUrl: 'https://map.naver.com',
+    },
+  },
+];
+
+export const INITIAL_CARDS: StoredCard[] = [
+  ...SAMPLE_MY_CARDS,
+  ...SAMPLE_VAULT_CARDS,
 ];

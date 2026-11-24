@@ -2,9 +2,15 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { StoredCard, CardOrientation } from '../types/card';
 import { isVerticalLayout } from '../constants/templates';
 import { getCardShareUrl } from '../utils/cardSerializer';
-import { shareOrCopyLink } from '../utils/share';
 import { CardContainer } from './CardContainer';
 import { ActionButtons } from './ActionButtons';
+import {
+  CARD_THEME_MAP_STORAGE_KEY,
+  CARD_THEME_MAP_UPDATED_EVENT,
+  loadCardThemeMap,
+  resolveCardWithStoredTheme,
+  type CardThemeMap,
+} from '../utils/cardThemeStorage';
 import { 
   Plus, 
   ChevronLeft, 
@@ -14,7 +20,6 @@ import {
   Check,
   QrCode,
   Nfc,
-  Share2,
   Link2,
   Edit3,
   Printer,
@@ -84,11 +89,29 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
     };
   }, []);
   
+  const [themeMap, setThemeMap] = useState<CardThemeMap>(() => loadCardThemeMap());
+
+  useEffect(() => {
+    const syncMap = () => setThemeMap(loadCardThemeMap());
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === null || e.key === CARD_THEME_MAP_STORAGE_KEY) {
+        syncMap();
+      }
+    };
+    window.addEventListener(CARD_THEME_MAP_UPDATED_EVENT, syncMap);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener(CARD_THEME_MAP_UPDATED_EVENT, syncMap);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
   // Strictly partition navigator slides based on variant ('my-cards' vs 'vault')
-  const displayCards = useMemo(
-    () => (isVaultVariant ? cards.filter((c) => !c.isMyCard) : cards.filter((c) => c.isMyCard)),
-    [cards, isVaultVariant]
-  );
+  // and automatically apply each card's last saved theme from localStorage
+  const displayCards = useMemo(() => {
+    const filtered = isVaultVariant ? cards.filter((c) => !c.isMyCard) : cards.filter((c) => c.isMyCard);
+    return filtered.map((card) => resolveCardWithStoredTheme(card, themeMap));
+  }, [cards, isVaultVariant, themeMap]);
 
   // Total slides = cards + 1 ghost card in 'my-cards' mode (vault mode has no ghost card)
   const totalSlides = isVaultVariant ? displayCards.length : displayCards.length + 1;
@@ -657,31 +680,6 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
             aria-label="NFC 전송"
           >
             <Nfc className="w-4 h-4 stroke-[1.75]" />
-          </button>
-
-          <button
-            type="button"
-            onClick={async () => {
-              triggerTactileHaptic(6);
-              const targetUrl = getCardShareUrl(activeCard);
-              const displayName = activeCard.data.name || activeCard.data.nameKr;
-              const displayOrg = activeCard.data.organizationKr || activeCard.data.organization;
-              const displayTitle = activeCard.data.titleKr || activeCard.data.title;
-              await shareOrCopyLink({
-                title: displayOrg ? `${displayName} — ${displayOrg}` : displayName,
-                text: [displayOrg, displayTitle, displayName, '디지털 명함']
-                  .filter(Boolean)
-                  .join(' '),
-                url: targetUrl,
-                onCopied: () => onShowToast?.('명함 링크가 클립보드에 복사되었습니다.'),
-                onCopyError: () => onShowToast?.('명함 공유에 실패했습니다.'),
-              });
-            }}
-            className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title="공유하기"
-            aria-label="공유하기"
-          >
-            <Share2 className="w-4 h-4 stroke-[1.75]" />
           </button>
 
           <button

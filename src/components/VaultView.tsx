@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   Download,
   UserPlus,
+  Camera,
 } from 'lucide-react';
 
 import { PhotoArchiveModal } from './PhotoArchiveModal';
@@ -29,6 +30,7 @@ import { CategoryManagementPanel } from './CategoryManagementPanel';
 import { DuplicateMergeModal } from './DuplicateMergeModal';
 import {
   CATEGORIES_UPDATED_EVENT,
+  DEFAULT_VAULT_CATEGORIES,
   loadVaultCategories,
   addVaultCategory,
   renameVaultCategory,
@@ -36,6 +38,7 @@ import {
   deleteVaultCategory,
   resetVaultCategories,
 } from '../utils/categories';
+import { getAccountVaultSortKey } from '../utils/accountStorage';
 import { matchesAnySearchField } from '../utils/koreanSearch';
 import { detectDuplicateVaultGroups } from '../utils/duplicateDetector';
 import {
@@ -84,6 +87,8 @@ interface VaultViewProps {
   onShowToast?: (msg: string) => void;
   totalSavedCardsCount?: number;
   onOpenBackup?: (tab?: 'export' | 'restore') => void;
+  isSampleMode?: boolean;
+  onRequestCreateAccount?: () => void;
 }
 
 export const VaultView: React.FC<VaultViewProps> = ({
@@ -94,6 +99,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
   onExportCard,
   onRecordInteraction,
   onOpenScan,
+  onOpenEditor,
   onOpenImportContacts,
   isLocked = false,
   onUnlockRequest,
@@ -104,22 +110,28 @@ export const VaultView: React.FC<VaultViewProps> = ({
   onShowToast,
   totalSavedCardsCount,
   onOpenBackup,
+  isSampleMode = false,
+  onRequestCreateAccount,
 }) => {
   // Defensive filter: strictly isolate Vault cards from personal cards (`isMyCard: true` belongs exclusively to '내 명함')
   const cards = useMemo(() => rawCards.filter((c) => !c.isMyCard), [rawCards]);
   const cardsRef = useRef<StoredCard[]>(cards);
   cardsRef.current = cards;
 
-  // Non-intrusive Backup Safety Nudge state (shows when >= 3 cards and never backed up or > 30 days)
+  // Non-intrusive Backup Safety Nudge state (disabled in Sample Mode)
   const effectiveTotalCardsCount = totalSavedCardsCount ?? cards.length;
   const [showBackupNudge, setShowBackupNudge] = useState<boolean>(() =>
-    shouldShowBackupNudge(effectiveTotalCardsCount)
+    isSampleMode ? false : shouldShowBackupNudge(effectiveTotalCardsCount)
   );
   const [lastBackupTimestamp, setLastBackupTimestamp] = useState<number | null>(() =>
-    getLastBackupAt()
+    isSampleMode ? null : getLastBackupAt()
   );
 
   useEffect(() => {
+    if (isSampleMode) {
+      setShowBackupNudge(false);
+      return;
+    }
     const syncBackupNudge = () => {
       setLastBackupTimestamp(getLastBackupAt());
       setShowBackupNudge(shouldShowBackupNudge(effectiveTotalCardsCount));
@@ -127,25 +139,39 @@ export const VaultView: React.FC<VaultViewProps> = ({
     syncBackupNudge();
     window.addEventListener(BACKUP_UPDATED_EVENT, syncBackupNudge);
     return () => window.removeEventListener(BACKUP_UPDATED_EVENT, syncBackupNudge);
-  }, [effectiveTotalCardsCount]);
+  }, [effectiveTotalCardsCount, isSampleMode]);
 
   // Duplicate contact detection (Vault-only, normalized phone/email)
-  const duplicateGroups = useMemo(() => detectDuplicateVaultGroups(cards), [cards]);
+  const duplicateGroups = useMemo(
+    () => (isSampleMode ? [] : detectDuplicateVaultGroups(cards)),
+    [cards, isSampleMode]
+  );
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState<boolean>(false);
 
-  // Dynamic categories persisted in localStorage
+  const buildSampleCategories = useCallback((sourceCards: StoredCard[]) => {
+    const merged = new Set<string>(DEFAULT_VAULT_CATEGORIES);
+    for (const c of sourceCards) {
+      if (c.category && c.category.trim()) {
+        merged.add(c.category.trim());
+      }
+    }
+    return Array.from(merged);
+  }, []);
+
+  // Dynamic categories persisted per account (purely in-memory in sample mode)
   const [categories, setCategories] = useState<string[]>(() =>
-    loadVaultCategories(cards)
+    isSampleMode ? buildSampleCategories(cards) : loadVaultCategories(cards)
   );
   const [selectedCategory, setSelectedCategory] = useState<string>('전체');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   const [photoArchiveCardId, setPhotoArchiveCardId] = useState<string | null>(null);
 
-  // Sorting state persisted in localStorage (defaults to automated 'smart' ranking)
+  // Sorting state persisted per account (defaults to automated 'smart' ranking; ephemeral in sample mode)
   const [sortBy, setSortBy] = useState<VaultSortOption>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('eerum_vault_sort_by');
+    if (typeof window !== 'undefined' && !isSampleMode) {
+      const sortKey = getAccountVaultSortKey();
+      const saved = sortKey ? localStorage.getItem(sortKey) : null;
       if (
         saved === 'smart' ||
         saved === 'frequency' ||
@@ -163,10 +189,13 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('eerum_vault_sort_by', sortBy);
+    if (typeof window !== 'undefined' && !isSampleMode) {
+      const sortKey = getAccountVaultSortKey();
+      if (sortKey) {
+        localStorage.setItem(sortKey, sortBy);
+      }
     }
-  }, [sortBy]);
+  }, [sortBy, isSampleMode]);
 
   // Outside click and Escape handler for Sort Dropdown
   useEffect(() => {
@@ -212,15 +241,19 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const [isCategoryPanelOpen, setIsCategoryPanelOpen] = useState<boolean>(false);
   const [focusAddInPanel, setFocusAddInPanel] = useState<boolean>(false);
 
-  // Sync dynamic categories from storage and card changes
+  // Sync dynamic categories from storage and card changes (ephemeral in sample mode)
   useEffect(() => {
+    if (isSampleMode) {
+      setCategories(buildSampleCategories(cardsRef.current));
+      return;
+    }
     const syncCategories = () => {
       setCategories(loadVaultCategories(cardsRef.current));
     };
     syncCategories();
     window.addEventListener(CATEGORIES_UPDATED_EVENT, syncCategories);
     return () => window.removeEventListener(CATEGORIES_UPDATED_EVENT, syncCategories);
-  }, [cards]);
+  }, [cards, isSampleMode, buildSampleCategories]);
 
   // Ensure selectedCategory falls back to '전체' if removed externally
   useEffect(() => {
@@ -490,6 +523,11 @@ export const VaultView: React.FC<VaultViewProps> = ({
 
   // Inline `+` Pill Add Category Handlers
   const handleStartInlineAdd = useCallback(() => {
+    if (isSampleMode) {
+      triggerToast('샘플 모드에서는 카테고리를 추가할 수 없습니다. 로컬 계정을 만들어 보세요.');
+      onRequestCreateAccount?.();
+      return;
+    }
     setInlineAddError(null);
     setInlineCategoryName('');
     setIsInlineAdding(true);
@@ -502,7 +540,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
       }
       inlineInputRef.current?.focus();
     }, 40);
-  }, []);
+  }, [isSampleMode, onRequestCreateAccount, triggerToast]);
 
   const handleCancelInlineAdd = useCallback(() => {
     setIsInlineAdding(false);
@@ -513,6 +551,11 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const handleCommitInlineAdd = useCallback(
     (e?: React.FormEvent) => {
       if (e) e.preventDefault();
+      if (isSampleMode) {
+        setIsInlineAdding(false);
+        onRequestCreateAccount?.();
+        return;
+      }
       const res = addVaultCategory(inlineCategoryName, cardsRef.current);
       if (!res.ok || !res.added) {
         setInlineAddError(res.error || '카테고리를 추가할 수 없습니다.');
@@ -524,16 +567,24 @@ export const VaultView: React.FC<VaultViewProps> = ({
       setInlineCategoryName('');
       setInlineAddError(null);
     },
-    [inlineCategoryName]
+    [inlineCategoryName, isSampleMode, onRequestCreateAccount]
   );
 
   // Category Management Panel Callbacks
-  const openCategoryPanel = useCallback((focusAdd = false) => {
-    setIsInlineAdding(false);
-    setInlineAddError(null);
-    setFocusAddInPanel(focusAdd);
-    setIsCategoryPanelOpen(true);
-  }, []);
+  const openCategoryPanel = useCallback(
+    (focusAdd = false) => {
+      if (isSampleMode) {
+        triggerToast('샘플 모드에서는 카테고리를 편집할 수 없습니다. 로컬 계정을 만들어 보세요.');
+        onRequestCreateAccount?.();
+        return;
+      }
+      setIsInlineAdding(false);
+      setInlineAddError(null);
+      setFocusAddInPanel(focusAdd);
+      setIsCategoryPanelOpen(true);
+    },
+    [isSampleMode, onRequestCreateAccount, triggerToast]
+  );
 
   const closeCategoryPanel = useCallback(() => {
     setIsCategoryPanelOpen(false);
@@ -542,6 +593,9 @@ export const VaultView: React.FC<VaultViewProps> = ({
 
   const handlePanelAddCategory = useCallback(
     (rawName: string) => {
+      if (isSampleMode) {
+        return { ok: false, categories, error: '샘플 모드에서는 수정할 수 없습니다.' };
+      }
       const res = addVaultCategory(rawName, cardsRef.current);
       if (res.ok && res.added) {
         setCategories(res.categories);
@@ -549,11 +603,14 @@ export const VaultView: React.FC<VaultViewProps> = ({
       }
       return res;
     },
-    []
+    [isSampleMode, categories]
   );
 
   const handlePanelRenameCategory = useCallback(
     (oldName: string, newName: string) => {
+      if (isSampleMode) {
+        return { ok: false, categories, error: '샘플 모드에서는 수정할 수 없습니다.' };
+      }
       const snapshot = cardsRef.current;
       const trimmed = newName.trim();
       const preCheck = renameVaultCategory(oldName, trimmed, snapshot);
@@ -573,11 +630,14 @@ export const VaultView: React.FC<VaultViewProps> = ({
       onRenameCategory?.(oldName, renamed);
       return preCheck;
     },
-    [selectedCategory, onRenameCategory]
+    [selectedCategory, onRenameCategory, isSampleMode, categories]
   );
 
   const handlePanelMergeCategories = useCallback(
     (sourceCategory: string, targetCategory: string) => {
+      if (isSampleMode) {
+        return { ok: false, categories, movedCount: 0, error: '샘플 모드에서는 수정할 수 없습니다.' };
+      }
       const snapshot = cardsRef.current;
       const res = mergeVaultCategories(sourceCategory, targetCategory, snapshot);
       if (!res.ok || !res.target) {
@@ -596,11 +656,14 @@ export const VaultView: React.FC<VaultViewProps> = ({
       onMergeCategories?.(sourceCategory, resolvedTarget);
       return res;
     },
-    [selectedCategory, onMergeCategories]
+    [selectedCategory, onMergeCategories, isSampleMode, categories]
   );
 
   const handlePanelDeleteCategory = useCallback(
     (targetCategory: string) => {
+      if (isSampleMode) {
+        return { ok: false, categories, movedCount: 0, fallback: '기타', error: '샘플 모드에서는 수정할 수 없습니다.' };
+      }
       const snapshot = cardsRef.current;
       const res = deleteVaultCategory(targetCategory, snapshot);
       if (!res.ok) {
@@ -618,13 +681,14 @@ export const VaultView: React.FC<VaultViewProps> = ({
       onDeleteCategory?.(targetCategory, res.fallback);
       return res;
     },
-    [selectedCategory, onDeleteCategory]
+    [selectedCategory, onDeleteCategory, isSampleMode, categories]
   );
 
   const handlePanelResetCategories = useCallback(() => {
+    if (isSampleMode) return;
     resetVaultCategories();
     setCategories(loadVaultCategories(cardsRef.current));
-  }, []);
+  }, [isSampleMode]);
 
   if (isLocked) {
     return (
@@ -645,6 +709,80 @@ export const VaultView: React.FC<VaultViewProps> = ({
           <span>보안 PIN 입력하여 잠금 해제</span>
         </button>
       </div>
+    );
+  }
+
+  if (cards.length === 0 && !isSampleMode) {
+    return (
+      <section
+        aria-label="명함 보관함 시작하기"
+        className="w-full max-w-4xl mx-auto py-8 sm:py-14 px-1 flex flex-col items-center animate-in fade-in duration-300"
+      >
+        <div className="text-center max-w-md px-2">
+          <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[var(--app-text)]">
+            명함 보관함 채우기
+          </h2>
+          <p className="text-xs text-[var(--app-text-muted)] mt-1.5 leading-relaxed">
+            기존 연락처나 실물 명함을 추가해 나만의 보관함을 시작해 보세요.
+          </p>
+        </div>
+
+        <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-6 sm:mt-8">
+          <button
+            type="button"
+            onClick={() => onOpenImportContacts?.()}
+            className="group text-left p-5 sm:p-6 rounded-2xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] hover:border-[var(--app-text-muted)]/35 shadow-[var(--app-shadow)] transition-all duration-200 cursor-pointer active:scale-[0.99] flex flex-col items-start gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+          >
+            <span className="w-10 h-10 rounded-xl bg-[var(--app-accent)] text-[var(--app-accent-fg)] flex items-center justify-center shrink-0">
+              <UserPlus className="w-4.5 h-4.5 stroke-[1.75]" />
+            </span>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--app-text)] tracking-tight">
+                주소록에서 가져오기
+              </h3>
+              <p className="text-xs text-[var(--app-text-muted)] mt-1 leading-relaxed">
+                휴대폰 연락처 또는 .vcf 파일 일괄 등록
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenScan}
+            className="group text-left p-5 sm:p-6 rounded-2xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] hover:border-[var(--app-text-muted)]/35 shadow-[var(--app-shadow)] transition-all duration-200 cursor-pointer active:scale-[0.99] flex flex-col items-start gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+          >
+            <span className="w-10 h-10 rounded-xl bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] flex items-center justify-center shrink-0">
+              <Camera className="w-4.5 h-4.5 stroke-[1.75]" />
+            </span>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--app-text)] tracking-tight">
+                실물 명함 촬영·스캔
+              </h3>
+              <p className="text-xs text-[var(--app-text-muted)] mt-1 leading-relaxed">
+                종이 명함 사진에서 이름·연락처 자동 추출
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenEditor}
+            className="group text-left p-5 sm:p-6 rounded-2xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] hover:border-[var(--app-text-muted)]/35 shadow-[var(--app-shadow)] transition-all duration-200 cursor-pointer active:scale-[0.99] flex flex-col items-start gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+          >
+            <span className="w-10 h-10 rounded-xl bg-[var(--app-surface-subtle)] group-hover:bg-[var(--app-highlight)] text-[var(--app-text)] group-hover:text-[var(--app-highlight-fg)] border border-[var(--app-border)] group-hover:border-transparent flex items-center justify-center shrink-0 transition-colors">
+              <Plus className="w-4.5 h-4.5 stroke-[1.75]" />
+            </span>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--app-text)] tracking-tight">
+                직접 명함 입력
+              </h3>
+              <p className="text-xs text-[var(--app-text-muted)] mt-1 leading-relaxed">
+                새로운 비즈니스 연락처 직접 작성
+              </p>
+            </div>
+          </button>
+        </div>
+      </section>
     );
   }
 

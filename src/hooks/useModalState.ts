@@ -19,6 +19,7 @@ export interface ModalManager {
   isCreatingCard: boolean;
   editingCard: StoredCard | null;
   isSyncOpen: boolean;
+  p2pReceiveRoomId: string | null;
   isSettingsOpen: boolean;
   isPinConfigOpen: boolean;
   pinModalMode: PinModalMode;
@@ -33,6 +34,7 @@ export interface ModalManager {
   backupInitialTab: BackupModalTab;
   isAboutOpen: boolean;
   aboutInitialTab: AboutTab;
+  isCreateAccountOpen: boolean;
 
   // Settings dropdown ref
   settingsMenuRef: React.RefObject<HTMLDivElement | null>;
@@ -60,6 +62,8 @@ export interface ModalManager {
   closeEditor: () => void;
   openSync: () => void;
   closeSync: () => void;
+  openP2PReceive: (roomId: string) => void;
+  closeP2PReceive: () => void;
   toggleSettings: () => void;
   closeSettings: () => void;
   openPinConfig: (mode?: PinModalMode) => void;
@@ -76,6 +80,8 @@ export interface ModalManager {
   closeBackup: () => void;
   openAbout: (tab?: AboutTab) => void;
   closeAbout: () => void;
+  openCreateAccount: () => void;
+  closeCreateAccount: () => void;
   closeAll: () => void;
 }
 
@@ -97,6 +103,7 @@ export function useModalState(): ModalManager {
   const [isCreatingCard, setIsCreatingCard] = useState(false);
   const [editingCard, setEditingCard] = useState<StoredCard | null>(null);
   const [isSyncOpen, setIsSyncOpen] = useState(false);
+  const [p2pReceiveRoomId, setP2pReceiveRoomId] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPinConfigOpen, setIsPinConfigOpen] = useState(false);
   const [pinModalMode, setPinModalMode] = useState<PinModalMode>('setup');
@@ -111,6 +118,7 @@ export function useModalState(): ModalManager {
   const [backupInitialTab, setBackupInitialTab] = useState<BackupModalTab>('export');
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [aboutInitialTab, setAboutInitialTab] = useState<AboutTab>('philosophy');
+  const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false);
 
   const settingsMenuRef = useRef<HTMLDivElement | null>(null);
   const isShareOpenRef = useRef(false);
@@ -254,6 +262,8 @@ export function useModalState(): ModalManager {
 
   const openSync = useCallback(() => setIsSyncOpen(true), []);
   const closeSync = useCallback(() => setIsSyncOpen(false), []);
+  const openP2PReceive = useCallback((roomId: string) => setP2pReceiveRoomId(roomId), []);
+  const closeP2PReceive = useCallback(() => setP2pReceiveRoomId(null), []);
 
   const toggleSettings = useCallback(() => setIsSettingsOpen((prev) => !prev), []);
   const closeSettings = useCallback(() => setIsSettingsOpen(false), []);
@@ -291,6 +301,9 @@ export function useModalState(): ModalManager {
   }, []);
   const closeAbout = useCallback(() => setIsAboutOpen(false), []);
 
+  const openCreateAccount = useCallback(() => setIsCreateAccountOpen(true), []);
+  const closeCreateAccount = useCallback(() => setIsCreateAccountOpen(false), []);
+
   const closeAll = useCallback(() => {
     returnToShareRef.current = false;
     setIsFromShare(false);
@@ -305,6 +318,7 @@ export function useModalState(): ModalManager {
     setIsImportContactsOpen(false);
     setIsEditorOpen(false);
     setIsSyncOpen(false);
+    setP2pReceiveRoomId(null);
     setIsSettingsOpen(false);
     setIsPinConfigOpen(false);
     setIsBiometricsOpen(false);
@@ -313,6 +327,7 @@ export function useModalState(): ModalManager {
     setIsResetOpen(false);
     setIsBackupOpen(false);
     setIsAboutOpen(false);
+    setIsCreateAccountOpen(false);
     setEditingCard(null);
     setIsCreatingCard(false);
   }, []);
@@ -331,6 +346,7 @@ export function useModalState(): ModalManager {
     isCreatingCard,
     editingCard,
     isSyncOpen,
+    p2pReceiveRoomId,
     isSettingsOpen,
     isPinConfigOpen,
     pinModalMode,
@@ -344,6 +360,7 @@ export function useModalState(): ModalManager {
     backupInitialTab,
     isAboutOpen,
     aboutInitialTab,
+    isCreateAccountOpen,
     settingsMenuRef,
     openShare,
     closeShare,
@@ -367,6 +384,8 @@ export function useModalState(): ModalManager {
     closeEditor,
     openSync,
     closeSync,
+    openP2PReceive,
+    closeP2PReceive,
     toggleSettings,
     closeSettings,
     openPinConfig,
@@ -383,6 +402,8 @@ export function useModalState(): ModalManager {
     closeBackup,
     openAbout,
     closeAbout,
+    openCreateAccount,
+    closeCreateAccount,
     closeAll,
   };
 }
