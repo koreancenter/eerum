@@ -3,8 +3,10 @@ import { X, AlertCircle, Loader2 } from 'lucide-react';
 import {
   hasLegacySingleVaultData,
   isLegacyVaultPinProtected,
-  type CreateLocalAccountParams,
-  type LocalAccountActionResult,
+} from '../utils/legacyMigration';
+import type {
+  CreateLocalAccountParams,
+  LocalAccountActionResult,
 } from '../utils/localAccount';
 import { isBiometricSupported } from '../utils/biometrics';
 

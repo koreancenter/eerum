@@ -60,12 +60,19 @@ interface RateBucket {
 }
 
 function extractClientIp(req: Request): string {
+  const cfIp = req.headers['cf-connecting-ip'];
+  if (typeof cfIp === 'string' && cfIp.trim()) {
+    return cfIp.trim().slice(0, 128);
+  }
+  if (Array.isArray(cfIp) && cfIp[0]) {
+    return cfIp[0].trim().slice(0, 128);
+  }
   const forwarded = req.headers['x-forwarded-for'];
   if (typeof forwarded === 'string' && forwarded.trim()) {
-    return forwarded.split(',')[0].trim();
+    return forwarded.split(',')[0].trim().slice(0, 128);
   }
   if (Array.isArray(forwarded) && forwarded[0]) {
-    return forwarded[0].trim();
+    return forwarded[0].trim().slice(0, 128);
   }
   return req.ip || req.socket.remoteAddress || 'unknown';
 }
@@ -117,6 +124,67 @@ function createIpRateLimiter(windowMs: number, maxRequests: number) {
         .status(429)
         .json(createApiError('Too many requests. Please try again later.'));
     }
+
+    return next();
+  };
+}
+
+function createSlidingWindowIpRateLimiter(windowMs: number, maxRequests: number) {
+  const ipWindows = new Map<string, number[]>();
+
+  const cleanupTimer = setInterval(() => {
+    const cutoff = Date.now() - windowMs;
+    for (const [ip, timestamps] of ipWindows.entries()) {
+      const latest = timestamps[timestamps.length - 1] ?? 0;
+      if (latest <= cutoff) {
+        ipWindows.delete(ip);
+      }
+    }
+  }, Math.max(10_000, windowMs));
+  cleanupTimer.unref();
+
+  return (req: Request, res: Response, next: NextFunction) => {
+    const now = Date.now();
+    const cutoff = now - windowMs;
+    const ip = extractClientIp(req);
+
+    if (!ipWindows.has(ip) && ipWindows.size >= MAX_RATE_LIMIT_BUCKETS) {
+      for (const [k, timestamps] of ipWindows.entries()) {
+        const latest = timestamps[timestamps.length - 1] ?? 0;
+        if (latest <= cutoff) ipWindows.delete(k);
+      }
+      if (ipWindows.size >= MAX_RATE_LIMIT_BUCKETS) {
+        const oldestKey = ipWindows.keys().next().value;
+        if (oldestKey !== undefined) ipWindows.delete(oldestKey);
+      }
+    }
+
+    const existing = ipWindows.get(ip) || [];
+    const activeTimestamps = existing.filter((ts) => ts > cutoff);
+
+    if (activeTimestamps.length >= maxRequests) {
+      ipWindows.set(ip, activeTimestamps);
+      const oldestInWindow = activeTimestamps[0] ?? now;
+      const resetMs = Math.max(1000, oldestInWindow + windowMs - now);
+      const retryAfterSeconds = Math.max(1, Math.ceil(resetMs / 1000));
+
+      res.setHeader('X-RateLimit-Limit', String(maxRequests));
+      res.setHeader('X-RateLimit-Remaining', '0');
+      res.setHeader('X-RateLimit-Reset', String(Math.ceil((now + resetMs) / 1000)));
+      res.setHeader('Retry-After', String(retryAfterSeconds));
+      return res
+        .status(429)
+        .json(createApiError('Too many requests. Please try again later.'));
+    }
+
+    activeTimestamps.push(now);
+    ipWindows.set(ip, activeTimestamps);
+
+    const oldestInWindow = activeTimestamps[0] ?? now;
+    const remaining = Math.max(0, maxRequests - activeTimestamps.length);
+    res.setHeader('X-RateLimit-Limit', String(maxRequests));
+    res.setHeader('X-RateLimit-Remaining', String(remaining));
+    res.setHeader('X-RateLimit-Reset', String(Math.ceil((oldestInWindow + windowMs) / 1000)));
 
     return next();
   };
@@ -181,7 +249,10 @@ export async function createServerApp(options: CreateAppOptions = {}) {
   const apiRateLimiter = createIpRateLimiter(windowMs, maxRequests);
   app.use(['/api/cards', '/api/sync'], apiRateLimiter);
 
-  const p2pSignalRateLimiter = createIpRateLimiter(windowMs, Math.max(240, maxRequests * 4));
+  const p2pSignalRateLimiter = createSlidingWindowIpRateLimiter(
+    DEFAULT_RATE_LIMIT_WINDOW_MS,
+    Math.min(DEFAULT_RATE_LIMIT_MAX, maxRequests)
+  );
   app.use('/api/p2p/signal', p2pSignalRateLimiter);
 
   interface EphemeralSignalRoom {
