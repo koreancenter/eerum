@@ -17,8 +17,11 @@ import {
   clearMemoryDecryptedCards,
   decryptStoredCards,
   loadUserCards,
+  normalizeStoredCards,
   saveUserCards,
 } from './initialCards';
+import { generateOwnerKey } from './ownerKey';
+import { sanitizeCardForVault } from '@/utils/cardSerializer';
 import { isPinSet, setAppPin, verifyPin, setSessionLocked } from './pinLock';
 import { isBiometricRegistered, registerBiometric, verifyBiometric } from './biometrics';
 import { removeDirectoryHandleForAccount } from './localFolderBackup';
@@ -38,6 +41,7 @@ export interface CreateLocalAccountParams {
   enableBiometrics?: boolean;
   importLegacyData?: boolean;
   legacyPin?: string;
+  initialCards?: StoredCard[];
 }
 
 export interface LocalAccountActionResult {
@@ -99,6 +103,7 @@ export async function createLocalAccount({
   enableBiometrics,
   importLegacyData,
   legacyPin,
+  initialCards,
 }: CreateLocalAccountParams): Promise<LocalAccountActionResult> {
   if (typeof window === 'undefined') {
     return { ok: false, error: '브라우저 환경에서만 로컬 계정을 만들 수 있습니다.' };
@@ -189,6 +194,50 @@ export async function createLocalAccount({
     cleanupLegacySingleVaultStorage();
   }
 
+  const hasMigratedMyCard = migratedCards.some((c) => c.isMyCard);
+  const transferredCards: StoredCard[] = [];
+  if (Array.isArray(initialCards) && initialCards.length > 0) {
+    let assignedDefaultMyCard = hasMigratedMyCard;
+    initialCards.forEach((rawCard, index) => {
+      if (!rawCard || !rawCard.data) return;
+      if (rawCard.isMyCard) {
+        const shouldBeDefault =
+          !hasMigratedMyCard && (Boolean(rawCard.isDefault) || !assignedDefaultMyCard);
+        if (shouldBeDefault) assignedDefaultMyCard = true;
+        const freshId = `my-card-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`;
+        const freshOwnerKey = generateOwnerKey();
+        transferredCards.push({
+          ...rawCard,
+          id: freshId,
+          isMyCard: true,
+          isDefault: shouldBeDefault,
+          ownerKey: freshOwnerKey,
+          owner_key: freshOwnerKey,
+          data: { ...rawCard.data },
+        });
+      } else {
+        const freshId = `vault-card-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`;
+        transferredCards.push(
+          sanitizeCardForVault(rawCard, {
+            id: freshId,
+            category: rawCard.category,
+            notes: rawCard.notes,
+            memo: rawCard.memo,
+            metAt: rawCard.metAt,
+            metLocation: rawCard.metLocation,
+          })
+        );
+      }
+    });
+  }
+
+  let finalCards = migratedCards;
+  if (transferredCards.length > 0) {
+    finalCards = normalizeStoredCards([...transferredCards, ...migratedCards]);
+    syncCardThemeMapFromCards(finalCards, { overwriteExisting: false, accountId });
+    saveUserCards(finalCards, accountId);
+  }
+
   let biometricError: string | undefined;
   if (cleanPin && enableBiometrics) {
     const bioRes = await registerBiometric(accountId);
@@ -204,7 +253,7 @@ export async function createLocalAccount({
   return {
     ok: true,
     account: finalAccount,
-    cards: migratedCards,
+    cards: finalCards,
     biometricError,
   };
 }

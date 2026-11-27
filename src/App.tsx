@@ -11,7 +11,12 @@ import { saveStoredCards } from './utils/initialCards';
 import { shareOrCopyLink } from './utils/share';
 import { WelcomeCard } from './components/WelcomeCard';
 import { lazyWithRetry, LazyErrorBoundary } from './utils/lazyWithRetry';
-import { getCardShareUrl } from '@/utils/cardSerializer';
+import {
+  APP_BASE_DOMAIN,
+  getCardShareUrl,
+  sanitizeCardForVault,
+} from '@/utils/cardSerializer';
+import { DEFAULT_VAULT_CATEGORIES } from './utils/categories';
 import { useModalState } from './hooks/useModalState';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { useCardVault, type ActiveTab } from './hooks/useCardVault';
@@ -70,6 +75,7 @@ export default function App() {
   const [isSamplePreview, setIsSamplePreview] = useState<boolean>(false);
   const [sampleMyCards, setSampleMyCards] = useState<StoredCard[]>([]);
   const [sampleVaultCards, setSampleVaultCards] = useState<StoredCard[]>([]);
+  const [sampleDraftedIds, setSampleDraftedIds] = useState<string[]>([]);
   const [selectedSampleMyCardId, setSelectedSampleMyCardId] = useState<string>('');
   const [selectedSampleVaultCardId, setSelectedSampleVaultCardId] = useState<string | null>(null);
   const [sampleModalCardId, setSampleModalCardId] = useState<string | null>(null);
@@ -153,6 +159,7 @@ export default function App() {
       setIsSamplePreview(false);
       setSampleMyCards([]);
       setSampleVaultCards([]);
+      setSampleDraftedIds([]);
       setSelectedSampleMyCardId('');
       setSelectedSampleVaultCardId(null);
       setSampleModalCardId(null);
@@ -165,6 +172,7 @@ export default function App() {
     const clonedVault = SAMPLE_VAULT_CARDS.map((c) => ({ ...c, data: { ...c.data } }));
     setSampleMyCards(clonedMy);
     setSampleVaultCards(clonedVault);
+    setSampleDraftedIds([]);
     setSelectedSampleMyCardId(clonedMy[0]?.id || '');
     setSelectedSampleVaultCardId(null);
     setSampleModalCardId(null);
@@ -177,21 +185,261 @@ export default function App() {
 
   const exitSampleToCreateAccount = useCallback(
     (toastMsg?: string) => {
-      setIsSamplePreview(false);
-      setSampleMyCards([]);
-      setSampleVaultCards([]);
-      setSelectedSampleMyCardId('');
-      setSelectedSampleVaultCardId(null);
-      setSampleModalCardId(null);
-      setIsFlipped(false);
-      setIsMemoOpen(false);
-      setActiveTab('my-card');
       if (toastMsg) {
         showToast(toastMsg);
       }
       modals.openCreateAccount();
     },
     [modals.openCreateAccount, showToast]
+  );
+
+  const sampleDraftCards = React.useMemo(() => {
+    if (!isSamplePreview || sampleDraftedIds.length === 0) return [];
+    const draftedSet = new Set(sampleDraftedIds);
+    return [...sampleMyCards, ...sampleVaultCards].filter((c) => draftedSet.has(c.id));
+  }, [isSamplePreview, sampleDraftedIds, sampleMyCards, sampleVaultCards]);
+
+  const sampleCategories = React.useMemo(() => {
+    const merged = new Set<string>(DEFAULT_VAULT_CATEGORIES);
+    for (const c of sampleVaultCards) {
+      if (c.category && c.category.trim()) {
+        merged.add(c.category.trim());
+      }
+    }
+    return Array.from(merged);
+  }, [sampleVaultCards]);
+
+  const handleOpenSampleCreateMyCard = useCallback(() => {
+    const slugSuffix = String(Date.now()).slice(-4);
+    const defaultSlug = `card-${slugSuffix}`;
+    const template: StoredCard = {
+      id: `sample-my-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      isMyCard: true,
+      isDefault: sampleMyCards.length === 0,
+      slug: defaultSlug,
+      owner_key: '',
+      customDomain: '',
+      category: '글로벌 네트워크',
+      theme: activeSampleMyCard?.theme || 'pure_white',
+      layout_type: 'editorial_minimal',
+      card_features: {
+        show_en_name: true,
+        show_sub_org: true,
+        show_address: true,
+        monogram_text: '',
+      },
+      createdAt: new Date().toISOString().split('T')[0],
+      notes: '',
+      data: {
+        organization: '',
+        organizationKr: '',
+        subOrg: '',
+        name: '',
+        nameEn: '',
+        nameKr: '',
+        title: '',
+        titleKr: '',
+        phone: '',
+        phoneRaw: '',
+        whatsappUrl: '',
+        email: '',
+        website: `https://${APP_BASE_DOMAIN}/card/${defaultSlug}`,
+        websiteDisplay: `${APP_BASE_DOMAIN}/card/${defaultSlug}`,
+        addressLines: [],
+        addressKr: '',
+        address_en: '',
+        addressEn: '',
+        details: {
+          en_name: '',
+          sub_org: '',
+          address: '',
+          address_en: '',
+          slogan: '',
+          show_address: true,
+          show_en_name: true,
+        },
+        googleMapsUrl: '',
+        naverMapsUrl: '',
+        backTitle: '',
+        backSubtitle: '',
+        backTagline: '',
+        backHqAddress: '',
+      },
+    };
+    modals.openEditor(template, true);
+  }, [sampleMyCards.length, activeSampleMyCard?.theme, modals.openEditor]);
+
+  const handleOpenSampleCreateVaultCard = useCallback(() => {
+    const template: StoredCard = {
+      id: `sample-vault-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      isMyCard: false,
+      isDefault: false,
+      theme: 'pure_white',
+      layout_type: 'editorial_minimal',
+      card_features: {
+        show_en_name: true,
+        show_sub_org: true,
+        show_address: true,
+        monogram_text: '',
+      },
+      category: 'VIP 파트너',
+      createdAt: new Date().toISOString().split('T')[0],
+      notes: '',
+      data: {
+        organization: '',
+        organizationKr: '',
+        subOrg: '',
+        name: '',
+        nameEn: '',
+        nameKr: '',
+        title: '',
+        titleKr: '',
+        phone: '',
+        phoneRaw: '',
+        whatsappUrl: '',
+        email: '',
+        website: '',
+        websiteDisplay: '',
+        addressLines: [],
+        addressKr: '',
+        address_en: '',
+        addressEn: '',
+        details: {
+          en_name: '',
+          sub_org: '',
+          address: '',
+          address_en: '',
+          slogan: '',
+          show_address: true,
+          show_en_name: true,
+        },
+        googleMapsUrl: '',
+        naverMapsUrl: '',
+        backTitle: '',
+        backSubtitle: '',
+        backTagline: '',
+        backHqAddress: '',
+      },
+    };
+    modals.openEditor(template, true);
+  }, [modals.openEditor]);
+
+  const handleSaveSampleCard = useCallback(
+    (savedCard: StoredCard) => {
+      if (savedCard.isMyCard) {
+        const normalizedId =
+          savedCard.id || `sample-my-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        const hadNoMyCards = sampleMyCards.length === 0;
+        const shouldBeDefault = Boolean(savedCard.isDefault) || hadNoMyCards;
+        const nextMyCard: StoredCard = {
+          ...savedCard,
+          id: normalizedId,
+          isMyCard: true,
+          isDefault: shouldBeDefault,
+        };
+
+        setSampleMyCards((prev) => {
+          const base = shouldBeDefault
+            ? prev.map((c) => ({ ...c, isDefault: false }))
+            : prev;
+          const exists = base.some((c) => c.id === normalizedId);
+          return exists
+            ? base.map((c) => (c.id === normalizedId ? nextMyCard : c))
+            : [nextMyCard, ...base];
+        });
+        setSelectedSampleMyCardId(normalizedId);
+        setIsFlipped(false);
+        setSampleDraftedIds((prev) =>
+          prev.includes(normalizedId) ? prev : [...prev, normalizedId]
+        );
+      } else {
+        const collidesWithMyCard = sampleMyCards.some((c) => c.id === savedCard.id);
+        const safeVaultId =
+          savedCard.id && !collidesWithMyCard
+            ? savedCard.id
+            : `sample-vault-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        const nowIso = new Date().toISOString();
+        const resolvedMemo = (savedCard.memo ?? savedCard.notes ?? '').trim();
+        const sanitizedVaultCard = sanitizeCardForVault(savedCard, {
+          id: safeVaultId,
+          category: savedCard.category,
+          notes: resolvedMemo || undefined,
+          memo: resolvedMemo || undefined,
+          metAt: savedCard.metAt?.trim() || undefined,
+          metLocation: savedCard.metLocation?.trim() || undefined,
+          createdAt: savedCard.createdAt || nowIso.split('T')[0],
+          created_at: savedCard.created_at || nowIso,
+          updatedAt: nowIso,
+        });
+
+        setSampleVaultCards((prev) => {
+          const exists = prev.some((c) => c.id === sanitizedVaultCard.id);
+          return exists
+            ? prev.map((c) => (c.id === sanitizedVaultCard.id ? sanitizedVaultCard : c))
+            : [sanitizedVaultCard, ...prev];
+        });
+        setSelectedSampleVaultCardId(sanitizedVaultCard.id);
+        setActiveTab('vault');
+        setIsFlipped(false);
+        setSampleDraftedIds((prev) =>
+          prev.includes(sanitizedVaultCard.id) ? prev : [...prev, sanitizedVaultCard.id]
+        );
+      }
+
+      showToast('체험 모드에 임시 저장되었습니다. 영구 보관하려면 로컬 계정을 만들어 주세요.');
+    },
+    [sampleMyCards, showToast]
+  );
+
+  const handleDeleteSampleCard = useCallback(
+    (cardId: string) => {
+      const isSampleMy = sampleMyCards.some((c) => c.id === cardId);
+      if (isSampleMy) {
+        setSampleMyCards((prev) => {
+          const next = prev.filter((c) => c.id !== cardId);
+          if (selectedSampleMyCardId === cardId) {
+            setSelectedSampleMyCardId(next[0]?.id || '');
+          }
+          return next;
+        });
+      } else {
+        setSampleVaultCards((prev) => prev.filter((c) => c.id !== cardId));
+        if (selectedSampleVaultCardId === cardId) {
+          setSelectedSampleVaultCardId(null);
+        }
+      }
+      setSampleDraftedIds((prev) => prev.filter((id) => id !== cardId));
+      showToast('체험 모드에서 명함이 삭제되었습니다.');
+    },
+    [sampleMyCards, selectedSampleMyCardId, selectedSampleVaultCardId, showToast]
+  );
+
+  const handleImportSampleCards = useCallback(
+    (importedCards: StoredCard[]) => {
+      if (!importedCards || importedCards.length === 0) return;
+      const nowIso = new Date().toISOString();
+      const sanitizedBatch = importedCards.map((card, index) =>
+        sanitizeCardForVault(card, {
+          id:
+            card.id && !sampleMyCards.some((m) => m.id === card.id)
+              ? card.id
+              : `sample-vault-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`,
+          createdAt: card.createdAt || nowIso.split('T')[0],
+          created_at: card.created_at || nowIso,
+          updatedAt: nowIso,
+        })
+      );
+      setSampleVaultCards((prev) => [...sanitizedBatch, ...prev]);
+      setSampleDraftedIds((prev) => {
+        const next = new Set(prev);
+        sanitizedBatch.forEach((c) => next.add(c.id));
+        return Array.from(next);
+      });
+      setTimeout(() => {
+        showToast('체험 모드에 임시 저장되었습니다. 영구 보관하려면 로컬 계정을 만들어 주세요.');
+      }, 40);
+    },
+    [sampleMyCards, showToast]
   );
 
   const handleResolveOwnedMyCard = useCallback(
@@ -529,6 +777,7 @@ export default function App() {
             setIsSamplePreview(false);
             setSampleMyCards([]);
             setSampleVaultCards([]);
+            setSampleDraftedIds([]);
             setSelectedSampleMyCardId('');
             setSelectedSampleVaultCardId(null);
             setSampleModalCardId(null);
@@ -664,7 +913,7 @@ export default function App() {
               onDeleteAccount={vault.handleDeleteLocalAccount}
             />
           ) : isSamplePreview ? (
-            /* ================= FULL READ-ONLY SAMPLE SANDBOX (MY CARD + VAULT) ================= */
+            /* ================= EPHEMERAL INTERACTIVE SAMPLE SANDBOX (MY CARD + VAULT) ================= */
             activeTab === 'vault' ? (
               activeSampleVaultCard ? (
                 <div className="w-full flex flex-col items-center space-y-2 sm:space-y-4 animate-in fade-in duration-200">
@@ -704,11 +953,9 @@ export default function App() {
                             setSampleModalCardId(cardToShare.id);
                             modals.openShare();
                           }}
-                          onOpenEdit={() =>
-                            exitSampleToCreateAccount(
-                              '샘플 명함은 수정할 수 없습니다. 로컬 계정을 만들어 보세요.'
-                            )
-                          }
+                          onOpenEdit={(cardToEdit) => {
+                            modals.openEditor(cardToEdit, false);
+                          }}
                           getCardUrl={getCardShareUrl}
                           onShowToast={showToast}
                           mode="carousel"
@@ -730,30 +977,17 @@ export default function App() {
                         setIsFlipped(false);
                         setSelectedSampleVaultCardId(selected.id);
                       }}
-                      onEditCard={() =>
-                        exitSampleToCreateAccount(
-                          '샘플 명함은 수정할 수 없습니다. 로컬 계정을 만들어 보세요.'
-                        )
-                      }
-                      onDeleteCard={() =>
-                        exitSampleToCreateAccount(
-                          '샘플 모드에서는 삭제할 수 없습니다. 로컬 계정을 만들어 보세요.'
-                        )
-                      }
+                      onEditCard={(cardToEdit) => {
+                        modals.openEditor(cardToEdit, false);
+                      }}
+                      onDeleteCard={handleDeleteSampleCard}
                       onExportCard={(cardToExport) => {
                         setSampleModalCardId(cardToExport.id);
                         modals.openExport();
                       }}
-                      onOpenScan={() =>
-                        exitSampleToCreateAccount(
-                          '새 명함을 등록하려면 로컬 계정을 먼저 만들어 주세요.'
-                        )
-                      }
-                      onOpenEditor={() =>
-                        exitSampleToCreateAccount(
-                          '새 명함을 등록하려면 로컬 계정을 먼저 만들어 주세요.'
-                        )
-                      }
+                      onOpenScan={modals.openScan}
+                      onOpenEditor={handleOpenSampleCreateVaultCard}
+                      onOpenImportContacts={modals.openImportContacts}
                       onShowToast={showToast}
                     />
                   </Suspense>
@@ -762,71 +996,94 @@ export default function App() {
             ) : (
               /* Sample Sandbox: My Card View with Ephemeral ThemeSelector + CardNavigator */
               <div className="w-full min-h-0 flex flex-col items-center gap-3 sm:gap-4">
-                {activeSampleMyCard && (
-                  <Suspense fallback={null}>
-                    <ThemeSelector
-                      currentTheme={activeSampleMyCard.theme}
-                      onSelectTheme={(nextTheme) => {
-                        setSampleMyCards((prev) =>
-                          prev.map((c) =>
-                            c.id === activeSampleMyCard.id
-                              ? { ...c, theme: nextTheme, customBgColor: undefined }
-                              : c
-                          )
-                        );
-                      }}
-                    />
-                  </Suspense>
-                )}
-
-                {activeSampleMyCard && (
-                  <LazyErrorBoundary resetKey={activeSampleMyCard.id}>
-                    <Suspense
-                      fallback={
-                        <div
-                          className="w-full max-w-[540px] aspect-[9/5] rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)]"
-                          aria-hidden="true"
-                        />
-                      }
-                    >
-                      <CardNavigator
-                        cards={sampleMyCards}
-                        activeCardId={activeSampleMyCard.id}
-                        onSelectCard={(selectedId) => {
-                          setIsFlipped(false);
-                          setSelectedSampleMyCardId(selectedId);
+                {activeSampleMyCard ? (
+                  <>
+                    <Suspense fallback={null}>
+                      <ThemeSelector
+                        currentTheme={activeSampleMyCard.theme}
+                        onSelectTheme={(nextTheme) => {
+                          setSampleMyCards((prev) =>
+                            prev.map((c) =>
+                              c.id === activeSampleMyCard.id
+                                ? {
+                                    ...c,
+                                    theme: nextTheme,
+                                    card_features: c.card_features
+                                      ? { ...c.card_features, custom_bg_color: '' }
+                                      : undefined,
+                                  }
+                                : c
+                            )
+                          );
                         }}
-                        onCreateNewCard={() =>
-                          exitSampleToCreateAccount(
-                            '나만의 명함을 만들려면 로컬 계정을 먼저 만들어 주세요.'
-                          )
-                        }
-                        onOpenEdit={() =>
-                          exitSampleToCreateAccount(
-                            '샘플 명함은 편집할 수 없습니다. 로컬 계정을 만들어 나만의 명함을 제작해 보세요.'
-                          )
-                        }
-                        onOpenShare={(cardToShare) => {
-                          setSampleModalCardId(cardToShare.id);
-                          modals.openShare();
-                        }}
-                        onOpenQuickQr={(cardForQuickQr) => {
-                          setSampleModalCardId(cardForQuickQr.id);
-                          modals.openQuickQr();
-                        }}
-                        onOpenNfc={(cardForNfc) => {
-                          setSampleModalCardId(cardForNfc.id);
-                          modals.openNfc();
-                        }}
-                        onOpenPrint={(cardForPrint) => {
-                          setSampleModalCardId(cardForPrint.id);
-                          modals.openPrint();
-                        }}
-                        onShowToast={showToast}
-                        mode="carousel"
                       />
                     </Suspense>
-                  </LazyErrorBoundary>
+
+                    <LazyErrorBoundary resetKey={activeSampleMyCard.id}>
+                      <Suspense
+                        fallback={
+                          <div
+                            className="w-full max-w-[540px] aspect-[9/5] rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)]"
+                            aria-hidden="true"
+                          />
+                        }
+                      >
+                        <CardNavigator
+                          cards={sampleMyCards}
+                          activeCardId={activeSampleMyCard.id}
+                          onSelectCard={(selectedId) => {
+                            setIsFlipped(false);
+                            setSelectedSampleMyCardId(selectedId);
+                          }}
+                          onCreateNewCard={handleOpenSampleCreateMyCard}
+                          onOpenEdit={(cardToEdit) => {
+                            modals.openEditor(cardToEdit, false);
+                          }}
+                          onOpenShare={(cardToShare) => {
+                            setSampleModalCardId(cardToShare.id);
+                            modals.openShare();
+                          }}
+                          onOpenQuickQr={(cardForQuickQr) => {
+                            setSampleModalCardId(cardForQuickQr.id);
+                            modals.openQuickQr();
+                          }}
+                          onOpenNfc={(cardForNfc) => {
+                            setSampleModalCardId(cardForNfc.id);
+                            modals.openNfc();
+                          }}
+                          onOpenPrint={(cardForPrint) => {
+                            setSampleModalCardId(cardForPrint.id);
+                            modals.openPrint();
+                          }}
+                          onDeleteCard={(cardToDelete) => {
+                            handleDeleteSampleCard(cardToDelete.id);
+                          }}
+                          onShowToast={showToast}
+                          mode="carousel"
+                        />
+                      </Suspense>
+                    </LazyErrorBoundary>
+                  </>
+                ) : (
+                  <section
+                    aria-label="체험 모드 내 명함 만들기"
+                    className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] mx-auto rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] px-6 py-12 sm:px-10 sm:py-16 flex flex-col items-center text-center animate-in fade-in duration-300"
+                  >
+                    <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[var(--app-text)]">
+                      체험 중인 내 명함이 없습니다
+                    </h2>
+                    <p className="text-xs text-[var(--app-text-muted)] mt-1.5 leading-relaxed max-w-xs">
+                      새 명함을 디자인해 보고 마음에 들면 로컬 계정으로 저장해 보세요.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleOpenSampleCreateMyCard}
+                      className="mt-6 h-11 px-6 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-sm font-semibold inline-flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+                    >
+                      <Plus className="w-4 h-4 stroke-[2.2]" aria-hidden="true" />
+                      <span>내 명함 만들기</span>
+                    </button>
+                  </section>
                 )}
               </div>
             )
@@ -1209,23 +1466,29 @@ export default function App() {
               modals={modals}
               activeCard={modalTargetCard}
               existingCards={isSamplePreview ? sampleVaultCards : vault.cards}
+              categories={isSamplePreview ? sampleCategories : undefined}
               isSamplePreview={isSamplePreview}
+              sampleDraftCards={isSamplePreview ? sampleDraftCards : undefined}
               activeAccountName={vault.activeAccount?.displayName}
               onLogoutAccount={vault.handleLogoutAccount}
               onCreateLocalAccount={vault.handleCreateLocalAccount}
-              onImportCards={vault.handleImportCards}
+              onImportCards={isSamplePreview ? handleImportSampleCards : vault.handleImportCards}
               onRestoreBackup={vault.handleRestoreVaultBackup}
               onApplyP2PPayload={handleApplyP2PTransfer}
               isOwner={!isPublicExternalView}
               printConfig={printConfig}
               setPrintConfig={setPrintConfig}
-              onSaveCard={vault.handleSaveCard}
-              onDeleteCard={(cardId) => {
-                const c = vault.cards.find((x) => x.id === cardId);
-                if (c) {
-                  vault.handleRequestDeleteCard(c);
-                }
-              }}
+              onSaveCard={isSamplePreview ? handleSaveSampleCard : vault.handleSaveCard}
+              onDeleteCard={
+                isSamplePreview
+                  ? handleDeleteSampleCard
+                  : (cardId) => {
+                      const c = vault.cards.find((x) => x.id === cardId);
+                      if (c) {
+                        vault.handleRequestDeleteCard(c);
+                      }
+                    }
+              }
               onConfirmReset={vault.handleConfirmReset}
               isLocked={vault.isLocked}
               isPinConfigured={vault.isPinConfigured}

@@ -725,7 +725,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
     return <LockedAccountView onUnlock={onUnlockRequest} />;
   }
 
-  if (cards.length === 0 && !isSampleMode) {
+  if (cards.length === 0) {
     return (
       <VaultEmptyState
         variant="onboarding"

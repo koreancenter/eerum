@@ -235,7 +235,7 @@ export function useCardVault({
       setIsSamplePreview(false);
       setIsFlipped(false);
       setShowWelcomeIntro(false);
-      setActiveTab('my-card');
+      setActiveTab(myList.length === 0 && hydratedCards.length > 0 ? 'vault' : 'my-card');
       rawRefreshPinStatus(account.id);
       unlockApp(account.id);
     },

@@ -83,6 +83,7 @@ export interface AppModalsProps {
   activeCard?: StoredCard;
   isOwner: boolean;
   isSamplePreview?: boolean;
+  sampleDraftCards?: StoredCard[];
   activeAccountName?: string;
   onLogoutAccount?: () => void;
   onCreateLocalAccount?: (params: CreateLocalAccountParams) => Promise<LocalAccountActionResult>;
@@ -119,6 +120,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
   activeCard,
   isOwner,
   isSamplePreview = false,
+  sampleDraftCards = [],
   activeAccountName,
   onLogoutAccount,
   onCreateLocalAccount,
@@ -336,7 +338,15 @@ export const AppModals: React.FC<AppModalsProps> = ({
           <CreateLocalAccountModal
             isOpen={modals.isCreateAccountOpen}
             onClose={modals.closeCreateAccount}
-            onCreateAccount={onCreateLocalAccount}
+            sampleDraftCount={isSamplePreview ? sampleDraftCards.length : 0}
+            onCreateAccount={async ({ includeSampleDrafts, ...params }) =>
+              onCreateLocalAccount({
+                ...params,
+                ...(includeSampleDrafts && sampleDraftCards.length > 0
+                  ? { initialCards: sampleDraftCards }
+                  : {}),
+              })
+            }
           />
         )}
 
