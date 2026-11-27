@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Copy, Check, ExternalLink, Mail, Globe } from 'lucide-react';
+import type { LegalDocType } from './LegalModal';
 
 export type AboutTab = 'philosophy' | 'features' | 'notes' | 'contact';
 
@@ -7,6 +8,7 @@ export interface AboutModalProps {
   isOpen: boolean;
   initialTab?: AboutTab;
   onClose: () => void;
+  onOpenLegal?: (doc: LegalDocType) => void;
   onShowToast?: (msg: string) => void;
 }
 
@@ -37,6 +39,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
   isOpen,
   initialTab = 'philosophy',
   onClose,
+  onOpenLegal,
   onShowToast,
 }) => {
   const [copiedEmail, setCopiedEmail] = useState(false);
@@ -309,15 +312,53 @@ export const AboutModal: React.FC<AboutModalProps> = ({
         </div>
 
         {/* Minimalist Footer */}
-        <footer className="shrink-0 px-5 sm:px-8 py-3.5 border-t border-[var(--app-border)] bg-[var(--app-bg)] flex items-center justify-between gap-3">
-          <span className="text-[11px] font-mono text-[var(--app-text-muted)]">
-            eerum · Net to Dot Movement
-          </span>
+        <footer className="shrink-0 px-5 sm:px-8 py-3.5 border-t border-[var(--app-border)] bg-[var(--app-bg)] flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="text-[11px] font-mono text-[var(--app-text-muted)]">
+              eerum · Net to Dot Movement
+            </span>
+            {onOpenLegal && (
+              <div className="flex items-center gap-1 text-[11px] text-[var(--app-text-muted)]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenLegal('privacy');
+                  }}
+                  className="px-1.5 py-0.5 rounded hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
+                >
+                  개인정보처리방침
+                </button>
+                <span aria-hidden="true" className="opacity-40 select-none">·</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenLegal('terms');
+                  }}
+                  className="px-1.5 py-0.5 rounded hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
+                >
+                  이용약관
+                </button>
+                <span aria-hidden="true" className="opacity-40 select-none">·</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenLegal('licenses');
+                  }}
+                  className="px-1.5 py-0.5 rounded hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
+                >
+                  라이선스
+                </button>
+              </div>
+            )}
+          </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="min-h-[36px] px-4 py-1.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-xs font-semibold cursor-pointer transition-opacity"
+            className="min-h-[36px] px-4 py-1.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-xs font-semibold cursor-pointer transition-opacity ml-auto"
           >
             닫기
           </button>

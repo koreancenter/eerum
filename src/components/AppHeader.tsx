@@ -4,6 +4,7 @@ import {
   Compass,
   CreditCard,
   Download,
+  FileText,
   Fingerprint,
   FolderArchive,
   HardDriveDownload,
@@ -21,6 +22,7 @@ import {
 import { AppThemeSelector } from './AppThemeSelector';
 import type { ActiveTab } from '../hooks/useCardVault';
 import type { LocalAccountMeta } from '../utils/localAccount';
+import type { LegalDocType } from './LegalModal';
 
 export interface AppHeaderProps {
   isUnauthenticatedExternalVisitor: boolean;
@@ -53,6 +55,7 @@ export interface AppHeaderProps {
   onOpenSync: () => void;
   onClickPwaInstall: () => void;
   onOpenAbout: () => void;
+  onOpenLegal?: (doc: LegalDocType) => void;
   onOpenReset: () => void;
   onShowToast: (msg: string) => void;
 }
@@ -88,6 +91,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onOpenSync,
   onClickPwaInstall,
   onOpenAbout,
+  onOpenLegal,
   onOpenReset,
   onShowToast,
 }) => {
@@ -535,6 +539,19 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                         <Compass className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
                         <span>앱 소개 · Net to Dot 철학</span>
                       </button>
+
+                      {onOpenLegal && (
+                        <button
+                          onClick={() => {
+                            onCloseSettings();
+                            onOpenLegal('privacy');
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
+                          <span>개인정보처리방침 · 약관 · 라이선스</span>
+                        </button>
+                      )}
 
                       <button
                         onClick={() => {
