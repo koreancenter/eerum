@@ -1,5 +1,6 @@
 import React from 'react';
 import { Camera, Plus, UserPlus } from 'lucide-react';
+import { useLocale } from '../../hooks/useLocale';
 
 type VaultEmptyStateProps =
   | {
@@ -16,18 +17,20 @@ type VaultEmptyStateProps =
     };
 
 export const VaultEmptyState: React.FC<VaultEmptyStateProps> = (props) => {
+  const { t } = useLocale();
+
   if (props.variant === 'onboarding') {
     return (
       <section
-        aria-label="명함 보관함 시작하기"
+        aria-label={t.vault.onboardingAria}
         className="w-full max-w-4xl mx-auto py-8 sm:py-14 px-1 flex flex-col items-center animate-in fade-in duration-300"
       >
         <div className="text-center max-w-md px-2">
           <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[var(--app-text)]">
-            명함 보관함 채우기
+            {t.vault.onboardingTitle}
           </h2>
           <p className="text-xs text-[var(--app-text-muted)] mt-1.5 leading-relaxed">
-            기존 연락처나 실물 명함을 추가해 나만의 보관함을 시작해 보세요.
+            {t.vault.onboardingDesc}
           </p>
         </div>
 
@@ -42,10 +45,10 @@ export const VaultEmptyState: React.FC<VaultEmptyStateProps> = (props) => {
             </span>
             <div>
               <h3 className="text-sm font-semibold text-[var(--app-text)] tracking-tight">
-                주소록에서 가져오기
+                {t.vault.importContactsTitle}
               </h3>
               <p className="text-xs text-[var(--app-text-muted)] mt-1 leading-relaxed">
-                휴대폰 연락처 또는 .vcf 파일 일괄 등록
+                {t.vault.importContactsDesc}
               </p>
             </div>
           </button>
@@ -60,10 +63,10 @@ export const VaultEmptyState: React.FC<VaultEmptyStateProps> = (props) => {
             </span>
             <div>
               <h3 className="text-sm font-semibold text-[var(--app-text)] tracking-tight">
-                실물 명함 촬영·스캔
+                {t.vault.scanCardCardTitle}
               </h3>
               <p className="text-xs text-[var(--app-text-muted)] mt-1 leading-relaxed">
-                종이 명함 사진에서 이름·연락처 자동 추출
+                {t.vault.scanCardCardDesc}
               </p>
             </div>
           </button>
@@ -78,10 +81,10 @@ export const VaultEmptyState: React.FC<VaultEmptyStateProps> = (props) => {
             </span>
             <div>
               <h3 className="text-sm font-semibold text-[var(--app-text)] tracking-tight">
-                직접 명함 입력
+                {t.vault.manualEntryTitle}
               </h3>
               <p className="text-xs text-[var(--app-text-muted)] mt-1 leading-relaxed">
-                새로운 비즈니스 연락처 직접 작성
+                {t.vault.manualEntryDesc}
               </p>
             </div>
           </button>
@@ -94,11 +97,11 @@ export const VaultEmptyState: React.FC<VaultEmptyStateProps> = (props) => {
     <div className="py-20 text-center space-y-3 p-8 rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)]">
       <p className="text-sm font-semibold text-[var(--app-text)]">
         {props.selectedCategory !== '전체' && !props.searchQuery.trim()
-          ? `'${props.selectedCategory}' 카테고리에 등록된 명함이 없습니다.`
-          : '검색 조건에 일치하는 명함이 없습니다.'}
+          ? t.vault.emptyCategoryTitle(props.selectedCategory)
+          : t.vault.emptySearchTitle}
       </p>
       <p className="text-xs text-[var(--app-text-muted)]">
-        실물 명함 사진을 촬영하거나 새 명함을 등록해 보세요.
+        {t.vault.emptyFilteredDesc}
       </p>
       <button
         type="button"
@@ -106,7 +109,7 @@ export const VaultEmptyState: React.FC<VaultEmptyStateProps> = (props) => {
         className="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[var(--app-accent)] text-[var(--app-accent-fg)] text-xs font-semibold hover:opacity-90 cursor-pointer"
       >
         <Plus className="w-4 h-4 stroke-[2]" />
-        <span>실물 명함 등록</span>
+        <span>{t.vault.emptyFilteredCta}</span>
       </button>
     </div>
   );

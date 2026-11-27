@@ -17,6 +17,7 @@ import {
   readStoredAccountsList,
   writeStoredAccountsList,
 } from './accountStorage';
+import { getCurrentLocale } from '../hooks/useLocale';
 
 function updateStoredAccountBiometricsFlag(accountId: string | null, enabled: boolean): void {
   if (!accountId || typeof window === 'undefined') return;
@@ -166,7 +167,8 @@ export function isBiometricRegistered(accountId?: string | null): boolean {
  * Returns friendly name for biometric device depending on OS/User Agent.
  */
 export function getBiometricLabel(): string {
-  if (typeof navigator === 'undefined') return '생체 인증';
+  const isEn = getCurrentLocale() === 'en';
+  if (typeof navigator === 'undefined') return isEn ? 'Biometrics' : '생체 인증';
   const ua = navigator.userAgent;
   if (/Macintosh|iPhone|iPad|iPod/.test(ua)) {
     return 'Face ID / Touch ID';
@@ -175,9 +177,9 @@ export function getBiometricLabel(): string {
     return 'Windows Hello';
   }
   if (/Android/.test(ua)) {
-    return '지문 / 생체 인식';
+    return isEn ? 'Fingerprint / Biometrics' : '지문 / 생체 인식';
   }
-  return '지문 / 생체 인증';
+  return isEn ? 'Fingerprint / Biometrics' : '지문 / 생체 인증';
 }
 
 /**
@@ -188,6 +190,7 @@ export function getBiometricLabel(): string {
 export function getBiometricSecurityThresholdStatus(
   accountId?: string | null
 ): BiometricSecurityThresholdStatus {
+  const isEn = getCurrentLocale() === 'en';
   const resolvedId = resolveAccountId(accountId);
   if (typeof window === 'undefined' || !resolvedId) {
     return {
@@ -196,7 +199,7 @@ export function getBiometricSecurityThresholdStatus(
       lastPinVerifiedAt: null,
       daysRemaining: SECURITY_THRESHOLD_DAYS,
       hoursRemaining: SECURITY_THRESHOLD_DAYS * 24,
-      formattedLastVerified: '기록 없음',
+      formattedLastVerified: isEn ? 'No record' : '기록 없음',
     };
   }
 
@@ -208,7 +211,7 @@ export function getBiometricSecurityThresholdStatus(
       lastPinVerifiedAt: null,
       daysRemaining: SECURITY_THRESHOLD_DAYS,
       hoursRemaining: SECURITY_THRESHOLD_DAYS * 24,
-      formattedLastVerified: 'PIN 미설정',
+      formattedLastVerified: isEn ? 'PIN not set' : 'PIN 미설정',
     };
   }
 
@@ -220,7 +223,7 @@ export function getBiometricSecurityThresholdStatus(
       lastPinVerifiedAt: null,
       daysRemaining: 0,
       hoursRemaining: 0,
-      formattedLastVerified: '인증 필요',
+      formattedLastVerified: isEn ? 'Verification required' : '인증 필요',
     };
   }
 
@@ -238,14 +241,16 @@ export function getBiometricSecurityThresholdStatus(
   if (diffDays === 0) {
     const diffHours = Math.floor((now.getTime() - dateObj.getTime()) / (60 * 60 * 1000));
     if (diffHours === 0) {
-      formattedLastVerified = '방금 전';
+      formattedLastVerified = isEn ? 'Just now' : '방금 전';
     } else {
-      formattedLastVerified = `오늘 (${diffHours}시간 전)`;
+      formattedLastVerified = isEn ? `Today (${diffHours}h ago)` : `오늘 (${diffHours}시간 전)`;
     }
   } else if (diffDays === 1) {
-    formattedLastVerified = '어제';
+    formattedLastVerified = isEn ? 'Yesterday' : '어제';
   } else {
-    formattedLastVerified = `${diffDays}일 전 (${dateObj.toLocaleDateString()})`;
+    formattedLastVerified = isEn
+      ? `${diffDays}d ago (${dateObj.toLocaleDateString()})`
+      : `${diffDays}일 전 (${dateObj.toLocaleDateString()})`;
   }
 
   return {
@@ -273,17 +278,27 @@ export function isBiometricThresholdExpired(accountId?: string | null): boolean 
 export async function registerBiometric(
   accountId?: string | null
 ): Promise<{ success: boolean; error?: string }> {
+  const isEn = getCurrentLocale() === 'en';
   if (typeof window === 'undefined') {
-    return { success: false, error: '브라우저 환경이 아닙니다.' };
+    return {
+      success: false,
+      error: isEn ? 'Browser environment is required.' : '브라우저 환경이 아닙니다.',
+    };
   }
   const resolvedId = resolveAccountId(accountId);
   if (!resolvedId) {
-    return { success: false, error: '로컬 계정에 먼저 로그인해 주세요.' };
+    return {
+      success: false,
+      error: isEn ? 'Please sign in to a local account first.' : '로컬 계정에 먼저 로그인해 주세요.',
+    };
   }
   const credKey = getAccountBioCredKey(resolvedId);
   const modeKey = getAccountBioModeKey(resolvedId);
   if (!credKey || !modeKey) {
-    return { success: false, error: '계정 보안 키를 초기화하지 못했습니다.' };
+    return {
+      success: false,
+      error: isEn ? 'Failed to initialize account security keys.' : '계정 보안 키를 초기화하지 못했습니다.',
+    };
   }
 
   // If in an iframe preview or Permissions Policy restricts WebAuthn, create a local secure credential
@@ -309,7 +324,12 @@ export async function registerBiometric(
       return { success: true };
     } catch (err: unknown) {
       console.warn('Local credential setup notice:', err);
-      return { success: false, error: '보안 크레덴셜 생성 중 오류가 발생했습니다.' };
+      return {
+        success: false,
+        error: isEn
+          ? 'An error occurred while creating security credentials.'
+          : '보안 크레덴셜 생성 중 오류가 발생했습니다.',
+      };
     }
   }
 
@@ -349,7 +369,10 @@ export async function registerBiometric(
     })) as PublicKeyCredential | null;
 
     if (!credential) {
-      return { success: false, error: '생체 인증 등록이 취소되었습니다.' };
+      return {
+        success: false,
+        error: isEn ? 'Biometric registration was cancelled.' : '생체 인증 등록이 취소되었습니다.',
+      };
     }
 
     const rawIdBase64 = bufferToBase64Url(credential.rawId);
@@ -397,17 +420,27 @@ export async function registerBiometric(
       } catch {
         return { 
           success: false, 
-          error: '미리보기 창(iFrame) 보안 정책으로 인해 생체 센서 접근이 제한되었습니다. 4자리 PIN을 이용해 주세요.' 
+          error: isEn
+            ? 'Biometric sensor access is restricted inside this embedded frame. Please use your 4-digit PIN.'
+            : '미리보기 창(iFrame) 보안 정책으로 인해 생체 센서 접근이 제한되었습니다. 4자리 PIN을 이용해 주세요.' 
         };
       }
     }
 
     if (errName === 'NotAllowedError') {
-      return { success: false, error: '사용자가 인증을 취소했거나 권한이 거부되었습니다.' };
+      return {
+        success: false,
+        error: isEn
+          ? 'Biometric verification was cancelled or permission was denied.'
+          : '사용자가 인증을 취소했거나 권한이 거부되었습니다.',
+      };
     }
 
     console.warn('Biometric registration notice:', err);
-    return { success: false, error: errorMsg || '생체 인증 등록 중 오류가 발생했습니다.' };
+    return {
+      success: false,
+      error: errorMsg || (isEn ? 'Failed to register biometrics.' : '생체 인증 등록 중 오류가 발생했습니다.'),
+    };
   }
 }
 
@@ -423,19 +456,29 @@ export async function verifyBiometric(
   error?: string; 
   requiresPinRevalidation?: boolean; 
 }> {
+  const isEn = getCurrentLocale() === 'en';
   if (typeof window === 'undefined') {
-    return { success: false, error: '브라우저 환경이 아닙니다.' };
+    return {
+      success: false,
+      error: isEn ? 'Browser environment is required.' : '브라우저 환경이 아닙니다.',
+    };
   }
   const resolvedId = resolveAccountId(accountId);
   if (!resolvedId) {
-    return { success: false, error: '선택된 로컬 계정이 없습니다.' };
+    return {
+      success: false,
+      error: isEn ? 'No local account selected.' : '선택된 로컬 계정이 없습니다.',
+    };
   }
 
   const credKey = getAccountBioCredKey(resolvedId);
   const modeKey = getAccountBioModeKey(resolvedId);
   const storedRawId = credKey ? localStorage.getItem(credKey) : null;
   if (!storedRawId) {
-    return { success: false, error: '등록된 생체 인증 정보가 없습니다.' };
+    return {
+      success: false,
+      error: isEn ? 'No biometric credentials registered.' : '등록된 생체 인증 정보가 없습니다.',
+    };
   }
 
   // Enforce Security Threshold (7 Days PIN Invalidation Policy)
@@ -444,7 +487,9 @@ export async function verifyBiometric(
     return { 
       success: false, 
       requiresPinRevalidation: true,
-      error: '보안 정책(Security Threshold): 7일 이상 4자리 PIN을 입력하지 않아 생체 인증이 만료되었습니다. PIN으로 먼저 재인증해 주세요.' 
+      error: isEn
+        ? 'Security Threshold: Biometrics expired after 7 days without PIN entry. Please re-verify with your 4-digit PIN.'
+        : '보안 정책(Security Threshold): 7일 이상 4자리 PIN을 입력하지 않아 생체 인증이 만료되었습니다. PIN으로 먼저 재인증해 주세요.' 
     };
   }
 
@@ -501,7 +546,10 @@ export async function verifyBiometric(
       return { success: true };
     }
 
-    return { success: false, error: '인증에 실패했습니다.' };
+    return {
+      success: false,
+      error: isEn ? 'Verification failed.' : '인증에 실패했습니다.',
+    };
   } catch (err: unknown) {
     const errName = err instanceof DOMException || err instanceof Error ? err.name : '';
     const errorMsg = err instanceof Error ? err.message : '';
@@ -516,9 +564,15 @@ export async function verifyBiometric(
 
     console.warn('Biometric verification notice:', err);
     if (errName === 'NotAllowedError') {
-      return { success: false, error: '생체 인증이 취소되었습니다.' };
+      return {
+        success: false,
+        error: isEn ? 'Biometric verification was cancelled.' : '생체 인증이 취소되었습니다.',
+      };
     }
-    return { success: false, error: errorMsg || '생체 인증 실패' };
+    return {
+      success: false,
+      error: errorMsg || (isEn ? 'Biometric verification failed.' : '생체 인증 실패'),
+    };
   }
 }
 

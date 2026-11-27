@@ -1,5 +1,6 @@
 import { StoredCard } from '../types/card';
 import { getAccountCategoriesKey } from './accountStorage';
+import { getCurrentLocale } from '../hooks/useLocale';
 
 export const DEFAULT_VAULT_CATEGORIES = [
   'VIP 파트너',
@@ -104,20 +105,41 @@ export function addVaultCategory(
   rawName: string,
   currentCards?: StoredCard[]
 ): { ok: boolean; categories: string[]; added?: string; error?: string } {
+  const isEn = getCurrentLocale() === 'en';
   const trimmed = rawName.trim();
   const current = loadVaultCategories(currentCards);
 
   if (!trimmed) {
-    return { ok: false, categories: current, error: '카테고리 이름을 입력해 주세요.' };
+    return {
+      ok: false,
+      categories: current,
+      error: isEn ? 'Please enter a category name.' : '카테고리 이름을 입력해 주세요.',
+    };
   }
-  if (trimmed === '전체') {
-    return { ok: false, categories: current, error: "'전체'는 예약된 필터 이름입니다." };
+  if (trimmed === '전체' || trimmed.toLowerCase() === 'all') {
+    return {
+      ok: false,
+      categories: current,
+      error: isEn
+        ? `'${trimmed}' is a reserved filter name.`
+        : "'전체'는 예약된 필터 이름입니다.",
+    };
   }
   if (trimmed.length > 20) {
-    return { ok: false, categories: current, error: '카테고리 이름은 20자 이내로 입력해 주세요.' };
+    return {
+      ok: false,
+      categories: current,
+      error: isEn
+        ? 'Category name must be 20 characters or fewer.'
+        : '카테고리 이름은 20자 이내로 입력해 주세요.',
+    };
   }
   if (current.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
-    return { ok: false, categories: current, error: '이미 존재하는 카테고리입니다.' };
+    return {
+      ok: false,
+      categories: current,
+      error: isEn ? 'This category already exists.' : '이미 존재하는 카테고리입니다.',
+    };
   }
 
   const fallbackIdx = current.indexOf(FALLBACK_CATEGORY);
@@ -142,20 +164,43 @@ export function renameVaultCategory(
   updatedCount?: number;
   error?: string;
 } {
+  const isEn = getCurrentLocale() === 'en';
   const trimmed = rawNewName.trim();
   const current = loadVaultCategories(currentCards);
 
   if (oldName === '전체') {
-    return { ok: false, categories: current, error: "'전체' 필터는 이름을 변경할 수 없습니다." };
+    return {
+      ok: false,
+      categories: current,
+      error: isEn
+        ? "The 'All' filter cannot be renamed."
+        : "'전체' 필터는 이름을 변경할 수 없습니다.",
+    };
   }
   if (!trimmed) {
-    return { ok: false, categories: current, error: '새 카테고리 이름을 입력해 주세요.' };
+    return {
+      ok: false,
+      categories: current,
+      error: isEn ? 'Please enter a new category name.' : '새 카테고리 이름을 입력해 주세요.',
+    };
   }
-  if (trimmed === '전체') {
-    return { ok: false, categories: current, error: "'전체'는 사용할 수 없는 이름입니다." };
+  if (trimmed === '전체' || trimmed.toLowerCase() === 'all') {
+    return {
+      ok: false,
+      categories: current,
+      error: isEn
+        ? `'${trimmed}' cannot be used as a category name.`
+        : "'전체'는 사용할 수 없는 이름입니다.",
+    };
   }
   if (trimmed.length > 20) {
-    return { ok: false, categories: current, error: '카테고리 이름은 20자 이내로 입력해 주세요.' };
+    return {
+      ok: false,
+      categories: current,
+      error: isEn
+        ? 'Category name must be 20 characters or fewer.'
+        : '카테고리 이름은 20자 이내로 입력해 주세요.',
+    };
   }
 
   const conflicting = current.find(
@@ -166,7 +211,9 @@ export function renameVaultCategory(
       ok: false,
       categories: current,
       conflictTarget: conflicting,
-      error: `이미 '${conflicting}' 카테고리가 존재합니다. 병합 기능으로 통합할 수 있습니다.`,
+      error: isEn
+        ? `'${conflicting}' already exists. You can merge these categories instead.`
+        : `이미 '${conflicting}' 카테고리가 존재합니다. 병합 기능으로 통합할 수 있습니다.`,
     };
   }
 
@@ -190,25 +237,48 @@ export function mergeVaultCategories(
   movedCount?: number;
   error?: string;
 } {
+  const isEn = getCurrentLocale() === 'en';
   const cleanSource = sourceName.trim();
   const cleanTarget = targetName.trim();
   const current = loadVaultCategories(currentCards);
 
   if (!cleanSource || !cleanTarget) {
-    return { ok: false, categories: current, error: '병합할 카테고리를 선택해 주세요.' };
+    return {
+      ok: false,
+      categories: current,
+      error: isEn ? 'Please select categories to merge.' : '병합할 카테고리를 선택해 주세요.',
+    };
   }
   if (cleanSource === '전체' || cleanTarget === '전체') {
-    return { ok: false, categories: current, error: "'전체' 필터는 병합할 수 없습니다." };
+    return {
+      ok: false,
+      categories: current,
+      error: isEn
+        ? "The 'All' filter cannot be merged."
+        : "'전체' 필터는 병합할 수 없습니다.",
+    };
   }
   if (cleanSource === cleanTarget) {
-    return { ok: false, categories: current, error: '동일한 카테고리로 병합할 수 없습니다.' };
+    return {
+      ok: false,
+      categories: current,
+      error: isEn
+        ? 'Cannot merge a category into itself.'
+        : '동일한 카테고리로 병합할 수 없습니다.',
+    };
   }
 
   const resolvedTarget =
     current.find((c) => c.toLowerCase() === cleanTarget.toLowerCase()) || cleanTarget;
 
   if (resolvedTarget === cleanSource) {
-    return { ok: false, categories: current, error: '동일한 카테고리로 병합할 수 없습니다.' };
+    return {
+      ok: false,
+      categories: current,
+      error: isEn
+        ? 'Cannot merge a category into itself.'
+        : '동일한 카테고리로 병합할 수 없습니다.',
+    };
   }
 
   const movedCount = currentCards
@@ -245,6 +315,7 @@ export function deleteVaultCategory(
   movedCount: number;
   error?: string;
 } {
+  const isEn = getCurrentLocale() === 'en';
   const current = loadVaultCategories(currentCards);
 
   if (targetName === '전체') {
@@ -253,7 +324,9 @@ export function deleteVaultCategory(
       categories: current,
       fallback: FALLBACK_CATEGORY,
       movedCount: 0,
-      error: "'전체' 필터는 삭제할 수 없습니다.",
+      error: isEn
+        ? "The 'All' filter cannot be deleted."
+        : "'전체' 필터는 삭제할 수 없습니다.",
     };
   }
 
@@ -263,7 +336,9 @@ export function deleteVaultCategory(
       categories: current,
       fallback: current[0] || FALLBACK_CATEGORY,
       movedCount: 0,
-      error: '최소 1개의 카테고리는 유지되어야 합니다.',
+      error: isEn
+        ? 'At least one category must remain.'
+        : '최소 1개의 카테고리는 유지되어야 합니다.',
     };
   }
 

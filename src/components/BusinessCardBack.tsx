@@ -6,6 +6,7 @@ import { deriveCardThemeHarmony } from '../utils/cardThemeHarmony';
 import { SandboxedCardRenderer } from './SandboxedCardRenderer';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { sanitizeExternalUrl } from '../utils/sanitizeUrl';
+import { useLocale } from '../hooks/useLocale';
 
 interface BusinessCardBackProps {
   data: CardData;
@@ -30,6 +31,7 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
   hideBorder = false,
   html_back
 }) => {
+  const { isEn } = useLocale();
   const [qrSvg, setQrSvg] = useState<string>('');
   const sanitizedHtmlBack = useMemo(
     () => (html_back ? sanitizeHtml(html_back) : ''),
@@ -106,7 +108,7 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
       >
         <img
           src={backPhotoUrl}
-          alt="명함 뒷면"
+          alt={isEn ? 'Business card back' : '명함 뒷면'}
           referrerPolicy="no-referrer"
           className="w-full h-full object-cover rounded-2xl"
         />
@@ -207,7 +209,15 @@ export const BusinessCardBack: React.FC<BusinessCardBackProps> = ({
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-end gap-2 sm:gap-2.5 group/qr hover:opacity-85 transition-opacity min-w-0 shrink-0 cursor-pointer"
-            title={data.websiteDisplay ? `${data.websiteDisplay} 바로가기` : '디지털 명함 바로가기'}
+            title={
+              data.websiteDisplay
+                ? isEn
+                  ? `Visit ${data.websiteDisplay}`
+                  : `${data.websiteDisplay} 바로가기`
+                : isEn
+                  ? 'Open digital business card'
+                  : '디지털 명함 바로가기'
+            }
             onClick={(e) => e.stopPropagation()}
           >
             {qrSvg && (

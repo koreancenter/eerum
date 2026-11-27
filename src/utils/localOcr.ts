@@ -1,3 +1,5 @@
+import { getCurrentLocale } from '../hooks/useLocale';
+
 export interface LocalOcrProgress {
   progress: number; // 0 to 100
   status: string;
@@ -165,7 +167,12 @@ async function prepareImageCanvas(imageSrc: string): Promise<{
       }
     };
 
-    img.onerror = () => reject(new Error('이미지를 불러오지 못했습니다.'));
+    img.onerror = () =>
+      reject(
+        new Error(
+          getCurrentLocale() === 'en' ? 'Failed to load image.' : '이미지를 불러오지 못했습니다.'
+        )
+      );
     img.src = imageSrc;
   });
 }
@@ -282,8 +289,9 @@ export async function runLocalCardOcr(
   imageSrc: string,
   onProgress?: (info: LocalOcrProgress) => void
 ): Promise<LocalOcrResult> {
+  const isEn = getCurrentLocale() === 'en';
   if (!imageSrc || !imageSrc.trim()) {
-    throw new Error('분석할 명함 이미지가 없습니다.');
+    throw new Error(isEn ? 'No card image to analyze.' : '분석할 명함 이미지가 없습니다.');
   }
 
   let highestProgress = 1;
@@ -292,14 +300,14 @@ export async function runLocalCardOcr(
     onProgress?.({ progress: highestProgress, status });
   };
 
-  emitProgress(4, '명함 이미지 준비 중');
+  emitProgress(4, isEn ? 'Preparing card image' : '명함 이미지 준비 중');
   const { canvas, fallbackSrc } = await prepareImageCanvas(imageSrc);
 
   // Stage 1: Native Browser TextDetector API
-  emitProgress(12, '브라우저 내장 TextDetector 확인 중');
+  emitProgress(12, isEn ? 'Checking browser TextDetector' : '브라우저 내장 TextDetector 확인 중');
   const nativeText = await tryNativeTextDetector(canvas);
   if (nativeText) {
-    emitProgress(100, '브라우저 내장 텍스트 인식 완료');
+    emitProgress(100, isEn ? 'Native text recognition complete' : '브라우저 내장 텍스트 인식 완료');
     return {
       text: nativeText,
       confidence: 95,
@@ -308,7 +316,7 @@ export async function runLocalCardOcr(
   }
 
   // Stage 2: On-Demand CDN Tesseract Fallback
-  emitProgress(15, '온디바이스 OCR 엔진 로드 중');
+  emitProgress(15, isEn ? 'Loading on-device OCR engine' : '온디바이스 OCR 엔진 로드 중');
   const tesseract = await loadTesseractFromCdn();
 
   let worker: TesseractWorkerLike | null = null;
@@ -319,13 +327,13 @@ export async function runLocalCardOcr(
           message.status || '',
           typeof message.progress === 'number' ? message.progress : 0
         );
-        emitProgress(mapped, message.status || '분석 중');
+        emitProgress(mapped, message.status || (isEn ? 'Analyzing' : '분석 중'));
       },
     });
 
-    emitProgress(50, '명함 텍스트 판독 중');
+    emitProgress(50, isEn ? 'Reading card text' : '명함 텍스트 판독 중');
     const result = await worker.recognize(fallbackSrc);
-    emitProgress(100, '완료');
+    emitProgress(100, isEn ? 'Complete' : '완료');
 
     return {
       text: (result?.data?.text || '').trim(),

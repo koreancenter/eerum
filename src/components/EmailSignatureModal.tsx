@@ -17,6 +17,7 @@ import {
   type EmailSignatureBundle,
   type EmailSignatureTheme,
 } from '@/utils/emailSignature';
+import { useLocale } from '@/hooks/useLocale';
 
 export interface EmailSignatureModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
   isSubModal = false,
   onShowToast,
 }) => {
+  const { isEn, t } = useLocale();
   const [signatureTheme, setSignatureTheme] = useState<EmailSignatureTheme>('light');
   const [includeQrBadge, setIncludeQrBadge] = useState<boolean>(true);
   const [showRawHtml, setShowRawHtml] = useState<boolean>(false);
@@ -79,12 +81,16 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
       setCopiedRich(true);
       onShowToast?.(
         mode === 'text'
-          ? 'HTML 서명이 클립보드에 복사되었습니다.'
-          : '서식 포함 이메일 서명이 복사되었습니다. Gmail · Apple Mail · Outlook 설정에 바로 붙여넣으세요.'
+          ? (isEn
+              ? 'HTML signature copied to clipboard.'
+              : 'HTML 서명이 클립보드에 복사되었습니다.')
+          : (isEn
+              ? 'Rich email signature copied! Paste directly into Gmail, Apple Mail, or Outlook.'
+              : '서식 포함 이메일 서명이 복사되었습니다. Gmail · Apple Mail · Outlook 설정에 바로 붙여넣으세요.')
       );
       window.setTimeout(() => setCopiedRich(false), 2400);
     } catch {
-      onShowToast?.('이메일 서명 복사에 실패했습니다.');
+      onShowToast?.(isEn ? 'Failed to copy email signature.' : '이메일 서명 복사에 실패했습니다.');
     }
   };
 
@@ -93,10 +99,10 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
     try {
       await navigator.clipboard.writeText(bundle.html);
       setCopiedHtml(true);
-      onShowToast?.('원본 HTML 테이블 코드가 복사되었습니다.');
+      onShowToast?.(isEn ? 'Raw HTML table code copied.' : '원본 HTML 테이블 코드가 복사되었습니다.');
       window.setTimeout(() => setCopiedHtml(false), 2000);
     } catch {
-      onShowToast?.('HTML 코드 복사에 실패했습니다.');
+      onShowToast?.(isEn ? 'Failed to copy HTML code.' : 'HTML 코드 복사에 실패했습니다.');
     }
   };
 
@@ -108,7 +114,7 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="HTML 이메일 서명 생성기"
+        aria-label={t.modals.emailSigTitle}
         className="w-full max-w-[600px] max-h-[92dvh] flex flex-col bg-[var(--app-surface)] border border-[var(--app-border)] rounded-3xl overflow-hidden shadow-2xl text-[var(--app-text)]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -120,8 +126,8 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
                 type="button"
                 onClick={onClose}
                 className="min-w-[36px] min-h-[36px] -ml-1 flex items-center justify-center rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                title="돌아가기"
-                aria-label="돌아가기"
+                title={t.common.back}
+                aria-label={t.common.back}
               >
                 <ArrowLeft className="w-4 h-4 stroke-[1.75]" />
               </button>
@@ -130,11 +136,11 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
               <div className="flex items-center gap-1.5">
                 <Mail className="w-3.5 h-3.5 text-[var(--app-text-muted)] shrink-0" />
                 <h3 className="text-base font-semibold text-[var(--app-text)] tracking-tight truncate">
-                  이메일 서명 생성기
+                  {t.modals.emailSigTitle}
                 </h3>
               </div>
               <p className="text-[11px] text-[var(--app-text-muted)] mt-0.5 truncate">
-                Gmail · Apple Mail · Outlook 호환 인라인 HTML 테이블 서명
+                {t.modals.emailSigSubtitle}
               </p>
             </div>
           </div>
@@ -143,8 +149,8 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
             type="button"
             onClick={onClose}
             className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title="닫기"
-            aria-label="닫기"
+            title={t.common.close}
+            aria-label={t.common.close}
           >
             <X className="w-5 h-5 stroke-[1.75]" />
           </button>
@@ -154,7 +160,7 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
         <div className="px-5 sm:px-6 pt-4 pb-3 border-b border-[var(--app-border)] flex flex-wrap items-center justify-between gap-2 shrink-0 bg-[var(--app-surface-subtle)]">
           <div
             role="group"
-            aria-label="서명 배경 스타일"
+            aria-label={isEn ? 'Signature Theme' : '서명 배경 스타일'}
             className="inline-flex items-center p-1 rounded-xl bg-[var(--app-surface)] border border-[var(--app-border)]"
           >
             <button
@@ -167,7 +173,7 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
               }`}
             >
               <Sun className="w-3.5 h-3.5" />
-              <span>라이트 (권장)</span>
+              <span>{isEn ? 'Light (Recommended)' : '라이트 (권장)'}</span>
             </button>
             <button
               type="button"
@@ -179,7 +185,7 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
               }`}
             >
               <Moon className="w-3.5 h-3.5" />
-              <span>다크</span>
+              <span>{isEn ? 'Dark' : '다크'}</span>
             </button>
           </div>
 
@@ -195,7 +201,7 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
               }`}
             >
               <QrCode className="w-3.5 h-3.5" />
-              <span>QR 배지</span>
+              <span>{isEn ? 'QR Badge' : 'QR 배지'}</span>
             </button>
 
             <button
@@ -209,7 +215,7 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
               }`}
             >
               <Code2 className="w-3.5 h-3.5" />
-              <span>HTML 소스</span>
+              <span>{isEn ? 'HTML Source' : 'HTML 소스'}</span>
             </button>
           </div>
         </div>
@@ -218,7 +224,7 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
         <div className="flex-1 min-h-0 overflow-y-auto px-5 sm:px-6 py-5 space-y-4">
           <div className="space-y-2">
             <div className="flex items-center justify-between text-[11px] text-[var(--app-text-muted)]">
-              <span>메일 본문 미리보기</span>
+              <span>{isEn ? 'Email Body Preview' : '메일 본문 미리보기'}</span>
               <span className="font-mono">Table + Inline CSS</span>
             </div>
 
@@ -236,7 +242,7 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
                     : 'text-zinc-500 border-white/10'
                 }`}
               >
-                감사합니다.
+                {isEn ? 'Best regards,' : '감사합니다.'}
               </div>
 
               {bundle ? (
@@ -246,7 +252,7 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
                 />
               ) : (
                 <div className="h-28 flex items-center justify-center text-xs text-zinc-400">
-                  이메일 서명을 생성하고 있습니다...
+                  {isEn ? 'Generating email signature...' : '이메일 서명을 생성하고 있습니다...'}
                 </div>
               )}
             </div>
@@ -255,7 +261,7 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
           {showRawHtml && bundle && (
             <div className="space-y-2 animate-in fade-in duration-150">
               <div className="flex items-center justify-between text-[11px] text-[var(--app-text-muted)]">
-                <span>인라인 HTML 소스코드</span>
+                <span>{isEn ? 'Inline HTML Source Code' : '인라인 HTML 소스코드'}</span>
                 <span className="font-mono tabular-nums">
                   {bundle.html.length.toLocaleString()} bytes
                 </span>
@@ -267,13 +273,26 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
           )}
 
           <div className="rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] p-3.5 text-[11px] text-[var(--app-text-muted)] leading-relaxed space-y-1">
-            <p className="text-[var(--app-text)] font-medium">사용 방법</p>
-            <p>
-              1. <strong className="text-[var(--app-text)]">서명 복사 (Rich HTML)</strong>를 누른 뒤 Gmail 설정(서명), Apple Mail(서명), 또는 Outlook 서명 편집창에 그대로 붙여넣기(<code className="font-mono text-[var(--app-text)]">Ctrl+V / Cmd+V</code>)하세요.
-            </p>
-            <p>
-              2. 배지와 QR 코드는 내 디지털 명함 공개 주소(<span className="font-mono text-[var(--app-text)]">{bundle?.shareUrl || ''}</span>)로 바로 연결됩니다.
-            </p>
+            <p className="text-[var(--app-text)] font-medium">{isEn ? 'How to Use' : '사용 방법'}</p>
+            {isEn ? (
+              <>
+                <p>
+                  1. Click <strong className="text-[var(--app-text)]">Copy Signature (Rich HTML)</strong>, then paste (<code className="font-mono text-[var(--app-text)]">Ctrl+V / Cmd+V</code>) into Gmail, Apple Mail, or Outlook signature settings.
+                </p>
+                <p>
+                  2. The badge and QR code link directly to your digital card (<span className="font-mono text-[var(--app-text)]">{bundle?.shareUrl || ''}</span>).
+                </p>
+              </>
+            ) : (
+              <>
+                <p>
+                  1. <strong className="text-[var(--app-text)]">서명 복사 (Rich HTML)</strong>를 누른 뒤 Gmail 설정(서명), Apple Mail(서명), 또는 Outlook 서명 편집창에 그대로 붙여넣기(<code className="font-mono text-[var(--app-text)]">Ctrl+V / Cmd+V</code>)하세요.
+                </p>
+                <p>
+                  2. 배지와 QR 코드는 내 디지털 명함 공개 주소(<span className="font-mono text-[var(--app-text)]">{bundle?.shareUrl || ''}</span>)로 바로 연결됩니다.
+                </p>
+              </>
+            )}
           </div>
         </div>
 
@@ -290,7 +309,7 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
             ) : (
               <Code2 className="w-3.5 h-3.5 shrink-0" />
             )}
-            <span>{copiedHtml ? 'HTML 복사됨' : 'HTML 코드 복사'}</span>
+            <span>{copiedHtml ? (isEn ? 'HTML Copied' : 'HTML 복사됨') : (isEn ? 'Copy HTML Code' : 'HTML 코드 복사')}</span>
           </button>
 
           <button
@@ -304,7 +323,7 @@ export const EmailSignatureModal: React.FC<EmailSignatureModalProps> = ({
             ) : (
               <Copy className="w-4 h-4 shrink-0" />
             )}
-            <span>{copiedRich ? '서식 포함 서명 복사됨' : '서명 복사 (Rich HTML)'}</span>
+            <span>{copiedRich ? (isEn ? 'Rich Signature Copied' : '서식 포함 서명 복사됨') : (isEn ? 'Copy Signature (Rich HTML)' : '서명 복사 (Rich HTML)')}</span>
           </button>
         </div>
       </div>

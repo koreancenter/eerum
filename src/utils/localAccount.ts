@@ -31,6 +31,7 @@ import {
   extractLegacyVaultData,
   hasLegacySingleVaultData,
 } from './legacyMigration';
+import { getCurrentLocale } from '../hooks/useLocale';
 
 export { ACCOUNT_CHANGED_EVENT, getActiveAccountId };
 export type LocalAccountMeta = StoredAccountRecord;
@@ -105,28 +106,50 @@ export async function createLocalAccount({
   legacyPin,
   initialCards,
 }: CreateLocalAccountParams): Promise<LocalAccountActionResult> {
+  const isEn = getCurrentLocale() === 'en';
   if (typeof window === 'undefined') {
-    return { ok: false, error: '브라우저 환경에서만 로컬 계정을 만들 수 있습니다.' };
+    return {
+      ok: false,
+      error: isEn
+        ? 'Local accounts can only be created in a browser environment.'
+        : '브라우저 환경에서만 로컬 계정을 만들 수 있습니다.',
+    };
   }
 
   const trimmedName = displayName.trim();
   if (!trimmedName) {
-    return { ok: false, error: '계정 이름(별칭)을 입력해 주세요.' };
+    return {
+      ok: false,
+      error: isEn ? 'Please enter an account name.' : '계정 이름(별칭)을 입력해 주세요.',
+    };
   }
   if (trimmedName.length > 32) {
-    return { ok: false, error: '계정 이름은 32자 이하로 입력해 주세요.' };
+    return {
+      ok: false,
+      error: isEn
+        ? 'Account name must be 32 characters or fewer.'
+        : '계정 이름은 32자 이하로 입력해 주세요.',
+    };
   }
 
   const cleanPin = (pin || '').trim();
   if (cleanPin && !/^\d{4}$/.test(cleanPin)) {
-    return { ok: false, error: 'PIN 번호는 숫자 4자리로 입력해 주세요.' };
+    return {
+      ok: false,
+      error: isEn ? 'PIN must be 4 digits.' : 'PIN 번호는 숫자 4자리로 입력해 주세요.',
+    };
   }
 
   let legacyBundle: Awaited<ReturnType<typeof extractLegacyVaultData>> | null = null;
   if (importLegacyData && hasLegacySingleVaultData()) {
     legacyBundle = await extractLegacyVaultData(legacyPin);
     if (!legacyBundle.ok) {
-      return { ok: false, error: legacyBundle.error || '기존 보관함을 가져오지 못했습니다.' };
+      return {
+        ok: false,
+        error:
+          legacyBundle.error ||
+          (isEn ? 'Failed to import existing vault.' : '기존 보관함을 가져오지 못했습니다.'),
+      };
     }
   }
 
@@ -262,26 +285,41 @@ export async function loginLocalAccount(
   accountId: string,
   pin?: string
 ): Promise<LocalAccountActionResult> {
+  const isEn = getCurrentLocale() === 'en';
   if (typeof window === 'undefined') {
-    return { ok: false, error: '브라우저 환경에서만 로그인할 수 있습니다.' };
+    return {
+      ok: false,
+      error: isEn
+        ? 'Sign-in is only supported in a browser environment.'
+        : '브라우저 환경에서만 로그인할 수 있습니다.',
+    };
   }
 
   const cleanId = sanitizeAccountId(accountId);
   if (!cleanId) {
-    return { ok: false, error: '유효하지 않은 로컬 계정입니다.' };
+    return {
+      ok: false,
+      error: isEn ? 'Invalid local account.' : '유효하지 않은 로컬 계정입니다.',
+    };
   }
 
   const accounts = readStoredAccountsList();
   const target = accounts.find((acct) => acct.id === cleanId);
   if (!target) {
-    return { ok: false, error: '선택한 로컬 계정을 찾을 수 없습니다.' };
+    return {
+      ok: false,
+      error: isEn ? 'Selected local account not found.' : '선택한 로컬 계정을 찾을 수 없습니다.',
+    };
   }
 
   const accountHasPin = isPinSet(cleanId) || target.hasPin;
   if (accountHasPin) {
     const cleanPin = (pin || '').trim();
     if (!/^\d{4}$/.test(cleanPin)) {
-      return { ok: false, error: '4자리 PIN 번호를 입력해 주세요.' };
+      return {
+        ok: false,
+        error: isEn ? 'Please enter your 4-digit PIN.' : '4자리 PIN 번호를 입력해 주세요.',
+      };
     }
 
     const verified = await verifyPin(cleanPin, cleanId, {
@@ -289,7 +327,12 @@ export async function loginLocalAccount(
       decryptCards: false,
     });
     if (!verified) {
-      return { ok: false, error: 'PIN 번호가 일치하지 않습니다. 다시 확인해 주세요.' };
+      return {
+        ok: false,
+        error: isEn
+          ? 'Incorrect PIN. Please check and try again.'
+          : 'PIN 번호가 일치하지 않습니다. 다시 확인해 주세요.',
+      };
     }
   } else {
     setSessionLocked(false, cleanId);
@@ -334,19 +377,31 @@ export async function loginLocalAccount(
 export async function loginLocalAccountWithBiometrics(
   accountId: string
 ): Promise<LocalAccountActionResult> {
+  const isEn = getCurrentLocale() === 'en';
   if (typeof window === 'undefined') {
-    return { ok: false, error: '브라우저 환경에서만 로그인할 수 있습니다.' };
+    return {
+      ok: false,
+      error: isEn
+        ? 'Sign-in is only supported in a browser environment.'
+        : '브라우저 환경에서만 로그인할 수 있습니다.',
+    };
   }
 
   const cleanId = sanitizeAccountId(accountId);
   if (!cleanId) {
-    return { ok: false, error: '유효하지 않은 로컬 계정입니다.' };
+    return {
+      ok: false,
+      error: isEn ? 'Invalid local account.' : '유효하지 않은 로컬 계정입니다.',
+    };
   }
 
   const accounts = readStoredAccountsList();
   const target = accounts.find((acct) => acct.id === cleanId);
   if (!target) {
-    return { ok: false, error: '선택한 로컬 계정을 찾을 수 없습니다.' };
+    return {
+      ok: false,
+      error: isEn ? 'Selected local account not found.' : '선택한 로컬 계정을 찾을 수 없습니다.',
+    };
   }
 
   clearMemoryDecryptedCards();
@@ -355,7 +410,7 @@ export async function loginLocalAccountWithBiometrics(
   if (!bioResult.success) {
     return {
       ok: false,
-      error: bioResult.error || '생체 인증에 실패했습니다.',
+      error: bioResult.error || (isEn ? 'Biometric verification failed.' : '생체 인증에 실패했습니다.'),
       requiresPinRevalidation: bioResult.requiresPinRevalidation,
     };
   }

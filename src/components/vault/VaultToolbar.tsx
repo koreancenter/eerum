@@ -17,6 +17,7 @@ import type { StoredCard } from '../../types/card';
 import { SORT_OPTIONS, type VaultSortOption } from '../../utils/cardSorting';
 import { downloadBatchVCard } from '../../utils/cardExporter';
 import type { VaultViewMode } from '../VaultView';
+import { useLocale } from '../../hooks/useLocale';
 
 export interface VaultToolbarProps {
   cardsCount: number;
@@ -85,6 +86,7 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
   onCommitInlineAdd,
   onTriggerToast,
 }) => {
+  const { locale, t } = useLocale();
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState<boolean>(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -117,22 +119,23 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
     () => SORT_OPTIONS.find((opt) => opt.id === sortBy) || SORT_OPTIONS[0],
     [sortBy]
   );
+  const currentSortLabel = t.vault.sortOptions[currentSortOption.id]?.label || currentSortOption.label;
 
   const exportLabel =
     selectedCategory !== '전체' || searchQuery.trim()
-      ? `필터 연락처 저장 (.vcf · ${sortedCards.length}명)`
-      : `전체 연락처 저장 (.vcf · ${sortedCards.length}명)`;
+      ? t.vault.exportFiltered(sortedCards.length)
+      : t.vault.exportAll(sortedCards.length);
 
   const handleBatchVCardExport = () => {
     const count = downloadBatchVCard(sortedCards);
     if (count > 0) {
-      onTriggerToast(`${count}명의 연락처를 .vcf 파일로 내보냈습니다.`);
+      onTriggerToast(t.vault.exportedVcfToast(count));
     }
   };
 
   return (
     <header
-      aria-label="명함 보관함 검색 및 필터 도구 모음"
+      aria-label={t.vault.toolbarAria}
       className="w-full max-w-full min-w-0 flex flex-col gap-2.5 sm:gap-3 pb-3 border-b border-[var(--app-border)]"
     >
       {/* Row 1: Action Toolbar (Desktop: Search+Sort on Left, Actions on Right; Mobile: Actions on Top, Search+Sort Below) */}
@@ -144,8 +147,8 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
               type="button"
               onClick={() => onOpenCategoryPanel(false)}
               aria-expanded={isCategoryPanelOpen}
-              aria-label="카테고리 관리"
-              title="카테고리 관리"
+              aria-label={t.vault.manageCategories}
+              title={t.vault.manageCategories}
               className={`w-8.5 h-8.5 rounded-xl border text-xs font-medium shrink-0 inline-flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                 isCategoryPanelOpen
                   ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] border-transparent font-semibold'
@@ -157,15 +160,15 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
 
             <div
               role="group"
-              aria-label="보관함 보기 방식"
+              aria-label={t.vault.viewModeAria}
               className="grid grid-cols-2 p-0.5 h-8.5 bg-[var(--app-surface)] rounded-xl border border-[var(--app-border)] shrink-0"
             >
               <button
                 type="button"
                 onClick={() => onViewModeChange('grid')}
                 aria-pressed={viewMode === 'grid'}
-                aria-label="카드 뷰"
-                title="카드 뷰"
+                aria-label={t.vault.gridView}
+                title={t.vault.gridView}
                 className={`w-7.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                   viewMode === 'grid'
                     ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)]'
@@ -178,8 +181,8 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
                 type="button"
                 onClick={() => onViewModeChange('list')}
                 aria-pressed={viewMode === 'list'}
-                aria-label="리스트 뷰"
-                title="리스트 뷰"
+                aria-label={t.vault.listView}
+                title={t.vault.listView}
                 className={`w-7.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                   viewMode === 'list'
                     ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)]'
@@ -206,12 +209,12 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
             <button
               type="button"
               onClick={onOpenScan}
-              aria-label="실물 명함 사진 등록"
-              title="실물 명함 사진 등록"
+              aria-label={t.vault.scanCardTitle}
+              title={t.vault.scanCardTitle}
               className="h-8.5 px-2.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] inline-flex items-center justify-center gap-1 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
-              <span className="whitespace-nowrap">추가</span>
+              <span className="whitespace-nowrap">{t.vault.addCardMobile}</span>
             </button>
           </div>
         </div>
@@ -232,10 +235,10 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
                 onChange={(e) => onSearchQueryChange(e.target.value)}
                 placeholder={
                   isListening
-                    ? (voiceFeedback || '말씀하세요... (음성 듣는 중)')
-                    : '이름·초성, 회사, 만남 장소, 메모 검색'
+                    ? (voiceFeedback || t.vault.listeningPlaceholder)
+                    : t.vault.searchPlaceholder
                 }
-                aria-label="명함 보관함 검색"
+                aria-label={t.vault.searchAria}
                 className={`w-full h-9 sm:h-9.5 pl-8.5 pr-20 rounded-xl bg-[var(--app-surface)] border text-xs text-[var(--app-text)] placeholder:text-[var(--app-text-muted)] focus:outline-none transition-all duration-200 ${
                   isListening
                     ? 'border-rose-500/50 ring-2 ring-rose-500/20 placeholder:text-rose-500 shadow-[0_0_16px_rgba(244,63,94,0.18)]'
@@ -250,8 +253,8 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
                     type="button"
                     onClick={onClearSearch}
                     className="w-5 h-5 flex items-center justify-center rounded-md text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer transition-colors"
-                    aria-label="검색어 지우기"
-                    title="검색어 지우기"
+                    aria-label={t.vault.clearSearch}
+                    title={t.vault.clearSearch}
                   >
                     <X className="w-3.5 h-3.5 stroke-[1.5]" />
                   </button>
@@ -260,11 +263,11 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
                 <button
                   type="button"
                   onClick={onToggleVoiceSearch}
-                  aria-label={isListening ? '음성 검색 중지' : '음성으로 검색'}
+                  aria-label={isListening ? t.vault.voiceStopAria : t.vault.voiceStartAria}
                   title={
                     isListening
-                      ? '음성 인식 중 (클릭하여 중지)'
-                      : '음성 검색 (클릭하여 한국어 음성으로 검색)'
+                      ? t.vault.voiceStopTitle
+                      : t.vault.voiceStartTitle
                   }
                   className={`h-6.5 ${isListening ? 'px-2' : 'w-6.5'} rounded-lg inline-flex items-center justify-center gap-1 text-[11px] cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                     isListening
@@ -279,7 +282,7 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
                   />
                   {isListening && (
                     <span className="text-[9px] font-semibold text-rose-500 pl-0.5 animate-pulse hidden sm:inline">
-                      듣는 중
+                      {t.vault.listeningBadge}
                     </span>
                   )}
                 </button>
@@ -293,12 +296,12 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
                 onClick={() => setIsSortDropdownOpen((prev) => !prev)}
                 aria-expanded={isSortDropdownOpen}
                 aria-haspopup="listbox"
-                aria-label={`명함 정렬: ${currentSortOption.label}`}
-                title="명함 정렬 기준 변경"
+                aria-label={t.vault.sortBtnAria(currentSortLabel)}
+                title={t.vault.sortBtnTitle}
                 className="h-9 sm:h-9.5 px-2.5 sm:px-3 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] transition-colors text-xs font-medium cursor-pointer inline-flex items-center gap-1.5 active:scale-95 whitespace-nowrap"
               >
                 <ArrowUpDown className="w-3.5 h-3.5 stroke-[1.75] text-[var(--app-text-muted)] shrink-0" />
-                <span>{currentSortOption.label}</span>
+                <span>{currentSortLabel}</span>
                 <ChevronDown
                   className={`w-3 h-3 stroke-[2] text-[var(--app-text-muted)] transition-transform duration-200 shrink-0 ${
                     isSortDropdownOpen ? 'rotate-180' : ''
@@ -309,11 +312,12 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
               {isSortDropdownOpen && (
                 <div
                   role="listbox"
-                  aria-label="정렬 옵션"
-                  className="absolute right-0 mt-1.5 w-40 py-1.5 rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] z-50 animate-in fade-in zoom-in-95 duration-150"
+                  aria-label={t.vault.sortMenuAria}
+                  className={`absolute right-0 mt-1.5 ${locale === 'en' ? 'w-44' : 'w-40'} py-1.5 rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] z-50 animate-in fade-in zoom-in-95 duration-150`}
                 >
                   {SORT_OPTIONS.map((opt) => {
                     const isSelected = sortBy === opt.id;
+                    const optLabel = t.vault.sortOptions[opt.id]?.label || opt.label;
                     return (
                       <button
                         key={opt.id}
@@ -330,7 +334,7 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
                             : 'text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)]'
                         }`}
                       >
-                        <span className="leading-snug truncate">{opt.label}</span>
+                        <span className="leading-snug truncate">{optLabel}</span>
                         {isSelected && <Check className="w-3.5 h-3.5 stroke-[2] shrink-0" />}
                       </button>
                     );
@@ -347,8 +351,8 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
               type="button"
               onClick={() => onOpenCategoryPanel(false)}
               aria-expanded={isCategoryPanelOpen}
-              aria-label="카테고리 관리"
-              title="카테고리 관리"
+              aria-label={t.vault.manageCategories}
+              title={t.vault.manageCategories}
               className={`w-9 sm:w-9.5 h-9 sm:h-9.5 rounded-xl border text-xs font-medium shrink-0 inline-flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                 isCategoryPanelOpen
                   ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] border-transparent font-semibold'
@@ -361,15 +365,15 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
             {/* 3. Grid/List View Switcher Button */}
             <div
               role="group"
-              aria-label="보관함 보기 방식"
+              aria-label={t.vault.viewModeAria}
               className="grid grid-cols-2 p-0.5 h-9 sm:h-9.5 bg-[var(--app-surface)] rounded-xl border border-[var(--app-border)] shrink-0"
             >
               <button
                 type="button"
                 onClick={() => onViewModeChange('grid')}
                 aria-pressed={viewMode === 'grid'}
-                aria-label="카드 뷰"
-                title="카드 뷰"
+                aria-label={t.vault.gridView}
+                title={t.vault.gridView}
                 className={`w-8 sm:w-8.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                   viewMode === 'grid'
                     ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)]'
@@ -382,8 +386,8 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
                 type="button"
                 onClick={() => onViewModeChange('list')}
                 aria-pressed={viewMode === 'list'}
-                aria-label="리스트 뷰"
-                title="리스트 뷰"
+                aria-label={t.vault.listView}
+                title={t.vault.listView}
                 className={`w-8 sm:w-8.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                   viewMode === 'list'
                     ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)]'
@@ -412,12 +416,12 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
             <button
               type="button"
               onClick={onOpenScan}
-              aria-label="실물 명함 사진 등록"
-              title="실물 명함 사진 등록"
+              aria-label={t.vault.scanCardTitle}
+              title={t.vault.scanCardTitle}
               className="h-9 sm:h-9.5 px-3 sm:px-3.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
-              <span className="whitespace-nowrap">명함 추가</span>
+              <span className="whitespace-nowrap">{t.vault.addCardDesktop}</span>
             </button>
           </div>
         </div>
@@ -432,7 +436,7 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--app-highlight)] hover:opacity-90 border border-[var(--app-border)] text-[var(--app-highlight-fg)] text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
           >
             <GitMerge className="w-3.5 h-3.5 stroke-[1.8] shrink-0" />
-            <span className="tabular-nums">중복 연락처 {duplicateGroupsCount}건 정리</span>
+            <span className="tabular-nums">{t.vault.duplicatesFound(duplicateGroupsCount)}</span>
           </button>
         </div>
       )}
@@ -442,11 +446,12 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
         <div
           ref={categoryScrollRef}
           role="tablist"
-          aria-label="보관함 카테고리 필터"
+          aria-label={t.vault.categoryFilterAria}
           className="w-full max-w-full min-w-0 overflow-x-auto overflow-y-hidden whitespace-nowrap scrollbar-hide overscroll-x-contain touch-pan-x touch-pinch-zoom flex items-center gap-2 py-1.5 px-0.5"
         >
           {filterCategories.map((cat) => {
             const isSelected = selectedCategory === cat;
+            const displayCat = cat === '전체' ? t.vault.categoryAllLabel : cat;
 
             return (
               <button
@@ -468,7 +473,7 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
                     : 'bg-[var(--app-surface)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)]'
                 }`}
               >
-                <span>{cat}</span>
+                <span>{displayCat}</span>
               </button>
             );
           })}
@@ -494,15 +499,15 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
                     onCancelInlineAdd();
                   }
                 }}
-                placeholder="새 카테고리명"
-                aria-label="새 카테고리 이름 입력"
+                placeholder={t.vault.newCategoryPlaceholder}
+                aria-label={t.vault.newCategoryAria}
                 className="w-28 sm:w-32 bg-transparent text-xs text-[var(--app-text)] placeholder:text-[var(--app-text-muted)] focus:outline-none touch-pan-x touch-pinch-zoom"
               />
               <button
                 type="submit"
                 disabled={!inlineCategoryName.trim()}
-                aria-label="카테고리 저장"
-                title="저장"
+                aria-label={t.vault.saveCategoryAria}
+                title={t.common.save}
                 className="w-6 h-6 rounded-full bg-[var(--app-accent)] hover:opacity-90 disabled:opacity-35 text-[var(--app-accent-fg)] flex items-center justify-center cursor-pointer shrink-0 touch-pan-x touch-pinch-zoom"
               >
                 <Check className="w-3.5 h-3.5 stroke-[2.2]" />
@@ -510,8 +515,8 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
               <button
                 type="button"
                 onClick={onCancelInlineAdd}
-                aria-label="추가 취소"
-                title="취소"
+                aria-label={t.vault.cancelCategoryAria}
+                title={t.common.cancel}
                 className="w-6 h-6 rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] flex items-center justify-center cursor-pointer shrink-0 touch-pan-x touch-pinch-zoom"
               >
                 <X className="w-3.5 h-3.5 stroke-[1.75]" />
@@ -521,12 +526,12 @@ export const VaultToolbar: React.FC<VaultToolbarProps> = ({
             <button
               type="button"
               onClick={onStartInlineAdd}
-              aria-label="새 카테고리 추가"
-              title="새 카테고리 추가"
+              aria-label={t.vault.addCategoryAria}
+              title={t.vault.addCategoryAria}
               className="min-h-[36px] px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 text-xs text-[var(--app-text-muted)] hover:text-[var(--app-text)] bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-dashed border-[var(--app-border)] transition-colors cursor-pointer inline-flex items-center gap-1 touch-pan-x touch-pinch-zoom focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2]" />
-              <span>추가</span>
+              <span>{t.vault.addCategoryBtn}</span>
             </button>
           )}
 

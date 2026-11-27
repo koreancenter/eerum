@@ -2,6 +2,7 @@ import React from 'react';
 import { CardData, CardFeatures } from '../../types/card';
 import { APP_BASE_DOMAIN } from '@/utils/cardSerializer';
 import { EDITOR_INPUT_CLASS } from './CategorySelectSection';
+import { useLocale } from '../../hooks/useLocale';
 
 export interface ProfileFieldsGroupProps {
   formData: CardData;
@@ -24,25 +25,31 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
   slug = '',
   onChangeSlug,
 }) => {
+  const { isEn } = useLocale();
+
   if (variant === 'compact') {
     return (
       <div className="space-y-3 sm:space-y-4">
         {/* Name & Phone */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">성명</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'Full Name' : '성명'}
+            </label>
             <input
               type="text"
               required
               value={formData.name}
               onChange={(e) => onChangeField('name', e.target.value)}
-              placeholder="박기홍"
+              placeholder={isEn ? 'Park, Gihong' : '박기홍'}
               className={EDITOR_INPUT_CLASS}
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">연락처</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'Phone' : '연락처'}
+            </label>
             <input
               type="text"
               required
@@ -57,23 +64,27 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
         {/* Organization & Title */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">소속</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'Organization' : '소속'}
+            </label>
             <input
               type="text"
               value={formData.organizationKr || formData.organization || ''}
               onChange={(e) => onChangeField('organizationKr', e.target.value)}
-              placeholder="고구마 지식 관리실"
+              placeholder={isEn ? 'Goguma Knowledge Office' : '고구마 지식 관리실'}
               className={EDITOR_INPUT_CLASS}
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">직함</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'Title' : '직함'}
+            </label>
             <input
               type="text"
               value={formData.titleKr || formData.title || ''}
               onChange={(e) => onChangeField('titleKr', e.target.value)}
-              placeholder="대표 마스터"
+              placeholder={isEn ? 'Principal Master' : '대표 마스터'}
               className={EDITOR_INPUT_CLASS}
             />
           </div>
@@ -82,7 +93,9 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
         {/* Email & Slug / Website */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">이메일</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'Email' : '이메일'}
+            </label>
             <input
               type="email"
               value={formData.email}
@@ -95,7 +108,9 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
           <div className="space-y-1.5">
             {isMyCardMode && onChangeSlug ? (
               <>
-                <label className="text-xs font-medium text-[var(--editor-label)] block">웹 주소</label>
+                <label className="text-xs font-medium text-[var(--editor-label)] block">
+                  {isEn ? 'Card URL' : '웹 주소'}
+                </label>
                 <div className="flex items-center rounded-lg bg-[var(--editor-input-bg)] border border-[var(--editor-input-border)] hover:border-[var(--editor-input-border-hover)] focus-within:border-[var(--app-accent)] focus-within:bg-[var(--editor-input-bg-focus)] overflow-hidden transition-colors">
                   <span className="px-3 py-2 sm:px-3.5 sm:py-2.5 text-[var(--editor-muted)] font-mono text-xs shrink-0 border-r border-[var(--editor-input-border)] select-none">
                     {APP_BASE_DOMAIN}/card/
@@ -115,7 +130,9 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
               </>
             ) : (
               <>
-                <label className="text-xs font-medium text-[var(--editor-label)] block">웹사이트</label>
+                <label className="text-xs font-medium text-[var(--editor-label)] block">
+                  {isEn ? 'Website' : '웹사이트'}
+                </label>
                 <input
                   type="url"
                   value={formData.website}
@@ -135,21 +152,27 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
     <>
       {/* Name & Display Toggles */}
       <section className="space-y-3 sm:space-y-4">
-        <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">성명</h4>
+        <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">
+          {isEn ? 'Name' : '성명'}
+        </h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">한글</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'Primary Name' : '한글'}
+            </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => onChangeField('name', e.target.value)}
-              placeholder="박기홍"
+              placeholder={isEn ? 'Park, Gihong' : '박기홍'}
               className={EDITOR_INPUT_CLASS}
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">영문 · 보조 성명</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'Secondary / Romanized Name' : '영문 · 보조 성명'}
+            </label>
             <input
               type="text"
               value={formData.nameEn ?? ''}
@@ -174,7 +197,9 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
                 }
                 className="w-4 h-4 rounded-[4px] accent-[var(--app-accent)] ring-1 ring-[var(--editor-checkbox-border)] cursor-pointer"
               />
-              <span className="text-xs font-medium text-[var(--editor-label)]">영문 · 보조 성명 표기</span>
+              <span className="text-xs font-medium text-[var(--editor-label)]">
+                {isEn ? 'Show secondary name' : '영문 · 보조 성명 표기'}
+              </span>
             </label>
             <label className="inline-flex items-center gap-2 cursor-pointer select-none">
               <input
@@ -188,7 +213,9 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
                 }
                 className="w-4 h-4 rounded-[4px] accent-[var(--app-accent)] ring-1 ring-[var(--editor-checkbox-border)] cursor-pointer"
               />
-              <span className="text-xs font-medium text-[var(--editor-label)]">영문 소속 병기</span>
+              <span className="text-xs font-medium text-[var(--editor-label)]">
+                {isEn ? 'Show secondary organization' : '영문 소속 병기'}
+              </span>
             </label>
           </div>
         )}
@@ -197,22 +224,26 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
       {/* Affiliation & Title */}
       <section className="border-t border-[var(--editor-divider)] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
         <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">
-          소속 및 직함
+          {isEn ? 'Affiliation & Title' : '소속 및 직함'}
         </h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">소속</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'Organization' : '소속'}
+            </label>
             <input
               type="text"
               value={formData.organizationKr}
               onChange={(e) => onChangeField('organizationKr', e.target.value)}
-              placeholder="고구마 지식 관리실"
+              placeholder={isEn ? 'Goguma Knowledge Office' : '고구마 지식 관리실'}
               className={EDITOR_INPUT_CLASS}
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">영문 소속</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'English Organization' : '영문 소속'}
+            </label>
             <input
               type="text"
               value={formData.organization}
@@ -225,17 +256,21 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">직함</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'Title / Role' : '직함'}
+            </label>
             <input
               type="text"
               value={formData.titleKr}
               onChange={(e) => onChangeField('titleKr', e.target.value)}
-              placeholder="대표 마스터"
+              placeholder={isEn ? 'Principal Master' : '대표 마스터'}
               className={EDITOR_INPUT_CLASS}
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">영문 직함</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'English Title' : '영문 직함'}
+            </label>
             <input
               type="text"
               value={formData.title}
@@ -250,12 +285,14 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
       {/* Direct Contact & Address */}
       <section className="border-t border-[var(--editor-divider)] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
         <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">
-          연락처 및 주소
+          {isEn ? 'Contact & Address' : '연락처 및 주소'}
         </h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">연락처</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'Phone' : '연락처'}
+            </label>
             <input
               type="text"
               value={formData.phone}
@@ -265,7 +302,9 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">이메일</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'Email' : '이메일'}
+            </label>
             <input
               type="email"
               value={formData.email}
@@ -278,17 +317,21 @@ export const ProfileFieldsGroup: React.FC<ProfileFieldsGroupProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">주소</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'Address' : '주소'}
+            </label>
             <input
               type="text"
               value={formData.addressKr}
               onChange={(e) => onChangeField('addressKr', e.target.value)}
-              placeholder="서울특별시 강남구 테헤란로 152"
+              placeholder={isEn ? '152 Teheran-ro, Gangnam-gu, Seoul' : '서울특별시 강남구 테헤란로 152'}
               className={EDITOR_INPUT_CLASS}
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">영문 주소</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'English Address' : '영문 주소'}
+            </label>
             <input
               type="text"
               value={formData.address_en ?? formData.details?.address_en ?? ''}

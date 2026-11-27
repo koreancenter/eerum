@@ -1,5 +1,6 @@
 import DOMPurify, { Config } from 'dompurify';
 export { sanitizeExternalUrl } from './sanitizeUrl';
+import { getCurrentLocale } from '../hooks/useLocale';
 
 /**
  * Allowed safe HTML & non-executable SVG tags for custom business card rendering.
@@ -403,15 +404,24 @@ export function sanitizeHtml(dirtyHtml: string): string {
  */
 export function detectUnsafeHtmlPatterns(html: string): string[] {
   if (!html || typeof html !== 'string') return [];
+  const isEn = getCurrentLocale() === 'en';
   const findings: string[] = [];
 
-  if (/<script\b/i.test(html)) findings.push('<script> 태그');
-  if (/<iframe\b|<frame\b|<frameset\b/i.test(html)) findings.push('<iframe>/<frame> 태그');
-  if (/<object\b|<embed\b|<applet\b/i.test(html)) findings.push('<object>/<embed> 태그');
-  if (/<foreignobject\b|<use\b|<animate/i.test(html)) findings.push('실행형 SVG 태그');
-  if (/\bon\w+\s*=/i.test(html)) findings.push('인라인 이벤트 핸들러 (onerror, onclick 등)');
-  if (/(?:javascript|vbscript)\s*:/i.test(html)) findings.push('스크립트 URL 스키마');
-  if (/<form\b|<input\b|<button\b|<textarea\b|<select\b/i.test(html)) findings.push('양식(form/input) 요소');
+  if (/<script\b/i.test(html)) findings.push(isEn ? '<script> tag' : '<script> 태그');
+  if (/<iframe\b|<frame\b|<frameset\b/i.test(html))
+    findings.push(isEn ? '<iframe>/<frame> tag' : '<iframe>/<frame> 태그');
+  if (/<object\b|<embed\b|<applet\b/i.test(html))
+    findings.push(isEn ? '<object>/<embed> tag' : '<object>/<embed> 태그');
+  if (/<foreignobject\b|<use\b|<animate/i.test(html))
+    findings.push(isEn ? 'Executable SVG tag' : '실행형 SVG 태그');
+  if (/\bon\w+\s*=/i.test(html))
+    findings.push(
+      isEn ? 'Inline event handler (e.g. onerror, onclick)' : '인라인 이벤트 핸들러 (onerror, onclick 등)'
+    );
+  if (/(?:javascript|vbscript)\s*:/i.test(html))
+    findings.push(isEn ? 'Script URL scheme' : '스크립트 URL 스키마');
+  if (/<form\b|<input\b|<button\b|<textarea\b|<select\b/i.test(html))
+    findings.push(isEn ? 'Form elements (form/input)' : '양식(form/input) 요소');
 
   return findings;
 }

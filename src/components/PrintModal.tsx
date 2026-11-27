@@ -4,6 +4,7 @@ import { BusinessCardFront } from './BusinessCardFront';
 import { BusinessCardBack } from './BusinessCardBack';
 import { THEMES } from './ThemeSelector';
 import { X, Printer, Info, Layers, ArrowLeft } from 'lucide-react';
+import { useLocale } from '../hooks/useLocale';
 
 interface PrintModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   onConfigChange,
   isSubModal = false,
 }) => {
+  const { isEn, t } = useLocale();
   if (!isOpen) return null;
 
   const handleExecutePrint = () => {
@@ -44,9 +46,9 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   const widthDisplay = isKr ? '90 × 50 mm' : '85 × 55 mm';
   const cardAspectClass = isKr ? 'aspect-[9/5]' : 'aspect-[85/55]';
 
-  const matchedTheme = THEMES.find((t) => t.id === config.theme);
+  const matchedTheme = THEMES.find((themeOption) => themeOption.id === config.theme);
   const activeThemeLabel = matchedTheme
-    ? formatKoreanThemeLabel(matchedTheme.label)
+    ? (isEn ? matchedTheme.labelEn : formatKoreanThemeLabel(matchedTheme.label))
     : config.theme;
 
   // Hairline Crop Marks Simulation
@@ -76,7 +78,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="인쇄 및 PDF 설정"
+        aria-label={t.modals.printTitle}
         className="relative w-full max-w-4xl max-h-[90dvh] flex flex-col rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -88,18 +90,18 @@ export const PrintModal: React.FC<PrintModalProps> = ({
                 type="button"
                 onClick={onClose}
                 className="min-w-[36px] min-h-[36px] -ml-1 flex items-center justify-center rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                title="공유 화면으로 돌아가기"
-                aria-label="공유 화면으로 돌아가기"
+                title={t.modals.backToShare}
+                aria-label={t.modals.backToShare}
               >
                 <ArrowLeft className="w-4 h-4 stroke-[1.75]" />
               </button>
             )}
             <div className="min-w-0">
               <h2 className="text-base sm:text-lg font-semibold text-[var(--app-text)] tracking-tight truncate">
-                인쇄 및 PDF 설정
+                {t.modals.printTitle}
               </h2>
               <p className="text-xs text-[var(--app-text-muted)] mt-0.5 truncate">
-                인쇄소 재단 규격 및 사무용 A4 출력을 위한 고해상도 PDF를 생성합니다
+                {t.modals.printSubtitle}
               </p>
             </div>
           </div>
@@ -108,8 +110,8 @@ export const PrintModal: React.FC<PrintModalProps> = ({
             type="button"
             onClick={onClose}
             className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title="닫기"
-            aria-label="닫기"
+            title={t.common.close}
+            aria-label={t.common.close}
           >
             <X className="w-5 h-5 stroke-[1.75]" />
           </button>
@@ -123,47 +125,57 @@ export const PrintModal: React.FC<PrintModalProps> = ({
               {/* Layout Mode */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[var(--app-text-muted)] block">
-                  인쇄 구성
+                  {isEn ? 'Print Layout' : '인쇄 구성'}
                 </label>
                 <select
                   value={config.layout}
                   onChange={(e) => updateConfig({ layout: e.target.value as PrintLayout })}
                   className="w-full min-h-[42px] bg-[var(--app-surface-subtle)] border border-[var(--app-border)] rounded-xl px-3 py-2.5 text-[var(--app-text)] font-medium focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] cursor-pointer"
                 >
-                  <option value="single-card">양면 개별 페이지 (인쇄소 제출용)</option>
-                  <option value="front-back-duo">앞·뒷면 나란히 보기 (시안 확인용)</option>
-                  <option value="a4-sheet">A4 10매 다단 배치 (사무용 출력)</option>
+                  <option value="single-card">
+                    {isEn ? 'Front & Back Separate Pages (Print Shop)' : '양면 개별 페이지 (인쇄소 제출용)'}
+                  </option>
+                  <option value="front-back-duo">
+                    {isEn ? 'Front & Back Side-by-Side (Proof)' : '앞·뒷면 나란히 보기 (시안 확인용)'}
+                  </option>
+                  <option value="a4-sheet">
+                    {isEn ? 'A4 10-Card Sheet (Office Print)' : 'A4 10매 다단 배치 (사무용 출력)'}
+                  </option>
                 </select>
               </div>
 
               {/* Paper Dimensions */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[var(--app-text-muted)] block">
-                  명함 규격
+                  {isEn ? 'Card Size' : '명함 규격'}
                 </label>
                 <select
                   value={config.size}
                   onChange={(e) => updateConfig({ size: e.target.value as PrintSize })}
                   className="w-full min-h-[42px] bg-[var(--app-surface-subtle)] border border-[var(--app-border)] rounded-xl px-3 py-2.5 text-[var(--app-text)] font-medium focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] cursor-pointer"
                 >
-                  <option value="kr-standard">국내 표준 (90 × 50 mm)</option>
-                  <option value="iso-standard">국제 표준 (85 × 55 mm)</option>
+                  <option value="kr-standard">
+                    {isEn ? 'Korea Standard (90 × 50 mm)' : '국내 표준 (90 × 50 mm)'}
+                  </option>
+                  <option value="iso-standard">
+                    {isEn ? 'ISO Standard (85 × 55 mm)' : '국제 표준 (85 × 55 mm)'}
+                  </option>
                 </select>
               </div>
 
               {/* Paper Finish / Theme */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[var(--app-text-muted)] block">
-                  용지 마감
+                  {isEn ? 'Card Finish' : '용지 마감'}
                 </label>
                 <select
                   value={config.theme}
                   onChange={(e) => updateConfig({ theme: e.target.value as CardTheme })}
                   className="w-full min-h-[42px] bg-[var(--app-surface-subtle)] border border-[var(--app-border)] rounded-xl px-3 py-2.5 text-[var(--app-text)] font-medium focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] cursor-pointer"
                 >
-                  {THEMES.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {formatKoreanThemeLabel(t.label)}
+                  {THEMES.map((themeItem) => (
+                    <option key={themeItem.id} value={themeItem.id}>
+                      {isEn ? themeItem.labelEn : formatKoreanThemeLabel(themeItem.label)}
                     </option>
                   ))}
                 </select>
@@ -179,15 +191,22 @@ export const PrintModal: React.FC<PrintModalProps> = ({
                   onChange={(e) => updateConfig({ showCropMarks: e.target.checked })}
                   className="rounded accent-[var(--app-accent)] w-4 h-4 cursor-pointer"
                 />
-                <span>재단선 및 3mm 여백 표시</span>
+                <span>{isEn ? 'Show crop marks & 3mm bleed' : '재단선 및 3mm 여백 표시'}</span>
               </label>
 
               <div className="flex items-center gap-1.5 text-[var(--app-text-muted)] text-[11px]">
                 <Info className="w-3.5 h-3.5 shrink-0" />
-                <span>
-                  인쇄 창에서 <strong className="text-[var(--app-text)] font-medium">PDF로 저장</strong> 및{' '}
-                  <strong className="text-[var(--app-text)] font-medium">배경 그래픽 포함</strong>을 선택해 주세요
-                </span>
+                {isEn ? (
+                  <span>
+                    In print dialog, choose <strong className="text-[var(--app-text)] font-medium">Save as PDF</strong> and enable{' '}
+                    <strong className="text-[var(--app-text)] font-medium">Background graphics</strong>
+                  </span>
+                ) : (
+                  <span>
+                    인쇄 창에서 <strong className="text-[var(--app-text)] font-medium">PDF로 저장</strong> 및{' '}
+                    <strong className="text-[var(--app-text)] font-medium">배경 그래픽 포함</strong>을 선택해 주세요
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -195,7 +214,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
           {/* 2. Live Preview Stage with Fixed Responsive Aspect Ratio */}
           <div className="p-4 sm:p-6 bg-[var(--app-bg)] rounded-2xl border border-[var(--app-border)]">
             <div className="flex items-center justify-between gap-2 mb-5 pb-3 border-b border-[var(--app-border)] text-xs text-[var(--app-text-muted)]">
-              <span className="font-medium text-[var(--app-text)]">실시간 미리보기</span>
+              <span className="font-medium text-[var(--app-text)]">{isEn ? 'Live Preview' : '실시간 미리보기'}</span>
               <span className="tabular-nums">
                 {widthDisplay} · {activeThemeLabel}
               </span>
@@ -205,7 +224,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 items-start justify-items-center py-1">
                 {/* Front Card */}
                 <div className="w-full max-w-[360px] flex flex-col items-center">
-                  <span className="text-xs font-medium text-[var(--app-text-muted)] mb-2.5">앞면</span>
+                  <span className="text-xs font-medium text-[var(--app-text-muted)] mb-2.5">{isEn ? 'Front' : '앞면'}</span>
                   <div className="relative p-2.5 w-full">
                     {config.showCropMarks && <CropMarksPreview />}
                     <div
@@ -222,7 +241,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
 
                 {/* Back Card */}
                 <div className="w-full max-w-[360px] flex flex-col items-center">
-                  <span className="text-xs font-medium text-[var(--app-text-muted)] mb-2.5">뒷면</span>
+                  <span className="text-xs font-medium text-[var(--app-text-muted)] mb-2.5">{isEn ? 'Back' : '뒷면'}</span>
                   <div className="relative p-2.5 w-full">
                     {config.showCropMarks && <CropMarksPreview />}
                     <div
@@ -242,7 +261,11 @@ export const PrintModal: React.FC<PrintModalProps> = ({
               <div className="flex flex-col items-center justify-center py-2">
                 <div className="flex items-center gap-2 mb-3 text-xs text-[var(--app-text-muted)]">
                   <Layers className="w-4 h-4 text-[var(--app-text)] shrink-0" />
-                  <span>A4 용지 1장에 10매 배치 (2열 × 5행 재단 가이드 포함)</span>
+                  <span>
+                    {isEn
+                      ? '10 cards per A4 sheet (2 cols × 5 rows with crop guides)'
+                      : 'A4 용지 1장에 10매 배치 (2열 × 5행 재단 가이드 포함)'}
+                  </span>
                 </div>
 
                 <div className="relative bg-[var(--app-surface)] border border-[var(--app-border)] rounded-xl p-3 shadow-xl max-w-[280px] sm:max-w-xs w-full mx-auto aspect-[210/297]">
@@ -278,7 +301,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
             onClick={onClose}
             className="min-h-[42px] px-4 py-2 rounded-xl text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] text-xs font-medium cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
           >
-            {isSubModal ? '취소 · 공유 화면으로' : '취소'}
+            {isSubModal ? (isEn ? 'Back to Share' : '취소 · 공유 화면으로') : t.common.cancel}
           </button>
 
           <button
@@ -287,7 +310,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
             className="min-h-[42px] inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 rounded-xl bg-[var(--app-accent)] text-[var(--app-accent-fg)] hover:opacity-90 text-xs font-semibold shadow-lg cursor-pointer whitespace-nowrap active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
           >
             <Printer className="w-4 h-4 shrink-0" />
-            <span>인쇄 및 PDF 저장</span>
+            <span>{isEn ? 'Print / Save PDF' : '인쇄 및 PDF 저장'}</span>
           </button>
         </div>
       </div>

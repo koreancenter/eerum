@@ -1,4 +1,5 @@
 import { CardData, StoredCard } from '../types/card';
+import { getCurrentLocale } from '../hooks/useLocale';
 
 export type DuplicateMatchReason = 'phone' | 'email';
 
@@ -198,6 +199,7 @@ export function mergeDuplicateNotes(
     sections.push(primaryNote);
   }
 
+  const isEn = getCurrentLocale() === 'en';
   const mergeStamp = formatMergeTimestamp();
 
   for (const dup of duplicates) {
@@ -211,11 +213,16 @@ export function mergeDuplicateNotes(
 
     seen.add(dupNote);
     const sourceDate = dup.updatedAt?.split('T')[0] || dup.createdAt || '';
-    const sourceTag = sourceDate ? ` · 원본 ${sourceDate}` : '';
+    const sourceTag = sourceDate
+      ? isEn
+        ? ` · Source ${sourceDate}`
+        : ` · 원본 ${sourceDate}`
+      : '';
+    const headerTitle = isEn ? 'Merged Note' : '병합된 메모';
     if (sections.length === 0) {
-      sections.push(`[병합된 메모 · ${mergeStamp}${sourceTag}]\n${dupNote}`);
+      sections.push(`[${headerTitle} · ${mergeStamp}${sourceTag}]\n${dupNote}`);
     } else {
-      sections.push(`--- [병합된 메모 · ${mergeStamp}${sourceTag}] ---\n${dupNote}`);
+      sections.push(`--- [${headerTitle} · ${mergeStamp}${sourceTag}] ---\n${dupNote}`);
     }
   }
 

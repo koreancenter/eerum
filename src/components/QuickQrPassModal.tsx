@@ -18,6 +18,7 @@ import {
   downloadLockscreenWallpaper,
   type LockscreenWallpaperTheme,
 } from '@/utils/lockscreenWallpaper';
+import { useLocale } from '@/hooks/useLocale';
 
 interface WakeLockSentinelLike {
   released: boolean;
@@ -39,6 +40,7 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
   card,
   onShowToast,
 }) => {
+  const { isEn, t } = useLocale();
   const [qrType, setQrType] = useState<'url' | 'vcard'>('url');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [wallpaperTheme, setWallpaperTheme] = useState<LockscreenWallpaperTheme>('dark');
@@ -51,7 +53,7 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
   const cardUrl = getCardShareUrl(card);
   const displayUrl = getCardDisplayUrl(card) || cardUrl.replace(/^https?:\/\//i, '');
   const data = card.data;
-  const primaryName = (data.name || data.nameKr || '디지털 명함').trim();
+  const primaryName = (data.name || data.nameKr || t.common.cardFallback).trim();
   const primaryTitle = (data.titleKr || data.title || '').trim();
   const primaryOrg = (data.organizationKr || data.organization || '').trim();
 
@@ -157,20 +159,21 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
 
   const handleSaveVCard = () => {
     downloadVCard(data);
-    onShowToast?.(`${primaryName}님의 연락처(.vcf)가 저장되었습니다.`);
+    onShowToast?.(t.cardActions.vcardDownloadedToast(primaryName));
   };
 
   const handleWebShare = async () => {
+    const summary = [primaryOrg, primaryTitle, primaryName].filter(Boolean).join(' ');
     await shareOrCopyLink({
       title: primaryOrg ? `${primaryName} — ${primaryOrg}` : primaryName,
-      text: [primaryOrg, primaryTitle, primaryName, '디지털 명함'].filter(Boolean).join(' '),
+      text: t.modals.shareCardIntroText(summary),
       url: cardUrl,
       onCopied: () => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-        onShowToast?.('명함 링크가 클립보드에 복사되었습니다.');
+        onShowToast?.(t.cardActions.linkCopiedToast);
       },
-      onCopyError: () => onShowToast?.('명함 링크 복사에 실패했습니다.'),
+      onCopyError: () => onShowToast?.(t.cardActions.linkCopyFailedToast),
     });
   };
 
@@ -184,11 +187,9 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
         theme: wallpaperTheme,
         qrMode: qrType,
       });
-      onShowToast?.(
-        `잠금화면 QR 배경화면(${wallpaperTheme === 'dark' ? '다크' : '라이트'})이 저장되었습니다.`
-      );
+      onShowToast?.(t.modals.wallpaperSavedToast(wallpaperTheme));
     } catch {
-      onShowToast?.('배경화면 이미지 생성에 실패했습니다.');
+      onShowToast?.(t.modals.wallpaperFailedToast);
     } finally {
       setIsGeneratingWallpaper(false);
     }
@@ -198,7 +199,7 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Quick QR 명함 패스"
+      aria-label={t.modals.quickQrAria}
       className="fixed inset-0 z-50 bg-[var(--app-bg)] text-[var(--app-text)] flex flex-col justify-between overflow-y-auto pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] animate-in fade-in duration-150"
     >
       {/* Top Pass Header */}
@@ -207,7 +208,7 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
           {isWakeLockActive && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-[10px] text-emerald-700 dark:text-emerald-300 font-medium whitespace-nowrap">
               <Sparkles className="w-2.5 h-2.5 shrink-0" />
-              <span>화면 켜짐 유지</span>
+              <span>{t.modals.quickQrWakeLock}</span>
             </span>
           )}
         </div>
@@ -216,8 +217,8 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
           type="button"
           onClick={onClose}
           className="min-w-[44px] min-h-[44px] -mr-2 rounded-xl flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-          title="Quick QR 닫기"
-          aria-label="Quick QR 닫기"
+          title={t.common.close}
+          aria-label={t.common.close}
         >
           <X className="w-5 h-5" />
         </button>
@@ -229,7 +230,7 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
         {/* Minimal Border-Bottom QR Type Switcher (Zero Box-in-Box) */}
         <div
           role="tablist"
-          aria-label="Quick QR 코드 유형"
+          aria-label={t.modals.qrTypeAria}
           className="w-full max-w-[290px] flex items-center justify-center gap-6 border-b border-[var(--app-border)]"
         >
           <button
@@ -243,7 +244,7 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
                 : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
             }`}
           >
-            웹 링크 QR
+            {t.modals.webLinkQr}
             {qrType === 'url' && (
               <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
             )}
@@ -259,7 +260,7 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
                 : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
             }`}
           >
-            연락처(.vcf) QR
+            {t.modals.vcardQr}
             {qrType === 'vcard' && (
               <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
             )}
@@ -271,11 +272,11 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
           {qrDataUrl ? (
             <img
               src={qrDataUrl}
-              alt={`${primaryName} Quick QR 코드`}
+              alt={`${primaryName} Quick QR`}
               className="w-full h-full object-contain select-none"
             />
           ) : (
-            <div className="text-xs font-medium text-neutral-500">QR 생성 중...</div>
+            <div className="text-xs font-medium text-neutral-500">{t.modals.qrGenerating}</div>
           )}
         </div>
 
@@ -286,15 +287,15 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
         {/* Centered 5-Icon Toolbar with Tooltips (Matches Main Card View Icons) */}
         <div
           role="toolbar"
-          aria-label="Quick QR 빠른 작업"
+          aria-label={isEn ? 'Quick QR Actions' : 'Quick QR 빠른 작업'}
           className="w-full flex items-center justify-center gap-1.5 sm:gap-2.5 pt-1"
         >
           <button
             type="button"
             onClick={handleSaveVCard}
             className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title="연락처 저장 (.vcf)"
-            aria-label="연락처 저장 (.vcf)"
+            title={t.vault.kebabSaveVcf}
+            aria-label={t.vault.kebabSaveVcf}
           >
             <UserPlus className="w-4 h-4 stroke-[1.75]" />
           </button>
@@ -303,8 +304,8 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
             type="button"
             onClick={handleWebShare}
             className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title={copied ? '링크 복사됨' : '공유하기'}
-            aria-label={copied ? '링크 복사됨' : '공유하기'}
+            title={copied ? t.common.copied : t.modals.shareShort}
+            aria-label={copied ? t.common.copied : t.modals.shareShort}
           >
             {copied ? (
               <Check className="w-4 h-4 stroke-[2] text-emerald-500" />
@@ -324,8 +325,8 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
                 ? 'bg-[var(--app-surface-subtle)] text-[var(--app-text)]'
                 : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)]'
             }`}
-            title="배경화면 테마: 다크"
-            aria-label="배경화면 테마: 다크"
+            title={t.modals.darkWallpaper}
+            aria-label={t.modals.darkWallpaper}
           >
             <Moon className="w-4 h-4 stroke-[1.75]" />
           </button>
@@ -339,8 +340,8 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
                 ? 'bg-[var(--app-surface-subtle)] text-[var(--app-text)]'
                 : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)]'
             }`}
-            title="배경화면 테마: 라이트"
-            aria-label="배경화면 테마: 라이트"
+            title={t.modals.lightWallpaper}
+            aria-label={t.modals.lightWallpaper}
           >
             <Sun className="w-4 h-4 stroke-[1.75]" />
           </button>
@@ -350,8 +351,8 @@ export const QuickQrPassModal: React.FC<QuickQrPassModalProps> = ({
             onClick={handleDownloadWallpaper}
             disabled={isGeneratingWallpaper}
             className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title={isGeneratingWallpaper ? '배경화면 이미지 생성 중...' : '잠금화면 배경화면으로 저장'}
-            aria-label="잠금화면 배경화면으로 저장"
+            title={isGeneratingWallpaper ? t.modals.generatingWallpaper : t.modals.saveWallpaperFull}
+            aria-label={t.modals.saveWallpaperFull}
           >
             <Wallpaper className={`w-4 h-4 stroke-[1.75] ${isGeneratingWallpaper ? 'animate-pulse' : ''}`} />
           </button>

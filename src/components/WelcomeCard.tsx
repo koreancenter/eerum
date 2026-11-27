@@ -17,6 +17,7 @@ import {
   isBiometricSupported,
   isBiometricThresholdExpired,
 } from '../utils/biometrics';
+import { useLocale, type TranslationDictionary } from '../hooks/useLocale';
 
 export interface WelcomeCardProps {
   accounts: LocalAccountMeta[];
@@ -27,30 +28,15 @@ export interface WelcomeCardProps {
   onDeleteAccount?: (accountId: string) => void;
 }
 
-const STUDIO_FEATURES = [
-  {
-    title: '3D Studio',
-    sub: '3D Canvas / Custom Card',
-  },
-  {
-    title: 'Instant Share',
-    sub: 'Offline QR / 300 DPI PDF',
-  },
-  {
-    title: 'Zero-Server Vault',
-    sub: 'AES-256 / On-Device',
-  },
-] as const;
-
-function formatAccountLastLogin(iso: string): string {
+function formatAccountLastLogin(iso: string, w: TranslationDictionary['welcome']): string {
   const ms = Date.parse(iso);
-  if (!Number.isFinite(ms)) return '최근 사용';
+  if (!Number.isFinite(ms)) return w.recentlyUsed;
   const diffHours = Math.floor((Date.now() - ms) / (60 * 60 * 1000));
-  if (diffHours < 1) return '방금 사용';
-  if (diffHours < 24) return `${diffHours}시간 전`;
+  if (diffHours < 1) return w.justNow;
+  if (diffHours < 24) return w.hoursAgo(diffHours);
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return '어제';
-  if (diffDays < 30) return `${diffDays}일 전`;
+  if (diffDays === 1) return w.yesterday;
+  if (diffDays < 30) return w.daysAgo(diffDays);
   return new Date(ms).toLocaleDateString();
 }
 
@@ -62,6 +48,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
   onBiometricLoginAccount,
   onDeleteAccount,
 }) => {
+  const { locale, t } = useLocale();
   const hasAccounts = accounts.length > 0;
   const [selectedAccountId, setSelectedAccountId] = useState<string>(() => accounts[0]?.id || '');
   const [pinInput, setPinInput] = useState('');
@@ -69,12 +56,12 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [bioSupported, setBioSupported] = useState(false);
-  const [bioLabel, setBioLabel] = useState('생체 인증');
+  const [bioLabel, setBioLabel] = useState(() => getBiometricLabel());
 
   useEffect(() => {
     setBioLabel(getBiometricLabel());
     void isBiometricSupported().then(setBioSupported);
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     if (accounts.length === 0) {
@@ -109,7 +96,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
     try {
       const res = await onLoginAccount(accountId, enteredPin);
       if (!res.ok) {
-        setLoginError(res.error || '로그인하지 못했습니다.');
+        setLoginError(res.error || t.welcome.loginFailed);
         setPinInput('');
       }
     } finally {
@@ -133,7 +120,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
     try {
       const res = await onBiometricLoginAccount(selectedAccount.id);
       if (!res.ok) {
-        setLoginError(res.error || '생체 인증으로 로그인하지 못했습니다.');
+        setLoginError(res.error || t.welcome.bioLoginFailed);
       }
     } finally {
       setIsLoggingIn(false);
@@ -142,7 +129,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
 
   return (
     <section
-      aria-label="eerum 로컬 계정 및 디지털 명함 스튜디오"
+      aria-label={t.welcome.sectionAria}
       className="relative w-full max-w-2xl mx-auto px-2 sm:px-4 py-4 sm:py-6 select-none flex flex-col items-center justify-center text-center"
     >
       {/* Subtle Ambient Accent Glow */}
@@ -164,19 +151,21 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
         </div>
 
         <p className="text-[10px] sm:text-[11px] font-medium tracking-[0.28em] text-[var(--app-text-muted)] uppercase">
-          Private Digital Identity Studio
+          {t.welcome.eyebrow}
         </p>
 
         <h1 className="mt-2 text-3xl sm:text-[42px] font-medium tracking-wide text-[var(--app-text)] leading-tight text-balance">
           eerum
-          <span className="ml-2.5 font-light text-[var(--app-text-muted)] text-xl sm:text-3xl tracking-widest">
-            이룸
-          </span>
+          {t.welcome.titleKr && (
+            <span className="ml-2.5 font-light text-[var(--app-text-muted)] text-xl sm:text-3xl tracking-widest">
+              {t.welcome.titleKr}
+            </span>
+          )}
         </h1>
 
         <p className="mt-2.5 text-xs sm:text-sm text-[var(--app-text-muted)] font-normal tracking-wide leading-relaxed max-w-md mx-auto text-balance">
-          서버에 남지 않는 온디바이스 암호화로
-          <br className="hidden sm:inline" /> 당신만의 디지털 명함과 프라이빗 보관함을 완성하세요.
+          {t.welcome.heroSubLine1}
+          <br className="hidden sm:inline" /> {t.welcome.heroSubLine2}
         </p>
       </div>
 
@@ -188,11 +177,11 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
               <div className="flex items-center gap-2 min-w-0">
                 <UserCheck className="w-4 h-4 text-[var(--app-accent)] shrink-0" />
                 <h2 className="text-sm font-bold text-[var(--app-text)] tracking-tight">
-                  내 로컬 계정 로그인
+                  {t.welcome.existingAccountTitle}
                 </h2>
               </div>
               <span className="text-[10px] font-mono text-[var(--app-text-muted)] tabular-nums shrink-0">
-                {accounts.length}개 계정
+                {t.welcome.accountCount(accounts.length)}
               </span>
             </div>
 
@@ -243,8 +232,8 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
                           )}
                         </div>
                         <p className="text-[11px] text-[var(--app-text-muted)] truncate">
-                          {acct.hasPin ? 'PIN 잠금 보호' : 'PIN 없음'} ·{' '}
-                          {formatAccountLastLogin(acct.lastLoginAt || acct.createdAt)}
+                          {acct.hasPin ? t.welcome.pinProtected : t.welcome.noPin} ·{' '}
+                          {formatAccountLastLogin(acct.lastLoginAt || acct.createdAt, t.welcome)}
                         </p>
                       </div>
                     </button>
@@ -261,22 +250,22 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
                               }}
                               className="px-2 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-semibold cursor-pointer whitespace-nowrap"
                             >
-                              삭제 확인
+                              {t.common.confirmDelete}
                             </button>
                             <button
                               type="button"
                               onClick={() => setConfirmDeleteId(null)}
                               className="px-2 py-1 rounded-lg border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] text-[10px] cursor-pointer whitespace-nowrap"
                             >
-                              취소
+                              {t.common.cancel}
                             </button>
                           </>
                         ) : (
                           <button
                             type="button"
                             onClick={() => setConfirmDeleteId(acct.id)}
-                            aria-label={`${acct.displayName} 계정 삭제`}
-                            title="로컬 계정 삭제"
+                            aria-label={t.welcome.deleteAccountAria(acct.displayName)}
+                            title={t.welcome.deleteAccountTitle}
                             className="p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -308,8 +297,8 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
                         value={pinInput}
                         onChange={(e) => handlePinChange(e.target.value)}
                         disabled={isLoggingIn}
-                        placeholder="4자리 PIN 입력"
-                        aria-label={`${selectedAccount.displayName} 4자리 PIN 입력`}
+                        placeholder={t.welcome.pinPlaceholder}
+                        aria-label={t.welcome.pinAria(selectedAccount.displayName)}
                         className="flex-1 h-10 px-3.5 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-center font-mono text-base tracking-[0.35em] text-[var(--app-text)] placeholder:tracking-normal placeholder:font-sans placeholder:text-xs placeholder:text-[var(--app-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]/35 focus:border-[var(--app-accent)]"
                       />
                       <button
@@ -321,7 +310,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
                           <>
-                            <span>로그인</span>
+                            <span>{t.welcome.login}</span>
                             <ArrowRight className="w-3.5 h-3.5" />
                           </>
                         )}
@@ -336,14 +325,14 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
                         className="w-full h-10 px-3 rounded-xl bg-[var(--app-highlight)] hover:opacity-90 border border-[var(--app-border)] text-[var(--app-highlight-fg)] text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] transition-all"
                       >
                         <Fingerprint className="w-4 h-4 shrink-0" />
-                        <span>{bioLabel}로 빠른 로그인</span>
+                        <span>{t.welcome.bioQuickLogin(bioLabel)}</span>
                       </button>
                     )}
 
                     {selectedAccount.biometricsEnabled && isBioExpired && (
                       <p className="text-[11px] text-[var(--app-text-muted)] flex items-center gap-1.5 px-1">
                         <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-                        <span>7일 보안 정책에 따라 4자리 PIN으로 재인증해 주세요.</span>
+                        <span>{t.welcome.bioPolicyExpired}</span>
                       </p>
                     )}
                   </form>
@@ -358,7 +347,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <>
-                        <span>'{selectedAccount.displayName}' 보관함 열기</span>
+                        <span>{t.welcome.openVaultFor(selectedAccount.displayName)}</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </>
                     )}
@@ -386,7 +375,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
               className="h-10 px-4 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text)] font-semibold text-xs inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] whitespace-nowrap"
             >
               <UserPlus className="w-3.5 h-3.5 stroke-[2] shrink-0" />
-              <span>새 로컬 계정 만들기</span>
+              <span>{t.welcome.createNewLocalAccount}</span>
             </button>
 
             <button
@@ -395,7 +384,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
               className="h-10 px-4 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium text-xs inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] whitespace-nowrap"
             >
               <Eye className="w-3.5 h-3.5 stroke-[1.75] shrink-0" />
-              <span>샘플 둘러보기</span>
+              <span>{t.welcome.exploreSample}</span>
             </button>
           </div>
         </div>
@@ -408,7 +397,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
             className="h-11 px-5 sm:px-6 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] font-semibold text-xs sm:text-[13px] tracking-wide shadow-[var(--app-shadow)] inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
           >
             <UserPlus className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
-            <span>로컬 계정 만들기</span>
+            <span>{t.welcome.createLocalAccount}</span>
           </button>
 
           <button
@@ -417,14 +406,14 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
             className="h-11 px-4 sm:px-5 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text)] font-medium text-xs sm:text-[13px] tracking-wide inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
           >
             <Eye className="w-3.5 h-3.5 stroke-[1.6] text-[var(--app-text-muted)] shrink-0" />
-            <span>샘플 둘러보기</span>
+            <span>{t.welcome.exploreSample}</span>
           </button>
         </div>
       )}
 
       {/* 3. Sleek Horizontal 3-Column Feature Bar */}
       <div className="relative z-10 w-full max-w-2xl mt-6 sm:mt-8 grid grid-cols-3 gap-2 sm:gap-3">
-        {STUDIO_FEATURES.map((feature) => (
+        {t.welcome.features.map((feature) => (
           <div
             key={feature.title}
             className="rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] px-2 py-2.5 sm:px-4 sm:py-3 flex flex-col items-center justify-center text-center gap-1 shadow-[var(--app-shadow)] transition-colors duration-200"

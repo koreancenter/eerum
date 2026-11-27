@@ -10,6 +10,7 @@ import {
   getBiometricLabel,
   isBiometricThresholdExpired
 } from '../utils/biometrics';
+import { useLocale } from '../hooks/useLocale';
 
 export type PinModalMode = 'unlock' | 'setup' | 'change';
 
@@ -36,6 +37,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
   accountName,
   onLogoutToWelcome,
 }) => {
+  const { isEn, t } = useLocale();
   const [pin, setPin] = useState<string>('');
   const [step, setStep] = useState<'current' | 'new' | 'confirm'>('new');
   const [newPinCandidate, setNewPinCandidate] = useState<string>('');
@@ -75,7 +77,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
           handleFinishUnlock();
         }
       } else {
-        if (res.error && !res.error.includes('취소')) {
+        if (res.error && !res.error.includes('취소') && !res.error.toLowerCase().includes('cancel')) {
           setErrorMessage(res.error);
         }
       }
@@ -134,7 +136,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
       if (ok) {
         handleFinishUnlock();
       } else {
-        triggerError('PIN 번호가 일치하지 않습니다.');
+        triggerError(isEn ? 'Incorrect PIN.' : 'PIN 번호가 일치하지 않습니다.');
       }
       return;
     }
@@ -149,7 +151,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
           await setAppPin(finalPin);
           handleFinishSetupOrChange();
         } else {
-          triggerError('확인 PIN이 일치하지 않습니다. 다시 입력해 주세요.');
+          triggerError(isEn ? 'Confirmation PIN does not match. Please try again.' : '확인 PIN이 일치하지 않습니다. 다시 입력해 주세요.');
           setStep('new');
           setNewPinCandidate('');
         }
@@ -165,7 +167,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
           setStep('new');
           setErrorMessage('');
         } else {
-          triggerError('현재 PIN 번호가 일치하지 않습니다.');
+          triggerError(isEn ? 'Current PIN is incorrect.' : '현재 PIN 번호가 일치하지 않습니다.');
         }
       } else if (step === 'new') {
         setNewPinCandidate(finalPin);
@@ -176,13 +178,13 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
           await setAppPin(finalPin);
           handleFinishSetupOrChange();
         } else {
-          triggerError('새 PIN이 일치하지 않습니다. 다시 입력해 주세요.');
+          triggerError(isEn ? 'New PIN does not match. Please try again.' : '새 PIN이 일치하지 않습니다. 다시 입력해 주세요.');
           setStep('new');
           setNewPinCandidate('');
         }
       }
     }
-  }, [mode, step, newPinCandidate, handleFinishUnlock, handleFinishSetupOrChange]);
+  }, [mode, step, newPinCandidate, handleFinishUnlock, handleFinishSetupOrChange, isEn]);
 
   const handleDigit = useCallback((digit: string) => {
     if (pin.length >= 4) return;
@@ -258,22 +260,40 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
 
   if (!isOpen) return null;
 
-  let title = '보안 잠금 해제';
-  let subtitle = '비공개 보관함 및 명함 편집을 위해 PIN 또는 생체 인증을 입력하세요.';
+  let title = isEn ? 'Unlock Security' : '보안 잠금 해제';
+  let subtitle = isEn
+    ? 'Enter your PIN or use biometrics to access your private vault and edit cards.'
+    : '비공개 보관함 및 명함 편집을 위해 PIN 또는 생체 인증을 입력하세요.';
 
   if (mode === 'setup') {
-    title = step === 'new' ? '4자리 PIN 번호 설정' : 'PIN 번호 재입력 (확인)';
-    subtitle = step === 'new' ? '공용 기기 및 화면 전환 시 보관함을 안전하게 보호합니다.' : '설정을 완료하기 위해 동일한 4자리를 다시 입력해 주세요.';
+    title =
+      step === 'new'
+        ? isEn ? 'Set 4-Digit PIN' : '4자리 PIN 번호 설정'
+        : isEn ? 'Confirm PIN' : 'PIN 번호 재입력 (확인)';
+    subtitle =
+      step === 'new'
+        ? isEn
+          ? 'Protects your vault on shared devices and during screen lock.'
+          : '공용 기기 및 화면 전환 시 보관함을 안전하게 보호합니다.'
+        : isEn
+          ? 'Re-enter the same 4 digits to finish setup.'
+          : '설정을 완료하기 위해 동일한 4자리를 다시 입력해 주세요.';
   } else if (mode === 'change') {
     if (step === 'current') {
-      title = '현재 PIN 번호 입력';
-      subtitle = '보안 인증을 위해 기존에 설정된 PIN을 입력해 주세요.';
+      title = isEn ? 'Enter Current PIN' : '현재 PIN 번호 입력';
+      subtitle = isEn
+        ? 'Enter your existing PIN to verify identity.'
+        : '보안 인증을 위해 기존에 설정된 PIN을 입력해 주세요.';
     } else if (step === 'new') {
-      title = '새로운 4자리 PIN 입력';
-      subtitle = '앞으로 사용할 새로운 PIN 번호 4자리를 입력해 주세요.';
+      title = isEn ? 'Enter New 4-Digit PIN' : '새로운 4자리 PIN 입력';
+      subtitle = isEn
+        ? 'Enter the new 4-digit PIN you want to use.'
+        : '앞으로 사용할 새로운 PIN 번호 4자리를 입력해 주세요.';
     } else {
-      title = '새 PIN 번호 재입력 (확인)';
-      subtitle = '새 PIN이 맞는지 다시 한 번 입력해 주세요.';
+      title = isEn ? 'Confirm New PIN' : '새 PIN 번호 재입력 (확인)';
+      subtitle = isEn
+        ? 'Re-enter your new PIN to confirm.'
+        : '새 PIN이 맞는지 다시 한 번 입력해 주세요.';
     }
   }
 
@@ -288,7 +308,8 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 text-[var(--app-text-muted)] hover:text-[var(--app-text)] rounded-full hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
-            title="닫기"
+            title={t.common.close}
+            aria-label={t.common.close}
           >
             <X className="w-5 h-5" />
           </button>
@@ -314,16 +335,28 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
         {mode === 'unlock' && biometricSupported && biometricRegistered && (
           isBiometricThresholdExpired() ? (
             <div 
-              onClick={() => triggerError('보안 임계치 초과: 7일간 PIN 미입력으로 생체 인증이 만료되었습니다. 4자리 PIN을 입력하세요.')}
+              onClick={() =>
+                triggerError(
+                  isEn
+                    ? 'Security threshold reached: biometrics expired after 7 days without PIN. Please enter your 4-digit PIN.'
+                    : '보안 임계치 초과: 7일간 PIN 미입력으로 생체 인증이 만료되었습니다. 4자리 PIN을 입력하세요.'
+                )
+              }
               className="w-full mb-5 py-2 px-3 rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text-muted)] text-xs flex items-center justify-between cursor-pointer hover:opacity-90 transition-all shadow-sm"
-              title="7일 이상 PIN을 입력하지 않아 생체 인증이 무효화되었습니다. 4자리 PIN을 입력해 주세요."
+              title={
+                isEn
+                  ? 'Biometrics disabled after 7 days without PIN entry. Please enter your 4-digit PIN.'
+                  : '7일 이상 PIN을 입력하지 않아 생체 인증이 무효화되었습니다. 4자리 PIN을 입력해 주세요.'
+              }
             >
               <div className="flex items-center gap-2">
                 <Fingerprint className="w-4 h-4 text-[var(--app-text-muted)] shrink-0" />
-                <span className="text-[11px] font-medium leading-tight">7일 만료: PIN으로 재인증 필요</span>
+                <span className="text-[11px] font-medium leading-tight">
+                  {isEn ? '7-day expiry: PIN required' : '7일 만료: PIN으로 재인증 필요'}
+                </span>
               </div>
               <span className="text-[10px] font-bold text-[var(--app-text)] underline underline-offset-2 shrink-0">
-                PIN 입력
+                {isEn ? 'Enter PIN' : 'PIN 입력'}
               </span>
             </div>
           ) : (
@@ -334,7 +367,9 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
               className="w-full mb-5 py-2.5 px-4 rounded-2xl bg-[var(--app-highlight)] hover:opacity-90 border border-[var(--app-border)] text-[var(--app-highlight-fg)] text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-98 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
             >
               <Fingerprint className="w-4 h-4 shrink-0" />
-              <span>생체 인증으로 잠금 해제 ({biometricLabel})</span>
+              <span>
+                {isEn ? `Unlock with ${biometricLabel}` : `생체 인증으로 잠금 해제 (${biometricLabel})`}
+              </span>
             </button>
           )
         )}
@@ -384,7 +419,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
             type="button"
             onClick={handleBackspace}
             className="h-12 sm:h-14 rounded-2xl bg-[var(--app-surface-subtle)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] active:scale-95 border border-[var(--app-border)] text-[var(--app-text-muted)] flex items-center justify-center transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title="지우기"
+            title={isEn ? 'Backspace' : '지우기'}
           >
             <Delete className="w-5 h-5" />
           </button>
@@ -399,7 +434,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
             type="button"
             onClick={handleClear}
             className="h-12 sm:h-14 rounded-2xl bg-[var(--app-surface-subtle)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] active:scale-95 border border-[var(--app-border)] text-[var(--app-text-muted)] text-xs font-semibold uppercase tracking-wider transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title="전체 지우기"
+            title={isEn ? 'Clear all' : '전체 지우기'}
           >
             Clear
           </button>
@@ -411,14 +446,16 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
             <div className="flex items-center justify-between w-full text-xs mb-2 px-1">
               <span className="text-[var(--app-text-muted)] flex items-center gap-1.5 font-medium">
                 <Fingerprint className="w-3.5 h-3.5 text-[var(--app-text)]" />
-                <span>{biometricLabel} 연동</span>
+                <span>{isEn ? `${biometricLabel}` : `${biometricLabel} 연동`}</span>
               </span>
               {biometricRegistered ? (
                 <span className="text-[11px] font-semibold text-[var(--app-accent)] flex items-center gap-1">
-                  <Check className="w-3 h-3" /> 활성화됨
+                  <Check className="w-3 h-3" /> {isEn ? 'Enabled' : '활성화됨'}
                 </span>
               ) : (
-                <span className="text-[11px] text-[var(--app-text-muted)]">미등록</span>
+                <span className="text-[11px] text-[var(--app-text-muted)]">
+                  {isEn ? 'Not set' : '미등록'}
+                </span>
               )}
             </div>
 
@@ -428,7 +465,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
                 onClick={handleRemoveBiometric}
                 className="w-full py-1.5 px-3 rounded-xl bg-[var(--app-surface-subtle)] hover:opacity-80 border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] text-[11px] transition-all cursor-pointer"
               >
-                {biometricLabel} 연동 해제
+                {isEn ? `Disconnect ${biometricLabel}` : `${biometricLabel} 연동 해제`}
               </button>
             ) : (
               <button
@@ -438,7 +475,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
                 className="w-full py-2 px-3 rounded-xl bg-[var(--app-surface-subtle)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-semibold transition-all cursor-pointer active:scale-98 flex items-center justify-center gap-1.5"
               >
                 <Fingerprint className="w-3.5 h-3.5" />
-                <span>생체 인증 등록 ({biometricLabel})</span>
+                <span>{isEn ? `Register ${biometricLabel}` : `생체 인증 등록 (${biometricLabel})`}</span>
               </button>
             )}
           </div>
@@ -451,7 +488,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
             onClick={handleDisableAllSecurity}
             className="mt-3 text-xs text-[var(--app-text-muted)] hover:text-[var(--app-text)] underline underline-offset-4 cursor-pointer transition-colors"
           >
-            PIN 및 생체 인증 잠금 해제 (보안 기능 끄기)
+            {isEn ? 'Disable PIN & Biometric Lock' : 'PIN 및 생체 인증 잠금 해제 (보안 기능 끄기)'}
           </button>
         )}
 
@@ -463,7 +500,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({
             className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer transition-colors"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span>다른 계정으로 전환 / 로그아웃</span>
+            <span>{isEn ? 'Switch Account / Log Out' : '다른 계정으로 전환 / 로그아웃'}</span>
           </button>
         )}
       </div>

@@ -18,6 +18,7 @@ import { resolveThemeStyles, normalizeHexColor } from '../constants/templates';
 import { deriveCardThemeHarmony } from '../utils/cardThemeHarmony';
 import { downloadVCard, downloadBatchVCard } from '@/utils/cardExporter';
 import { matchesKoreanQuery } from '../utils/koreanSearch';
+import { useLocale } from '../hooks/useLocale';
 
 export const extractCleanPhoneNumber = (phoneRaw?: string, phone?: string): string => {
   const raw = (phoneRaw || phone || '').trim();
@@ -64,6 +65,7 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
   buttonClassName,
   menuDirection = 'auto',
 }) => {
+  const { t } = useLocale();
   const [isOpen, setIsOpen] = useState(false);
   const [menuCoords, setMenuCoords] = useState<PositionStyle | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -187,7 +189,7 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
     onDeleteCard(card.id);
   };
 
-  const displayName = card.data.name || card.data.nameKr || '명함';
+  const displayName = card.data.name || card.data.nameKr || t.common.cardFallback;
 
   const menuPortal =
     isOpen && typeof document !== 'undefined'
@@ -213,7 +215,7 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
               >
                 <Edit3 className="w-3.5 h-3.5 text-[var(--app-text-muted)] shrink-0" />
-                <span>명함 수정</span>
+                <span>{t.vault.kebabEdit}</span>
               </button>
 
               <button
@@ -223,7 +225,7 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
               >
                 <UserPlus className="w-3.5 h-3.5 text-[var(--app-text-muted)] shrink-0" />
-                <span>연락처 저장 (.vcf)</span>
+                <span>{t.vault.kebabSaveVcf}</span>
               </button>
 
               <button
@@ -233,7 +235,7 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5 text-[var(--app-text-muted)] shrink-0" />
-                <span>HTML 내보내기</span>
+                <span>{t.vault.kebabExportHtml}</span>
               </button>
 
               {hasPhoto && (
@@ -244,7 +246,7 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
                 >
                   <Camera className="w-3.5 h-3.5 text-[var(--app-text-muted)] shrink-0" />
-                  <span>실물 사진 원본</span>
+                  <span>{t.vault.kebabOriginalPhoto}</span>
                 </button>
               )}
             </div>
@@ -258,7 +260,7 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                  <span>명함 삭제</span>
+                  <span>{t.vault.kebabDelete}</span>
                 </button>
               </div>
             )}
@@ -275,8 +277,8 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
         onClick={handleToggle}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        aria-label={`${displayName} 관리 더보기 메뉴`}
-        title="명함 관리 메뉴 (수정, 삭제, 주소록, HTML)"
+        aria-label={t.vault.kebabMenuAria(displayName)}
+        title={t.vault.kebabMenuTitle}
         className={
           buttonClassName ||
           'p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]'
@@ -311,6 +313,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
   onOpenPhotoArchive,
   onRecordInteraction,
 }) => {
+  const { t } = useLocale();
   const hasPhoto = Boolean(card.scannedImage);
 
   const effectiveTheme =
@@ -334,11 +337,11 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
     const primaryTitle = (d.titleKr || d.title || '').trim();
 
     return {
-      displayName: primaryName || '이름 없음',
+      displayName: primaryName || t.common.unnamed,
       orgDisplay: primaryOrg,
       titleDisplay: primaryTitle,
     };
-  }, [card.data]);
+  }, [card.data, t.common.unnamed]);
 
   // Exception: Show compact meeting/memo chip ONLY when an active search query matches meeting/memo fields
   const matchedContextSnippet = useMemo(() => {
@@ -466,8 +469,8 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
         tabIndex={0}
         onClick={handleSelectClick}
         onKeyDown={handleBodyKeyDown}
-        aria-label={`${displayName} 명함 상세 보기`}
-        title="명함 크게 보기"
+        aria-label={t.vault.cardDetailAria(displayName)}
+        title={t.vault.cardDetailTitle}
         className={`relative z-10 w-full flex flex-col gap-1 min-w-0 cursor-pointer select-none rounded-lg focus-visible:outline-none focus-visible:ring-2 ${
           themeStyles.isLight ? 'focus-visible:ring-black/30' : 'focus-visible:ring-white/35'
         }`}
@@ -490,7 +493,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
             <span
               className={`text-[10px] font-medium leading-none shrink-0 ${themeStyles.textSecondary}`}
             >
-              · 내 명함
+              {t.vault.myCardBadge}
             </span>
           )}
         </div>
@@ -532,8 +535,8 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
                 type="button"
                 onClick={handleCallClick}
                 className={actionBtnClass}
-                title={`전화 걸기 (${cleanPhoneNumber})`}
-                aria-label={`${displayName}에게 즉시 전화 걸기`}
+                title={`${t.cardActions.call} (${cleanPhoneNumber})`}
+                aria-label={t.vault.instantCallAria(displayName)}
               >
                 <Phone className="w-3.5 h-3.5 stroke-[1.75]" />
               </button>
@@ -541,8 +544,8 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
                 type="button"
                 onClick={handleSmsClick}
                 className={actionBtnClass}
-                title={`문자 보내기 (${cleanPhoneNumber})`}
-                aria-label={`${displayName}에게 즉시 문자 보내기`}
+                title={`${t.cardActions.sms} (${cleanPhoneNumber})`}
+                aria-label={t.vault.instantSmsAria(displayName)}
               >
                 <MessageSquare className="w-3.5 h-3.5 stroke-[1.75]" />
               </button>
@@ -554,8 +557,8 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
               href={`mailto:${card.data.email}`}
               onClick={stopLinkPropagation}
               className={cleanPhoneNumber ? desktopOnlyActionBtnClass : actionBtnClass}
-              title={`이메일 작성 (${card.data.email})`}
-              aria-label={`${displayName}에게 이메일 보내기`}
+              title={`${t.cardActions.email} (${card.data.email})`}
+              aria-label={t.vault.instantEmailAria(displayName)}
             >
               <Mail className="w-3.5 h-3.5 stroke-[1.5]" />
             </a>
@@ -603,7 +606,8 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
   onOpenPhotoArchive,
   onRecordInteraction,
 }) => {
-  const displayName = (card.data.name || card.data.nameKr || '명함').trim();
+  const { t } = useLocale();
+  const displayName = (card.data.name || card.data.nameKr || t.common.cardFallback).trim();
   const displayTitle = (card.data.titleKr || card.data.title || '').trim();
   const displayOrg = (card.data.organizationKr || card.data.organization || '').trim();
   const displayContact = (card.data.phone || card.data.email || '').trim();
@@ -654,7 +658,7 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
             <span className="text-[11px] text-[var(--app-text-muted)] truncate">{displayTitle}</span>
           )}
           {card.isMyCard && (
-            <span className="text-[10px] text-[var(--app-text-muted)] font-medium shrink-0">· 내 명함</span>
+            <span className="text-[10px] text-[var(--app-text-muted)] font-medium shrink-0">{t.vault.myCardBadge}</span>
           )}
         </div>
         <div className="flex items-center gap-1.5 text-[11px] text-[var(--app-text-muted)] leading-tight min-w-0">
@@ -684,8 +688,8 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
               type="button"
               onClick={handleCallClick}
               className="p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
-              title={`전화 걸기 (${cleanPhoneNumber})`}
-              aria-label={`${displayName}에게 즉시 전화 걸기`}
+              title={`${t.cardActions.call} (${cleanPhoneNumber})`}
+              aria-label={t.vault.instantCallAria(displayName)}
             >
               <Phone className="w-3.5 h-3.5 stroke-[1.75]" />
             </button>
@@ -693,8 +697,8 @@ const VaultCardMobileListItemComponent: React.FC<VaultCardListRowProps> = ({
               type="button"
               onClick={handleSmsClick}
               className="p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
-              title={`문자 보내기 (${cleanPhoneNumber})`}
-              aria-label={`${displayName}에게 즉시 문자 보내기`}
+              title={`${t.cardActions.sms} (${cleanPhoneNumber})`}
+              aria-label={t.vault.instantSmsAria(displayName)}
             >
               <MessageSquare className="w-3.5 h-3.5 stroke-[1.75]" />
             </button>
@@ -729,7 +733,8 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
   onOpenPhotoArchive,
   onRecordInteraction,
 }) => {
-  const displayName = (card.data.name || card.data.nameKr || '명함').trim();
+  const { t } = useLocale();
+  const displayName = (card.data.name || card.data.nameKr || t.common.cardFallback).trim();
   const cleanPhoneNumber = useMemo(
     () => extractCleanPhoneNumber(card.data.phoneRaw, card.data.phone),
     [card.data.phoneRaw, card.data.phone]
@@ -768,7 +773,7 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
             {displayName}
           </span>
           {card.isMyCard && (
-            <span className="text-[10px] text-[var(--app-text-muted)] font-medium">· 내 명함</span>
+            <span className="text-[10px] text-[var(--app-text-muted)] font-medium">{t.vault.myCardBadge}</span>
           )}
         </div>
       </td>
@@ -795,7 +800,7 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
             className="flex items-center gap-1 text-[10px] text-[var(--app-text)] hover:underline cursor-pointer"
           >
             <Camera className="w-3 h-3 stroke-[1.5]" />
-            <span>사진 보기</span>
+            <span>{t.vault.viewPhoto}</span>
           </button>
         ) : (
           <span className="text-[10px] text-[var(--app-text-muted)]">-</span>
@@ -812,8 +817,8 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
                 type="button"
                 onClick={handleCallClick}
                 className="p-1.5 rounded-lg hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
-                title={`전화 걸기 (${cleanPhoneNumber})`}
-                aria-label={`${displayName}에게 즉시 전화 걸기`}
+                title={`${t.cardActions.call} (${cleanPhoneNumber})`}
+                aria-label={t.vault.instantCallAria(displayName)}
               >
                 <Phone className="w-3.5 h-3.5 stroke-[1.75]" />
               </button>
@@ -821,8 +826,8 @@ const VaultCardListRowComponent: React.FC<VaultCardListRowProps> = ({
                 type="button"
                 onClick={handleSmsClick}
                 className="p-1.5 rounded-lg hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
-                title={`문자 보내기 (${cleanPhoneNumber})`}
-                aria-label={`${displayName}에게 즉시 문자 보내기`}
+                title={`${t.cardActions.sms} (${cleanPhoneNumber})`}
+                aria-label={t.vault.instantSmsAria(displayName)}
               >
                 <MessageSquare className="w-3.5 h-3.5 stroke-[1.75]" />
               </button>

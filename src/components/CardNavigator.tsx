@@ -24,6 +24,7 @@ import {
   Edit3,
   Printer,
 } from 'lucide-react';
+import { useLocale } from '../hooks/useLocale';
 
 export type CardNavigationMode = 'carousel' | 'switcher';
 export type CardNavigatorVariant = 'my-cards' | 'vault';
@@ -75,6 +76,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
   onModeChange,
   allowModeToggle = false,
 }) => {
+  const { t } = useLocale();
   const isVaultVariant = variant === 'vault';
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -359,13 +361,13 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
               <Plus className="w-8 h-8" />
             </div>
             <h3 className="text-base sm:text-lg font-bold text-[var(--app-text)] tracking-tight transition-colors">
-              새 명함 만들기
+              {t.cardActions.newCardTitle}
             </h3>
             <p className="text-xs text-[var(--app-text-muted)] mt-2 max-w-[280px] leading-relaxed">
-              등록된 내 명함이 없습니다. 첫 번째 럭셔리 디지털 명함을 만들어 보세요.
+              {t.cardActions.newCardEmptyDesc}
             </p>
             <span className="mt-5 px-5 py-2.5 rounded-xl bg-[var(--app-accent)] text-[var(--app-accent-fg)] text-xs font-bold tracking-tight shadow-sm hover:opacity-90 transition-all">
-              지금 첫 명함 생성하기
+              {t.cardActions.newCardEmptyCta}
             </span>
           </div>
         </div>
@@ -386,7 +388,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-xs text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-all cursor-pointer"
             >
               <CreditCard className="w-3.5 h-3.5" />
-              <span>3D 캐러셀 보기</span>
+              <span>{t.cardActions.carouselMode}</span>
             </button>
           </div>
         )}
@@ -444,7 +446,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
             >
               <Plus className="w-5 h-5 text-[var(--app-text-muted)] group-hover:text-[var(--app-text)] group-hover:scale-110 transition-all mb-1" />
               <span className="text-xs font-medium text-[var(--app-text-muted)] group-hover:text-[var(--app-text)]">
-                새 명함 추가
+                {t.cardActions.addNewCardShort}
               </span>
             </div>
           )}
@@ -463,7 +465,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-xs text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-all cursor-pointer"
           >
             <LayoutGrid className="w-3.5 h-3.5" />
-            <span>목록 그리드 보기</span>
+            <span>{t.cardActions.gridMode}</span>
           </button>
         </div>
       )}
@@ -487,8 +489,8 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
               goToSlide(currentIndex - 1);
             }}
             className="flex absolute left-1 sm:left-2 md:left-6 z-30 p-2 sm:p-2.5 rounded-full bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] backdrop-blur-md active:scale-90 cursor-pointer shadow-[var(--app-shadow)] transition-colors"
-            title="이전 명함 보기"
-            aria-label="이전 명함"
+            title={t.cardActions.prevCard}
+            aria-label={t.cardActions.prevCard}
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -503,8 +505,8 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
               goToSlide(currentIndex + 1);
             }}
             className="flex absolute right-1 sm:right-2 md:right-6 z-30 p-2 sm:p-2.5 rounded-full bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] backdrop-blur-md active:scale-90 cursor-pointer shadow-[var(--app-shadow)] transition-colors"
-            title="다음 명함 보기"
-            aria-label="다음 명함"
+            title={t.cardActions.nextCard}
+            aria-label={t.cardActions.nextCard}
           >
             <ChevronRight className="w-5 h-5" />
           </button>
@@ -609,10 +611,10 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
                     <Plus className="w-7 h-7" />
                   </div>
                   <h4 className="text-sm sm:text-base font-semibold text-[var(--app-text)] tracking-tight transition-colors">
-                    새 명함 만들기
+                    {t.cardActions.newCardTitle}
                   </h4>
                   <p className="text-xs text-[var(--app-text-muted)] mt-1 max-w-[240px] leading-relaxed">
-                    새로운 직함이나 소속 단체 명함을 추가합니다
+                    {t.cardActions.newCardGhostDesc}
                   </p>
                 </div>
               </div>
@@ -645,7 +647,7 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
       ) : activeCard ? (
         <div
           role="toolbar"
-          aria-label="내 명함 빠른 작업"
+          aria-label={t.cardActions.myCardToolbarAria}
           className="w-full flex items-center justify-center gap-1.5 sm:gap-2.5 mt-4 px-2"
         >
           <button
@@ -659,8 +661,8 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
               }
             }}
             className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title="Quick QR"
-            aria-label="Quick QR"
+            title={t.cardActions.quickQr}
+            aria-label={t.cardActions.quickQr}
           >
             <QrCode className="w-4 h-4 stroke-[1.75]" />
           </button>
@@ -676,8 +678,8 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
               }
             }}
             className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title="NFC 전송"
-            aria-label="NFC 전송"
+            title={t.cardActions.nfc}
+            aria-label={t.cardActions.nfc}
           >
             <Nfc className="w-4 h-4 stroke-[1.75]" />
           </button>
@@ -696,14 +698,14 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
                 copyTimerRef.current = window.setTimeout(() => {
                   setCopiedCardId(null);
                 }, 2000);
-                onShowToast?.('명함 웹 링크가 복사되었습니다.');
+                onShowToast?.(t.cardActions.linkCopiedToast);
               } catch {
-                onShowToast?.('링크 복사에 실패했습니다.');
+                onShowToast?.(t.cardActions.linkCopyFailedToast);
               }
             }}
             className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title="링크 복사"
-            aria-label="링크 복사"
+            title={t.cardActions.copyLink}
+            aria-label={t.cardActions.copyLink}
           >
             {copiedCardId === activeCard.id ? (
               <Check className="w-4 h-4 stroke-[2] text-emerald-500" />
@@ -718,8 +720,8 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
             type="button"
             onClick={() => onOpenEdit?.(activeCard)}
             className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title="내 명함 편집"
-            aria-label="내 명함 편집"
+            title={t.cardActions.editMyCard}
+            aria-label={t.cardActions.editMyCard}
           >
             <Edit3 className="w-4 h-4 stroke-[1.75]" />
           </button>
@@ -734,8 +736,8 @@ export const CardNavigator: React.FC<CardNavigatorProps> = ({
               }
             }}
             className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title="인쇄 · PDF"
-            aria-label="인쇄 · PDF"
+            title={t.cardActions.print}
+            aria-label={t.cardActions.print}
           >
             <Printer className="w-4 h-4 stroke-[1.75]" />
           </button>

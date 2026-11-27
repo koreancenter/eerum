@@ -13,6 +13,7 @@ import {
   createEncryptedBackupContentWithKey,
   createPlainBackupContent,
 } from './vaultBackup';
+import { getCurrentLocale } from '../hooks/useLocale';
 
 const BACKUP_HANDLE_DB_NAME = 'eerum_local_backup_db';
 const BACKUP_HANDLE_DB_VERSION = 1;
@@ -159,16 +160,21 @@ export async function connectBackupDirectory(accountId?: string | null): Promise
   folderName?: string;
   error?: string;
 }> {
+  const isEn = getCurrentLocale() === 'en';
   if (!resolveAccountId(accountId)) {
     return {
       ok: false,
-      error: '로컬 계정에 로그인한 후 자동 백업 폴더를 연결할 수 있습니다.',
+      error: isEn
+        ? 'Sign in to a local account to connect an auto-backup folder.'
+        : '로컬 계정에 로그인한 후 자동 백업 폴더를 연결할 수 있습니다.',
     };
   }
   if (!isLocalFolderBackupSupported()) {
     return {
       ok: false,
-      error: '이 브라우저는 로컬 폴더 자동 백업(File System Access API)을 지원하지 않습니다.',
+      error: isEn
+        ? 'This browser does not support local folder auto-backup (File System Access API).'
+        : '이 브라우저는 로컬 폴더 자동 백업(File System Access API)을 지원하지 않습니다.',
     };
   }
 
@@ -176,7 +182,7 @@ export async function connectBackupDirectory(accountId?: string | null): Promise
   if (typeof picker !== 'function') {
     return {
       ok: false,
-      error: '폴더 선택기를 실행할 수 없습니다.',
+      error: isEn ? 'Unable to open folder picker.' : '폴더 선택기를 실행할 수 없습니다.',
     };
   }
 
@@ -195,7 +201,9 @@ export async function connectBackupDirectory(accountId?: string | null): Promise
     if (!granted) {
       return {
         ok: false,
-        error: '선택한 폴더에 대한 쓰기 권한이 허용되지 않았습니다.',
+        error: isEn
+          ? 'Write permission was not granted for the selected folder.'
+          : '선택한 폴더에 대한 쓰기 권한이 허용되지 않았습니다.',
       };
     }
 
@@ -215,7 +223,9 @@ export async function connectBackupDirectory(accountId?: string | null): Promise
       error:
         err instanceof Error
           ? err.message
-          : '백업 폴더를 연결하는 중 오류가 발생했습니다.',
+          : isEn
+            ? 'An error occurred while connecting the backup folder.'
+            : '백업 폴더를 연결하는 중 오류가 발생했습니다.',
     };
   }
 }
@@ -225,10 +235,13 @@ export async function requestBackupDirectoryPermission(accountId?: string | null
   folderName?: string;
   error?: string;
 }> {
+  const isEn = getCurrentLocale() === 'en';
   if (!isLocalFolderBackupSupported()) {
     return {
       ok: false,
-      error: '이 브라우저는 로컬 폴더 자동 백업을 지원하지 않습니다.',
+      error: isEn
+        ? 'This browser does not support local folder auto-backup.'
+        : '이 브라우저는 로컬 폴더 자동 백업을 지원하지 않습니다.',
     };
   }
 
@@ -236,7 +249,7 @@ export async function requestBackupDirectoryPermission(accountId?: string | null
   if (!handle) {
     return {
       ok: false,
-      error: '연결된 백업 폴더가 없습니다.',
+      error: isEn ? 'No backup folder connected.' : '연결된 백업 폴더가 없습니다.',
     };
   }
 
@@ -251,7 +264,7 @@ export async function requestBackupDirectoryPermission(accountId?: string | null
       return {
         ok: false,
         folderName: handle.name,
-        error: '폴더 쓰기 권한이 거부되었습니다.',
+        error: isEn ? 'Folder write permission was denied.' : '폴더 쓰기 권한이 거부되었습니다.',
       };
     }
 
@@ -267,7 +280,12 @@ export async function requestBackupDirectoryPermission(accountId?: string | null
     return {
       ok: false,
       folderName: handle.name,
-      error: err instanceof Error ? err.message : '폴더 권한을 확인하지 못했습니다.',
+      error:
+        err instanceof Error
+          ? err.message
+          : isEn
+            ? 'Could not verify folder permissions.'
+            : '폴더 권한을 확인하지 못했습니다.',
     };
   }
 }

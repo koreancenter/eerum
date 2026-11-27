@@ -5,6 +5,7 @@ import { deriveCardThemeHarmony } from '../utils/cardThemeHarmony';
 import { Check, Copy } from 'lucide-react';
 import { SandboxedCardRenderer } from './SandboxedCardRenderer';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
+import { useLocale } from '../hooks/useLocale';
 
 interface BusinessCardFrontProps {
   data: CardData;
@@ -31,6 +32,7 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
   hideBorder = false,
   html_front,
 }) => {
+  const { isEn } = useLocale();
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const sanitizedHtmlFront = useMemo(
     () => (html_front ? sanitizeHtml(html_front) : ''),
@@ -119,7 +121,7 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
       >
         <img
           src={photoUrl}
-          alt={primaryName || '명함 사진'}
+          alt={primaryName || (isEn ? 'Business card photo' : '명함 사진')}
           referrerPolicy="no-referrer"
           className="w-full h-full object-cover rounded-2xl"
         />
@@ -1064,7 +1066,7 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
               </span>
               <a
                 href={`tel:${data.phoneRaw}`}
-                title="전화 걸기"
+                title={isEn ? 'Call' : '전화 걸기'}
                 className={`whitespace-nowrap font-mono tabular-nums tracking-tight ${themeStyles.textPrimary} hover:opacity-75 transition-opacity truncate`}
               >
                 {data.phone}
@@ -1072,7 +1074,7 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
               {!isPrintPreview && (
                 <button
                   onClick={(e) => copyToClipboard(e, data.phone, 'phone')}
-                  title="복사"
+                  title={isEn ? 'Copy' : '복사'}
                   className={`hidden sm:inline-flex p-0.5 rounded opacity-0 group-hover/item:opacity-100 transition-opacity ${themeStyles.textMuted} hover:opacity-80 cursor-pointer shrink-0`}
                 >
                   {copiedKey === 'phone' ? (
@@ -1094,7 +1096,7 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
               </span>
               <a
                 href={`mailto:${data.email}`}
-                title="이메일 보내기"
+                title={isEn ? 'Send email' : '이메일 보내기'}
                 className={`whitespace-nowrap tracking-tight ${themeStyles.textPrimary} hover:opacity-75 transition-opacity truncate min-w-0 flex-1 sm:flex-none sm:max-w-[230px]`}
               >
                 {data.email}
@@ -1102,7 +1104,7 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
               {!isPrintPreview && (
                 <button
                   onClick={(e) => copyToClipboard(e, data.email, 'email')}
-                  title="복사"
+                  title={isEn ? 'Copy' : '복사'}
                   className={`hidden sm:inline-flex p-0.5 rounded opacity-0 group-hover/item:opacity-100 transition-opacity ${themeStyles.textMuted} hover:opacity-80 cursor-pointer shrink-0`}
                 >
                   {copiedKey === 'email' ? (
@@ -1126,7 +1128,7 @@ export const BusinessCardFront: React.FC<BusinessCardFrontProps> = ({
                 href={data.website}
                 target="_blank"
                 rel="noopener noreferrer"
-                title="웹사이트 열기"
+                title={isEn ? 'Open website' : '웹사이트 열기'}
                 className={`whitespace-nowrap font-mono tracking-tight ${themeStyles.textSecondary} hover:opacity-75 transition-opacity truncate min-w-0 flex-1 sm:flex-none sm:max-w-[230px]`}
               >
                 {data.websiteDisplay}

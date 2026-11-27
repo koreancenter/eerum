@@ -21,6 +21,7 @@ import { useModalState } from './hooks/useModalState';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { useCardVault, type ActiveTab } from './hooks/useCardVault';
 import { usePublicCardRoute } from './hooks/usePublicCardRoute';
+import { useLocale } from './hooks/useLocale';
 import { toBackupPayloadFromP2P, type P2PVaultTransferPayload } from './utils/p2pSync';
 import { AppHeader } from './components/AppHeader';
 import { LockedAccountView } from './components/LockedAccountView';
@@ -71,6 +72,7 @@ const PWAInstallModal = lazyWithRetry(() =>
 );
 
 export default function App() {
+  const { locale, t } = useLocale();
   const [activeTab, setActiveTab] = useState<ActiveTab>('my-card');
   const [isSamplePreview, setIsSamplePreview] = useState<boolean>(false);
   const [sampleMyCards, setSampleMyCards] = useState<StoredCard[]>([]);
@@ -386,9 +388,9 @@ export default function App() {
         );
       }
 
-      showToast('체험 모드에 임시 저장되었습니다. 영구 보관하려면 로컬 계정을 만들어 주세요.');
+      showToast(t.toasts.sampleSaved);
     },
-    [sampleMyCards, showToast]
+    [sampleMyCards, showToast, t.toasts.sampleSaved]
   );
 
   const handleDeleteSampleCard = useCallback(
@@ -409,9 +411,9 @@ export default function App() {
         }
       }
       setSampleDraftedIds((prev) => prev.filter((id) => id !== cardId));
-      showToast('체험 모드에서 명함이 삭제되었습니다.');
+      showToast(t.toasts.sampleDeleted);
     },
-    [sampleMyCards, selectedSampleMyCardId, selectedSampleVaultCardId, showToast]
+    [sampleMyCards, selectedSampleMyCardId, selectedSampleVaultCardId, showToast, t.toasts.sampleDeleted]
   );
 
   const handleImportSampleCards = useCallback(
@@ -436,10 +438,10 @@ export default function App() {
         return Array.from(next);
       });
       setTimeout(() => {
-        showToast('체험 모드에 임시 저장되었습니다. 영구 보관하려면 로컬 계정을 만들어 주세요.');
+        showToast(t.toasts.sampleSaved);
       }, 40);
     },
-    [sampleMyCards, showToast]
+    [sampleMyCards, showToast, t.toasts.sampleSaved]
   );
 
   const handleResolveOwnedMyCard = useCallback(
@@ -546,7 +548,7 @@ export default function App() {
       setPendingQuickQr(false);
     } else {
       setPendingQuickQr(false);
-      showToast('등록된 내 명함이 없습니다. 먼저 명함을 만들어 주세요.');
+      showToast(t.toasts.noMyCardForQuickQr);
     }
   }, [
     pendingQuickQr,
@@ -558,6 +560,7 @@ export default function App() {
     vault.setModalTargetCardId,
     modals.openQuickQr,
     showToast,
+    t.toasts.noMyCardForQuickQr,
   ]);
 
   useEffect(() => {
@@ -709,10 +712,12 @@ export default function App() {
 
     await shareOrCopyLink({
       title: displayOrg ? `${displayName} — ${displayOrg}` : displayName,
-      text: [displayOrg, displayTitle, displayName, '디지털 명함'].filter(Boolean).join(' '),
+      text: [displayOrg, displayTitle, displayName, locale === 'en' ? 'Digital Card' : '디지털 명함']
+        .filter(Boolean)
+        .join(' '),
       url: targetUrl,
-      onCopied: () => showToast(`명함 링크(${displayUrl})가 복사되었습니다`),
-      onCopyError: () => showToast('명함 링크 복사에 실패했습니다.'),
+      onCopied: () => showToast(t.toasts.sharedLinkCopiedWithUrl(displayUrl)),
+      onCopyError: () => showToast(t.cardActions.linkCopyFailedToast),
     });
   };
 
@@ -801,12 +806,12 @@ export default function App() {
           onOpenSync={modals.openSync}
           onClickPwaInstall={() => {
             if (pwa.isInstalled) {
-              showToast('이미 독립형 PWA 앱으로 설치되어 실행 중입니다.');
+              showToast(t.toasts.pwaAlreadyInstalled);
               setIsPWAInstallOpen(true);
             } else if (pwa.isInstallable) {
               pwa.install().then((installed) => {
                 if (installed) {
-                  showToast('앱이 성공적으로 설치되었습니다.');
+                  showToast(t.toasts.pwaInstallSuccess);
                 } else {
                   setIsPWAInstallOpen(true);
                 }
@@ -873,7 +878,7 @@ export default function App() {
                   className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--app-accent-fg)] bg-[var(--app-accent)] hover:opacity-90 transition-all tracking-wide py-2.5 px-5 rounded-xl active:scale-95 cursor-pointer shadow-[var(--app-shadow)]"
                 >
                   <BookmarkPlus className="w-3.5 h-3.5 stroke-[1.75]" />
-                  <span>명함 보관함에 등록</span>
+                  <span>{t.onboarding.saveSharedToVault}</span>
                 </button>
 
                 {/* External Landing Viral CTA: STRICTLY shown ONLY to unauthenticated external visitors */}
@@ -886,7 +891,7 @@ export default function App() {
                     }}
                     className="inline-flex items-center gap-2 text-xs text-[var(--app-text)] bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] transition-all tracking-wide py-2.5 px-5 rounded-full border border-[var(--app-border)] active:scale-95 group cursor-pointer shadow-sm"
                   >
-                    <span>나만의 럭셔리 디지털 명함 만들기</span>
+                    <span>{t.onboarding.createOwnCardCta}</span>
                     <span className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 font-sans">
                       ↗
                     </span>
@@ -928,7 +933,7 @@ export default function App() {
                       className="flex items-center gap-1.5 text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-colors cursor-pointer py-1.5 px-2 -ml-2 rounded-lg hover:bg-[var(--app-surface-subtle)]"
                     >
                       <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>샘플 보관함 목록으로</span>
+                      <span>{t.onboarding.backToSampleVault}</span>
                     </button>
                   </div>
 
@@ -1067,14 +1072,14 @@ export default function App() {
                   </>
                 ) : (
                   <section
-                    aria-label="체험 모드 내 명함 만들기"
+                    aria-label={t.onboarding.sampleEmptyAria}
                     className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] mx-auto rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] px-6 py-12 sm:px-10 sm:py-16 flex flex-col items-center text-center animate-in fade-in duration-300"
                   >
                     <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[var(--app-text)]">
-                      체험 중인 내 명함이 없습니다
+                      {t.onboarding.sampleEmptyTitle}
                     </h2>
                     <p className="text-xs text-[var(--app-text-muted)] mt-1.5 leading-relaxed max-w-xs">
-                      새 명함을 디자인해 보고 마음에 들면 로컬 계정으로 저장해 보세요.
+                      {t.onboarding.sampleEmptyDesc}
                     </p>
                     <button
                       type="button"
@@ -1082,7 +1087,7 @@ export default function App() {
                       className="mt-6 h-11 px-6 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-sm font-semibold inline-flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                     >
                       <Plus className="w-4 h-4 stroke-[2.2]" aria-hidden="true" />
-                      <span>내 명함 만들기</span>
+                      <span>{t.onboarding.createMyCard}</span>
                     </button>
                   </section>
                 )}
@@ -1104,7 +1109,7 @@ export default function App() {
                     className="flex items-center gap-1.5 text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-colors cursor-pointer py-1.5 px-2 -ml-2 rounded-lg hover:bg-[var(--app-surface-subtle)]"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
-                    <span>보관함 목록으로</span>
+                    <span>{t.onboarding.backToVaultList}</span>
                   </button>
                 </div>
               )}
@@ -1255,14 +1260,14 @@ export default function App() {
             <div className="w-full min-h-0 flex flex-col items-center justify-center">
               {resolvedMyCards.length === 0 && !(vault.isPinConfigured && vault.isLocked) ? (
                 <section
-                  aria-label="내 명함 시작하기"
+                  aria-label={t.onboarding.myCardEmptyAria}
                   className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] mx-auto rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] px-6 py-12 sm:px-10 sm:py-16 flex flex-col items-center text-center animate-in fade-in duration-300"
                 >
                   <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[var(--app-text)]">
-                    내 명함이 아직 없습니다
+                    {t.onboarding.myCardEmptyTitle}
                   </h2>
                   <p className="text-xs text-[var(--app-text-muted)] mt-1.5 leading-relaxed max-w-xs">
-                    첫 번째 디지털 명함을 만들어 QR·링크로 바로 공유해 보세요.
+                    {t.onboarding.myCardEmptyDesc}
                   </p>
 
                   <button
@@ -1271,7 +1276,7 @@ export default function App() {
                     className="mt-6 h-11 px-6 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-sm font-semibold inline-flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                   >
                     <Plus className="w-4 h-4 stroke-[2.2]" aria-hidden="true" />
-                    <span>내 명함 만들기</span>
+                    <span>{t.onboarding.createMyCard}</span>
                   </button>
 
                   <div className="mt-5 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-xs text-[var(--app-text-muted)]">
@@ -1284,7 +1289,7 @@ export default function App() {
                       }}
                       className="hover:text-[var(--app-text)] underline underline-offset-4 decoration-[var(--app-border)] hover:decoration-[var(--app-text-muted)] transition-colors cursor-pointer py-1 whitespace-nowrap"
                     >
-                      주소록 가져오기 (.vcf)
+                      {t.onboarding.importVcfLink}
                     </button>
                     <span aria-hidden="true" className="opacity-45">·</span>
                     <button
@@ -1296,7 +1301,7 @@ export default function App() {
                       }}
                       className="hover:text-[var(--app-text)] underline underline-offset-4 decoration-[var(--app-border)] hover:decoration-[var(--app-text-muted)] transition-colors cursor-pointer py-1 whitespace-nowrap"
                     >
-                      백업 파일 복원 (.eerum)
+                      {t.onboarding.restoreBackupLink}
                     </button>
                   </div>
                 </section>
@@ -1350,14 +1355,14 @@ export default function App() {
                     vault.vaultCards.length === 0 &&
                     !(vault.isPinConfigured && vault.isLocked) && (
                       <aside
-                        aria-label="다음 단계 안내"
+                        aria-label={t.onboarding.nextStepAria}
                         className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] mt-5 rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] p-4 sm:p-5 relative animate-in fade-in slide-in-from-bottom-2 duration-200"
                       >
                         <button
                           type="button"
                           onClick={vault.dismissOnboardingImportPrompt}
-                          aria-label="안내 닫기"
-                          title="닫기"
+                          aria-label={t.onboarding.dismissAria}
+                          title={t.common.close}
                           className="absolute top-3.5 right-3.5 w-7 h-7 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
                         >
                           <X className="w-3.5 h-3.5 stroke-[1.75]" />
@@ -1365,10 +1370,10 @@ export default function App() {
 
                         <div className="pr-8">
                           <h3 className="text-sm font-semibold tracking-tight text-[var(--app-text)]">
-                            내 명함이 완성되었습니다
+                            {t.onboarding.nextStepTitle}
                           </h3>
                           <p className="text-xs text-[var(--app-text-muted)] mt-1 leading-relaxed">
-                            이제 기존 휴대폰 주소록이나 실물 명함을 가져와 나만의 보관함을 채워보세요.
+                            {t.onboarding.nextStepDesc}
                           </p>
                         </div>
 
@@ -1382,7 +1387,7 @@ export default function App() {
                             }}
                             className="h-9 px-3.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] whitespace-nowrap"
                           >
-                            주소록 가져오기
+                            {t.onboarding.importContactsBtn}
                           </button>
                           <button
                             type="button"
@@ -1393,7 +1398,7 @@ export default function App() {
                             }}
                             className="h-9 px-3.5 rounded-xl bg-[var(--app-surface-subtle)] hover:bg-[var(--app-highlight)]/60 border border-[var(--app-border)] text-[var(--app-text)] text-xs font-medium transition-colors cursor-pointer active:scale-[0.98] whitespace-nowrap"
                           >
-                            실물 명함 스캔
+                            {t.onboarding.scanCardBtn}
                           </button>
                         </div>
                       </aside>
@@ -1427,7 +1432,7 @@ export default function App() {
             )}
 
             <nav
-              aria-label="약관 및 라이선스"
+              aria-label={t.footer.navAria}
               className="flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 text-[11px] text-[var(--app-text-muted)]"
             >
               <button
@@ -1435,7 +1440,7 @@ export default function App() {
                 onClick={() => modals.openLegal('privacy')}
                 className="px-2 py-1 rounded-md hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
               >
-                개인정보처리방침
+                {t.footer.privacy}
               </button>
               <span aria-hidden="true" className="opacity-40 select-none">
                 ·
@@ -1445,7 +1450,7 @@ export default function App() {
                 onClick={() => modals.openLegal('terms')}
                 className="px-2 py-1 rounded-md hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
               >
-                이용약관
+                {t.footer.terms}
               </button>
               <span aria-hidden="true" className="opacity-40 select-none">
                 ·
@@ -1455,7 +1460,7 @@ export default function App() {
                 onClick={() => modals.openLegal('licenses')}
                 className="px-2 py-1 rounded-md hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
               >
-                라이선스 · 오픈소스
+                {t.footer.licenses}
               </button>
             </nav>
           </div>
@@ -1547,12 +1552,16 @@ export default function App() {
                   vault.setCardPendingDelete(null);
                 }
               }}
-              title={vault.cardPendingDelete?.isMyCard ? '내 명함 삭제' : '명함 삭제'}
+              title={
+                vault.cardPendingDelete?.isMyCard
+                  ? t.modals.deleteMyCardTitle
+                  : t.modals.deleteVaultCardTitle
+              }
               cardName={vault.cardPendingDelete?.data?.name || vault.cardPendingDelete?.data?.nameKr}
               description={
                 vault.cardPendingDelete?.isMyCard
-                  ? '내 명함을 삭제하시겠습니까? 삭제된 명함은 복구할 수 없습니다.'
-                  : '보관된 명함을 삭제하시겠습니까? 삭제된 명함은 복구할 수 없습니다.'
+                  ? t.modals.deleteMyCardDesc
+                  : t.modals.deleteVaultCardDesc
               }
             />
           </Suspense>

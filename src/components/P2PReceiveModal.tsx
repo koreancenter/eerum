@@ -18,6 +18,7 @@ import {
   toBackupPayloadFromP2P,
 } from '../utils/p2pSync';
 import { computeBackupRestorePreview, formatBytesReadable } from '../utils/vaultBackup';
+import { useLocale } from '../hooks/useLocale';
 
 interface P2PReceiveModalProps {
   isOpen: boolean;
@@ -30,23 +31,23 @@ interface P2PReceiveModalProps {
   onClose: () => void;
 }
 
-function getReceiverStatusLabel(status: P2PConnectionStatus): string {
+function getReceiverStatusLabel(status: P2PConnectionStatus, isEn: boolean): string {
   switch (status) {
     case 'initializing':
     case 'connecting':
-      return '송신 기기와 P2P 연결 협상 중...';
+      return isEn ? 'Negotiating P2P connection...' : '송신 기기와 P2P 연결 협상 중...';
     case 'connected':
-      return 'P2P 직접 연결됨';
+      return isEn ? 'P2P Direct Connected' : 'P2P 직접 연결됨';
     case 'transferring':
-      return '암호화 채널로 보관함 수신 중...';
+      return isEn ? 'Receiving vault over encrypted channel...' : '암호화 채널로 보관함 수신 중...';
     case 'completed':
-      return '전송 완료 · SHA-256 무결성 검증됨';
+      return isEn ? 'Transfer Complete · SHA-256 Verified' : '전송 완료 · SHA-256 무결성 검증됨';
     case 'expired':
-      return '연결 코드가 만료되었습니다';
+      return isEn ? 'Pairing code has expired' : '연결 코드가 만료되었습니다';
     case 'error':
-      return 'P2P 연결에 실패했습니다';
+      return isEn ? 'P2P connection failed' : 'P2P 연결에 실패했습니다';
     default:
-      return '연결 준비 중...';
+      return isEn ? 'Preparing connection...' : '연결 준비 중...';
   }
 }
 
@@ -60,6 +61,7 @@ export const P2PReceiveModal: React.FC<P2PReceiveModalProps> = ({
   onApplyPayload,
   onClose,
 }) => {
+  const { isEn } = useLocale();
   const [status, setStatus] = useState<P2PConnectionStatus>('connecting');
   const [progress, setProgress] = useState(0);
   const [receivedBytes, setReceivedBytes] = useState(0);
@@ -169,14 +171,14 @@ export const P2PReceiveModal: React.FC<P2PReceiveModalProps> = ({
               id="p2p-receive-modal-title"
               className="text-base font-bold text-[var(--app-text)] tracking-tight"
             >
-              P2P 기기 직접 수신
+              {isEn ? 'Direct P2P Device Receive' : 'P2P 기기 직접 수신'}
             </h3>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer"
-            aria-label="닫기"
+            aria-label={isEn ? 'Close' : '닫기'}
           >
             <X className="w-4 h-4" />
           </button>
@@ -198,7 +200,7 @@ export const P2PReceiveModal: React.FC<P2PReceiveModalProps> = ({
                       <Loader2 className="w-4 h-4 text-[var(--app-accent)] shrink-0 animate-spin" />
                     )}
                     <span className="font-semibold text-[var(--app-text)] truncate">
-                      {getReceiverStatusLabel(status)}
+                      {getReceiverStatusLabel(status, isEn)}
                     </span>
                   </div>
                   <span className="font-mono text-[10px] text-[var(--app-text-muted)] shrink-0">
@@ -217,8 +219,12 @@ export const P2PReceiveModal: React.FC<P2PReceiveModalProps> = ({
                   <div className="flex items-center justify-between text-[11px] font-mono text-[var(--app-text-muted)]">
                     <span>
                       {metaInfo
-                        ? `총 ${metaInfo.cardCount}장 (내 명함 ${metaInfo.myCardCount} · 보관 ${metaInfo.vaultCardCount})`
-                        : 'WebRTC DataChannel 핸드셰이크 대기 중'}
+                        ? isEn
+                          ? `Total ${metaInfo.cardCount} (My Card ${metaInfo.myCardCount} · Vault ${metaInfo.vaultCardCount})`
+                          : `총 ${metaInfo.cardCount}장 (내 명함 ${metaInfo.myCardCount} · 보관 ${metaInfo.vaultCardCount})`
+                        : isEn
+                          ? 'Waiting for WebRTC DataChannel handshake'
+                          : 'WebRTC DataChannel 핸드셰이크 대기 중'}
                     </span>
                     <span className="tabular-nums font-semibold text-[var(--app-text)]">
                       {progress}%
@@ -245,14 +251,14 @@ export const P2PReceiveModal: React.FC<P2PReceiveModalProps> = ({
                       className="px-3 py-1.5 rounded-lg bg-[var(--app-surface)] border border-[var(--app-border)] hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] font-medium cursor-pointer inline-flex items-center gap-1.5"
                     >
                       <RefreshCw className="w-3 h-3" />
-                      <span>다시 연결 시도</span>
+                      <span>{isEn ? 'Retry Connection' : '다시 연결 시도'}</span>
                     </button>
                     <button
                       type="button"
                       onClick={onClose}
                       className="px-3 py-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] cursor-pointer"
                     >
-                      닫기
+                      {isEn ? 'Close' : '닫기'}
                     </button>
                   </div>
                 </div>
@@ -261,7 +267,9 @@ export const P2PReceiveModal: React.FC<P2PReceiveModalProps> = ({
               <div className="rounded-xl bg-[var(--app-surface-subtle)]/60 border border-[var(--app-border)] p-3 flex items-start gap-2 text-[11px] text-[var(--app-text-muted)]">
                 <Wifi className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[var(--app-text)]" />
                 <p className="leading-relaxed">
-                  명함 데이터와 고해상도 사진은 서버를 거치지 않고 송신 기기에서 이 기기로 16KB 청크 단위로 직접 전송됩니다.
+                  {isEn
+                    ? 'Cards and high-resolution photos are streamed directly from the sending device in 16KB chunks without passing through any server.'
+                    : '명함 데이터와 고해상도 사진은 서버를 거치지 않고 송신 기기에서 이 기기로 16KB 청크 단위로 직접 전송됩니다.'}
                 </p>
               </div>
             </div>
@@ -273,7 +281,7 @@ export const P2PReceiveModal: React.FC<P2PReceiveModalProps> = ({
                   <div className="flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-semibold">
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>수신 완료 · SHA-256 검증됨</span>
+                      <span>{isEn ? 'Received · SHA-256 Verified' : '수신 완료 · SHA-256 검증됨'}</span>
                     </span>
                     <span className="text-[10px] font-mono text-[var(--app-text-muted)]">
                       {formatBytesReadable(totalBytes)}
@@ -282,19 +290,25 @@ export const P2PReceiveModal: React.FC<P2PReceiveModalProps> = ({
 
                   <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--app-border)] text-center text-[11px]">
                     <div>
-                      <div className="text-[10px] text-[var(--app-text-muted)]">수신 총 명함</div>
+                      <div className="text-[10px] text-[var(--app-text-muted)]">
+                        {isEn ? 'Incoming Total' : '수신 총 명함'}
+                      </div>
                       <div className="text-sm font-bold text-[var(--app-text)] font-mono tabular-nums mt-0.5">
-                        {preview.totalIncoming}장
+                        {isEn ? `${preview.totalIncoming}` : `${preview.totalIncoming}장`}
                       </div>
                     </div>
                     <div className="border-x border-[var(--app-border)]">
-                      <div className="text-[10px] text-[var(--app-text-muted)]">내 명함 / 보관</div>
+                      <div className="text-[10px] text-[var(--app-text-muted)]">
+                        {isEn ? 'My Card / Vault' : '내 명함 / 보관'}
+                      </div>
                       <div className="text-sm font-bold text-[var(--app-text)] font-mono tabular-nums mt-0.5">
                         {preview.incomingMyCards} / {preview.incomingVaultCards}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-[var(--app-text-muted)]">신규 / 중복</div>
+                      <div className="text-[10px] text-[var(--app-text-muted)]">
+                        {isEn ? 'New / Duplicate' : '신규 / 중복'}
+                      </div>
                       <div className="text-sm font-bold text-emerald-700 dark:text-emerald-300 font-mono tabular-nums mt-0.5">
                         +{preview.newCardsCount} / {preview.duplicateCount}
                       </div>
@@ -305,7 +319,7 @@ export const P2PReceiveModal: React.FC<P2PReceiveModalProps> = ({
                 {/* Merge vs Replace Choice */}
                 <div className="space-y-2">
                   <p className="text-[11px] font-medium text-[var(--app-text-muted)]">
-                    이 기기의 보관함에 반영할 방식을 선택하세요
+                    {isEn ? 'Choose how to apply to this device’s vault' : '이 기기의 보관함에 반영할 방식을 선택하세요'}
                   </p>
 
                   <button
@@ -320,13 +334,15 @@ export const P2PReceiveModal: React.FC<P2PReceiveModalProps> = ({
                     <GitMerge className="w-4 h-4 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                     <div className="space-y-0.5">
                       <div className="font-semibold text-[var(--app-text)] flex items-center gap-1.5">
-                        <span>병합 (중복 건너뛰기)</span>
+                        <span>{isEn ? 'Merge (Skip Duplicates)' : '병합 (중복 건너뛰기)'}</span>
                         <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-300">
-                          권장
+                          {isEn ? 'Recommended' : '권장'}
                         </span>
                       </div>
                       <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
-                        기존 명함을 보존하고 새로운 명함 {preview.newCardsCount}장만 추가합니다. (중복 {preview.duplicateCount}장 건너뜀 · 내 명함 격리 유지)
+                        {isEn
+                          ? `Keeps existing cards and adds ${preview.newCardsCount} new card(s) only. (${preview.duplicateCount} duplicates skipped · My Card isolation preserved)`
+                          : `기존 명함을 보존하고 새로운 명함 ${preview.newCardsCount}장만 추가합니다. (중복 ${preview.duplicateCount}장 건너뜀 · 내 명함 격리 유지)`}
                       </p>
                     </div>
                   </button>
@@ -342,9 +358,13 @@ export const P2PReceiveModal: React.FC<P2PReceiveModalProps> = ({
                   >
                     <RefreshCw className="w-4 h-4 mt-0.5 shrink-0 text-amber-600 dark:text-amber-300" />
                     <div className="space-y-0.5">
-                      <div className="font-semibold text-[var(--app-text)]">덮어쓰기</div>
+                      <div className="font-semibold text-[var(--app-text)]">
+                        {isEn ? 'Replace All' : '덮어쓰기'}
+                      </div>
                       <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
-                        현재 기기의 보관함을 지우고 수신한 명함 {preview.totalIncoming}장으로 완전히 교체합니다.
+                        {isEn
+                          ? `Clears the current vault and replaces it completely with ${preview.totalIncoming} received card(s).`
+                          : `현재 기기의 보관함을 지우고 수신한 명함 ${preview.totalIncoming}장으로 완전히 교체합니다.`}
                       </p>
                     </div>
                   </button>
@@ -354,7 +374,9 @@ export const P2PReceiveModal: React.FC<P2PReceiveModalProps> = ({
                   <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-[11px] text-amber-800 dark:text-amber-200 flex items-start gap-2">
                     <ShieldCheck className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                     <span>
-                      기존 명함 {existingCards.length}장 보호를 위해 덮어쓰기 직전 브라우저 안전 스냅샷이 자동 저장됩니다.
+                      {isEn
+                        ? `A local safety snapshot will be saved automatically before replacing your ${existingCards.length} existing card(s).`
+                        : `기존 명함 ${existingCards.length}장 보호를 위해 덮어쓰기 직전 브라우저 안전 스냅샷이 자동 저장됩니다.`}
                     </span>
                   </div>
                 )}
@@ -365,7 +387,7 @@ export const P2PReceiveModal: React.FC<P2PReceiveModalProps> = ({
                     onClick={onClose}
                     className="px-4 py-2.5 rounded-xl border border-[var(--app-border)] hover:bg-[var(--app-surface-subtle)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium text-xs cursor-pointer"
                   >
-                    취소
+                    {isEn ? 'Cancel' : '취소'}
                   </button>
                   <button
                     type="button"
@@ -377,8 +399,12 @@ export const P2PReceiveModal: React.FC<P2PReceiveModalProps> = ({
                     }`}
                   >
                     {selectedMode === 'merge'
-                      ? `병합 반영하기 (+${preview.newCardsCount}장)`
-                      : `덮어쓰기 실행 (${preview.totalIncoming}장)`}
+                      ? isEn
+                        ? `Apply Merge (+${preview.newCardsCount})`
+                        : `병합 반영하기 (+${preview.newCardsCount}장)`
+                      : isEn
+                        ? `Replace Vault (${preview.totalIncoming})`
+                        : `덮어쓰기 실행 (${preview.totalIncoming}장)`}
                   </button>
                 </div>
               </div>

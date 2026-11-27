@@ -21,6 +21,7 @@ import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { loadVaultCategories } from '../utils/categories';
 import { generateOwnerKey } from '../utils/ownerKey';
 import { getCardThemePreference, getMostRecentCardTheme } from '../utils/cardThemeStorage';
+import { useLocale } from '../hooks/useLocale';
 
 export interface CardEditorModalProps {
   isOpen: boolean;
@@ -78,10 +79,34 @@ export const THEME_OPTIONS: {
   }
 ];
 
-const CREATION_MODES: { id: CardCreationMode; label: string; tooltip: string }[] = [
-  { id: 'template', label: '디자인 템플릿', tooltip: '지류·레이아웃 프리셋과 인적 정보로 명함 제작' },
-  { id: 'photo', label: '실물 사진', tooltip: '실물 명함 앞·뒷면 사진 업로드 및 자동 텍스트 추출' },
-  { id: 'custom_html', label: '커스텀 코드', tooltip: 'HTML/Tailwind 코드로 명함 직접 제작' }
+const CREATION_MODES: {
+  id: CardCreationMode;
+  label: string;
+  labelEn: string;
+  tooltip: string;
+  tooltipEn: string;
+}[] = [
+  {
+    id: 'template',
+    label: '디자인 템플릿',
+    labelEn: 'Design Template',
+    tooltip: '지류·레이아웃 프리셋과 인적 정보로 명함 제작',
+    tooltipEn: 'Create a card using curated paper presets, layouts, and profile fields',
+  },
+  {
+    id: 'photo',
+    label: '실물 사진',
+    labelEn: 'Physical Photo',
+    tooltip: '실물 명함 앞·뒷면 사진 업로드 및 자동 텍스트 추출',
+    tooltipEn: 'Upload front and back photos of a physical card and extract text automatically',
+  },
+  {
+    id: 'custom_html',
+    label: '커스텀 코드',
+    labelEn: 'Custom Code',
+    tooltip: 'HTML/Tailwind 코드로 명함 직접 제작',
+    tooltipEn: 'Craft your card directly with HTML and Tailwind CSS',
+  }
 ];
 
 /**
@@ -187,6 +212,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
   isMyCardMode = false,
   isCreating = false
 }) => {
+  const { isEn, t } = useLocale();
   const targetCard = editingCard || initialData || card;
   const activeCard = React.useMemo(
     () => getSafeCard(targetCard, isMyCardMode),
@@ -589,7 +615,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
   };
 
   const handleSave = () => {
-    const cleanPrimaryName = (formData.name || formData.nameKr || '').trim() || '이름 미입력';
+    const cleanPrimaryName = (formData.name || formData.nameKr || '').trim() || t.common.unnamed;
     const rawSubName = (formData.nameEn ?? '').trim();
     const cleanNameEn =
       rawSubName && rawSubName.toLowerCase() !== cleanPrimaryName.toLowerCase()
@@ -725,11 +751,11 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
             <h3 className="text-[15px] sm:text-[17px] font-semibold text-[var(--editor-text)] tracking-tight">
               {isCreating
                 ? isMyCardMode
-                  ? '새 내 명함 만들기'
-                  : '보관함 명함 등록'
+                  ? isEn ? 'Create My Card' : '새 내 명함 만들기'
+                  : isEn ? 'Add Contact Card' : '보관함 명함 등록'
                 : isMyCardMode
-                  ? '내 명함 편집'
-                  : '보관 명함 편집'}
+                  ? isEn ? 'Edit My Card' : '내 명함 편집'
+                  : isEn ? 'Edit Contact Card' : '보관 명함 편집'}
             </h3>
 
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
@@ -737,8 +763,8 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                 type="button"
                 onClick={handleResetSample}
                 className="p-1.5 sm:p-2 rounded-lg border border-[var(--editor-control-border)] bg-[var(--editor-control-bg)] text-[var(--editor-label)] hover:text-[var(--editor-text)] hover:border-[var(--editor-input-border-hover)] hover:bg-[var(--app-highlight)] cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/50"
-                title="초기화"
-                aria-label="초기화"
+                title={isEn ? 'Reset' : '초기화'}
+                aria-label={isEn ? 'Reset' : '초기화'}
               >
                 <RotateCcw className="w-4 h-4 stroke-[1.75]" />
               </button>
@@ -746,8 +772,8 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                 type="button"
                 onClick={onClose}
                 className="p-1.5 sm:p-2 rounded-lg border border-[var(--editor-control-border)] bg-[var(--editor-control-bg)] text-[var(--editor-label)] hover:text-[var(--editor-text)] hover:border-[var(--editor-input-border-hover)] hover:bg-[var(--app-highlight)] cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/50"
-                title="닫기"
-                aria-label="닫기"
+                title={t.common.close}
+                aria-label={t.common.close}
               >
                 <X className="w-4 h-4 stroke-[1.75]" />
               </button>
@@ -755,7 +781,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
           </div>
 
           {/* Minimal Border-Bottom Typographic Mode Switcher */}
-          <nav className="flex items-center gap-4 sm:gap-7 overflow-x-auto no-scrollbar" aria-label="생성 방식">
+          <nav className="flex items-center gap-4 sm:gap-7 overflow-x-auto no-scrollbar" aria-label={isEn ? 'Creation mode' : '생성 방식'}>
             {CREATION_MODES.map((mode) => {
               const isActive =
                 creationMode === mode.id ||
@@ -765,14 +791,14 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                   key={mode.id}
                   type="button"
                   onClick={() => setCreationMode(mode.id)}
-                  title={mode.tooltip}
+                  title={isEn ? mode.tooltipEn : mode.tooltip}
                   className={`relative pb-2 sm:pb-3.5 text-xs sm:text-[13px] tracking-wide whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none ${
                     isActive
                       ? 'text-[var(--editor-text)] font-semibold'
                       : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
                   }`}
                 >
-                  {mode.label}
+                  {isEn ? mode.labelEn : mode.label}
                   {isActive && (
                     <span className="absolute inset-x-0 bottom-0 h-[2px] bg-[var(--app-accent)]" />
                   )}
@@ -883,11 +909,11 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                   onDelete(activeCard.id);
                 }}
                 className="px-3 py-2 rounded-lg border border-rose-500/35 bg-rose-500/[0.06] text-rose-600 dark:text-rose-300 hover:bg-rose-500/15 hover:border-rose-500/60 text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer"
-                title="이 명함 삭제"
-                aria-label="이 명함 삭제"
+                title={isEn ? 'Delete this card' : '이 명함 삭제'}
+                aria-label={isEn ? 'Delete this card' : '이 명함 삭제'}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>삭제</span>
+                <span>{t.common.delete}</span>
               </button>
             )}
           </div>
@@ -898,7 +924,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
               onClick={() => setIsMobilePreviewOpen(true)}
               className="lg:hidden px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg border border-[var(--editor-control-border)] bg-[var(--editor-control-bg)] hover:border-[var(--editor-input-border-hover)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] text-[var(--editor-text)] text-xs sm:text-[13px] font-medium inline-flex items-center justify-center transition-colors cursor-pointer active:scale-95"
             >
-              미리보기
+              {isEn ? 'Preview' : '미리보기'}
             </button>
 
             <button
@@ -906,7 +932,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
               onClick={onClose}
               className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg border border-[var(--editor-control-border)] bg-[var(--editor-control-bg)] hover:border-[var(--editor-input-border-hover)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] text-[var(--editor-text)] cursor-pointer text-xs sm:text-[13px] font-medium whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/50"
             >
-              취소
+              {t.common.cancel}
             </button>
 
             <button
@@ -914,7 +940,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
               onClick={handleSave}
               className="px-5 py-2 sm:px-6 sm:py-2.5 rounded-lg bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] font-semibold text-xs sm:text-[13px] tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-accent)]/50 transition-opacity shadow-xs"
             >
-              {isCreating ? '등록' : '저장'}
+              {isCreating ? (isEn ? 'Create' : '등록') : t.common.save}
             </button>
           </div>
         </footer>
@@ -925,7 +951,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="명함 전체 미리보기"
+          aria-label={isEn ? 'Full card preview' : '명함 전체 미리보기'}
           className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-[var(--app-overlay)] backdrop-blur-xl animate-in fade-in duration-200 lg:hidden"
           onClick={() => setIsMobilePreviewOpen(false)}
         >
@@ -939,8 +965,8 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                 type="button"
                 onClick={() => setIsMobilePreviewOpen(false)}
                 className="w-8 h-8 rounded-full border border-[var(--editor-control-border)] bg-[var(--editor-control-bg)] flex items-center justify-center text-[var(--editor-label)] hover:text-[var(--editor-text)] hover:border-[var(--editor-input-border-hover)] transition-colors cursor-pointer"
-                title="닫기"
-                aria-label="닫기"
+                title={t.common.close}
+                aria-label={t.common.close}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -973,7 +999,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                 onClick={() => setIsMobilePreviewOpen(false)}
                 className="px-4 py-2.5 rounded-xl border border-[var(--editor-control-border)] bg-[var(--editor-control-bg)] text-xs font-medium text-[var(--editor-text)] hover:border-[var(--editor-input-border-hover)] hover:bg-[var(--app-highlight)] transition-colors cursor-pointer inline-flex items-center gap-1.5"
               >
-                <span>← 편집 계속하기</span>
+                <span>{isEn ? '← Continue Editing' : '← 편집 계속하기'}</span>
               </button>
               <button
                 type="button"
@@ -983,7 +1009,7 @@ export const CardEditorModal: React.FC<CardEditorModalProps> = ({
                 }}
                 className="px-6 py-2.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-xs font-semibold tracking-wide transition-all cursor-pointer shadow-[var(--app-shadow)] active:scale-95"
               >
-                {isCreating ? '이 명함으로 등록' : '저장하기'}
+                {isCreating ? (isEn ? 'Create Card' : '이 명함으로 등록') : isEn ? 'Save Changes' : '저장하기'}
               </button>
             </div>
           </div>

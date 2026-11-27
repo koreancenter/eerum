@@ -1,4 +1,5 @@
 import { StoredCard, CardData } from '../types/card';
+import { getCurrentLocale } from '../hooks/useLocale';
 
 export interface ParsedContact {
   id: string;
@@ -208,7 +209,7 @@ function parseSingleVCard(lines: string[]): ParsedContact | null {
 
   return {
     id: `contact-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    name: name || '이름 없음',
+    name: name || (getCurrentLocale() === 'en' ? 'Unnamed' : '이름 없음'),
     organization: org,
     title,
     phone,
@@ -256,6 +257,7 @@ export function detectDuplicates(
     }
   }
 
+  const isEn = getCurrentLocale() === 'en';
   return contacts.map((contact) => {
     const contactNormPhone = normalizePhoneNumber(contact.phone);
     const contactEmail = contact.email.trim().toLowerCase();
@@ -265,10 +267,10 @@ export function detectDuplicates(
 
     if (contactNormPhone && existingPhones.has(contactNormPhone)) {
       isDup = true;
-      reason = '동일한 전화번호 이미 보관됨';
+      reason = isEn ? 'Phone number already in vault' : '동일한 전화번호 이미 보관됨';
     } else if (contactEmail && existingEmails.has(contactEmail)) {
       isDup = true;
-      reason = '동일한 이메일 이미 보관됨';
+      reason = isEn ? 'Email already in vault' : '동일한 이메일 이미 보관됨';
     }
 
     return {
@@ -286,17 +288,21 @@ export function convertContactToStoredCard(
   contact: ParsedContact,
   category = 'VIP 파트너'
 ): StoredCard {
+  const isEn = getCurrentLocale() === 'en';
   const safeId = `vault-card-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
   const nowDate = new Date().toISOString().split('T')[0];
+
+  const fallbackOrg = isEn ? 'Unspecified Org' : '소속 미지정';
+  const fallbackTitle = isEn ? 'Unspecified Title' : '직함 미지정';
 
   const cardData: CardData = {
     name: contact.name,
     nameKr: contact.name,
     nameEn: contact.nameEn || '',
-    organization: contact.organization || '소속 미지정',
-    organizationKr: contact.organization || '소속 미지정',
-    title: contact.title || '직함 미지정',
-    titleKr: contact.title || '직함 미지정',
+    organization: contact.organization || fallbackOrg,
+    organizationKr: contact.organization || fallbackOrg,
+    title: contact.title || fallbackTitle,
+    titleKr: contact.title || fallbackTitle,
     phone: contact.phone || '',
     phoneRaw: contact.phone || '',
     email: contact.email || '',

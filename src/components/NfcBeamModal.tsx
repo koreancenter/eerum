@@ -25,6 +25,7 @@ import {
   parseWebNfcError,
   type NfcPayloadMode,
 } from '@/utils/webNfc';
+import { useLocale } from '@/hooks/useLocale';
 
 type NfcBeamStatus = 'idle' | 'writing' | 'success' | 'error';
 
@@ -50,6 +51,7 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
   onOpenQuickQr,
   onShowToast,
 }) => {
+  const { isEn, t } = useLocale();
   const [payloadMode, setPayloadMode] = useState<NfcPayloadMode>('url');
   const [status, setStatus] = useState<NfcBeamStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -64,7 +66,7 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
   const cardUrl = getCardShareUrl(card);
   const displayUrl = getCardDisplayUrl(card) || cardUrl.replace(/^https?:\/\//i, '');
   const data = card.data;
-  const primaryName = (data.name || data.nameKr || '디지털 명함').trim();
+  const primaryName = (data.name || data.nameKr || t.common.cardFallback).trim();
   const primaryTitle = (data.titleKr || data.title || '').trim();
   const primaryOrg = (data.organizationKr || data.organization || '').trim();
 
@@ -192,7 +194,7 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
 
       if (!controller.signal.aborted) {
         setStatus('success');
-        onShowToast?.(`${primaryName}님의 명함이 NFC로 전송되었습니다.`);
+        onShowToast?.(t.toasts.nfcSentToast);
       }
     } catch (err) {
       const parsed = parseWebNfcError(err);
@@ -212,20 +214,21 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
 
   const handleSaveVCard = () => {
     downloadVCard(data);
-    onShowToast?.(`${primaryName}님의 연락처(.vcf)가 저장되었습니다.`);
+    onShowToast?.(t.cardActions.vcardDownloadedToast(primaryName));
   };
 
   const handleWebShare = async () => {
+    const summary = [primaryOrg, primaryTitle, primaryName].filter(Boolean).join(' ');
     await shareOrCopyLink({
       title: primaryOrg ? `${primaryName} — ${primaryOrg}` : primaryName,
-      text: [primaryOrg, primaryTitle, primaryName, '디지털 명함'].filter(Boolean).join(' '),
+      text: t.modals.shareCardIntroText(summary),
       url: cardUrl,
       onCopied: () => {
         setSharedLink(true);
         setTimeout(() => setSharedLink(false), 2000);
-        onShowToast?.('명함 링크가 클립보드에 복사되었습니다.');
+        onShowToast?.(t.cardActions.linkCopiedToast);
       },
-      onCopyError: () => onShowToast?.('명함 링크 복사에 실패했습니다.'),
+      onCopyError: () => onShowToast?.(t.cardActions.linkCopyFailedToast),
     });
   };
 
@@ -233,10 +236,10 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
     try {
       await navigator.clipboard.writeText(cardUrl);
       setCopiedLink(true);
-      onShowToast?.('명함 링크가 클립보드에 복사되었습니다.');
+      onShowToast?.(t.cardActions.linkCopiedToast);
       setTimeout(() => setCopiedLink(false), 2000);
     } catch {
-      onShowToast?.('링크 복사에 실패했습니다.');
+      onShowToast?.(t.cardActions.linkCopyFailedToast);
     }
   };
 
@@ -260,7 +263,7 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="NFC 명함 패스"
+      aria-label={t.modals.nfcAria}
       className="fixed inset-0 z-50 bg-[var(--app-bg)] text-[var(--app-text)] flex flex-col justify-between overflow-y-auto pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] animate-in fade-in duration-150"
     >
       {/* Top Pass Header (Identical Spec to Quick QR Pass) */}
@@ -269,7 +272,7 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
           {isWakeLockActive && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-[10px] text-emerald-700 dark:text-emerald-300 font-medium whitespace-nowrap">
               <Sparkles className="w-2.5 h-2.5 shrink-0" />
-              <span>화면 켜짐 유지</span>
+              <span>{t.modals.quickQrWakeLock}</span>
             </span>
           )}
         </div>
@@ -278,8 +281,8 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
           type="button"
           onClick={handleCloseSafely}
           className="min-w-[44px] min-h-[44px] -mr-2 rounded-xl flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-          title="NFC 공유 닫기"
-          aria-label="NFC 공유 닫기"
+          title={t.modals.nfcCloseAria}
+          aria-label={t.modals.nfcCloseAria}
         >
           <X className="w-5 h-5" />
         </button>
@@ -290,7 +293,7 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
         {/* Minimal Border-Bottom Payload Type Switcher */}
         <div
           role="tablist"
-          aria-label="NFC 전송 데이터 형식"
+          aria-label={t.modals.nfcTabAria}
           className="w-full max-w-[290px] flex items-center justify-center gap-5 border-b border-[var(--app-border)]"
         >
           <button
@@ -305,7 +308,7 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
                 : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
             }`}
           >
-            명함 링크
+            {t.modals.nfcModeUrl}
             {payloadMode === 'url' && (
               <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
             )}
@@ -323,7 +326,7 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
                 : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
             }`}
           >
-            연락처(.vcf)
+            {t.modals.nfcModeVcard}
             {payloadMode === 'vcard' && (
               <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
             )}
@@ -341,7 +344,7 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
                 : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
             }`}
           >
-            링크 + 연락처
+            {t.modals.nfcModeBoth}
             {payloadMode === 'both' && (
               <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
             )}
@@ -359,11 +362,13 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
               <div className="space-y-1.5">
                 <p className="text-sm font-semibold text-[var(--app-text)] tracking-tight">
                   {support.reason === 'insecure-context'
-                    ? 'HTTPS 연결 필요'
-                    : 'Web NFC 미지원'}
+                    ? (isEn ? 'HTTPS Required' : 'HTTPS 연결 필요')
+                    : (isEn ? 'Web NFC Unsupported' : 'Web NFC 미지원')}
                 </p>
                 <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed max-w-[210px] mx-auto">
-                  Android Chrome 또는 설치된 PWA에서 직접 NFC 전송이 가능합니다.
+                  {isEn
+                    ? 'Direct NFC beaming works on Android Chrome or installed PWAs.'
+                    : 'Android Chrome 또는 설치된 PWA에서 직접 NFC 전송이 가능합니다.'}
                 </p>
               </div>
 
@@ -374,7 +379,7 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
                   className="h-9 px-4 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-xs font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                 >
                   <QrCode className="w-3.5 h-3.5 shrink-0" />
-                  <span>Quick QR 열기</span>
+                  <span>{t.modals.nfcOpenQuickQr}</span>
                 </button>
               )}
             </div>
@@ -413,21 +418,21 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-[var(--app-text)] tracking-tight">
                   {status === 'writing'
-                    ? 'NFC 대기 중...'
+                    ? (isEn ? 'Waiting for NFC...' : 'NFC 대기 중...')
                     : status === 'success'
-                      ? '전송 완료'
+                      ? (isEn ? 'Transfer Complete' : '전송 완료')
                       : status === 'error'
-                        ? 'NFC 전송 실패'
-                        : 'NFC 전송 준비'}
+                        ? t.modals.nfcErrorTitle
+                        : t.modals.nfcReadyTitle}
                 </p>
                 <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed max-w-[215px] mx-auto line-clamp-2">
                   {status === 'writing'
-                    ? '상대방 기기 뒷면이나 태그에 1~2초간 가까이 대세요.'
+                    ? t.modals.nfcWaitingDesc
                     : status === 'success'
-                      ? '상대방 기기에서 바로 명함을 확인할 수 있습니다.'
+                      ? t.modals.nfcSuccessDesc
                       : status === 'error'
                         ? errorMessage
-                        : '시작 버튼을 누른 뒤 기기를 가까이 대세요.'}
+                        : t.modals.nfcReadyDesc}
                 </p>
               </div>
 
@@ -438,7 +443,7 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
                   className="h-9 px-4 rounded-xl bg-[var(--app-surface-subtle)] hover:bg-[var(--app-border)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                 >
                   <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
-                  <span>대기 취소</span>
+                  <span>{t.modals.nfcCancelBeam}</span>
                 </button>
               ) : (
                 <button
@@ -449,10 +454,10 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
                   <SmartphoneNfc className="w-3.5 h-3.5 stroke-[2] shrink-0" />
                   <span>
                     {status === 'success'
-                      ? '다시 전송'
+                      ? t.modals.nfcResend
                       : status === 'error'
-                        ? '다시 시도'
-                        : 'NFC 전송 시작'}
+                        ? t.modals.nfcRetry
+                        : t.modals.nfcStartBeam}
                   </span>
                 </button>
               )}
@@ -468,15 +473,15 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
         {/* Centered Icon-Only Bottom Toolbar (Matches Quick QR Pass Toolbar) */}
         <div
           role="toolbar"
-          aria-label="NFC 공유 빠른 작업"
+          aria-label={t.modals.nfcToolbarAria}
           className="w-full flex items-center justify-center gap-1.5 sm:gap-2.5 pt-1"
         >
           <button
             type="button"
             onClick={handleSaveVCard}
             className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title="연락처 저장 (.vcf)"
-            aria-label="연락처 저장 (.vcf)"
+            title={t.vault.kebabSaveVcf}
+            aria-label={t.vault.kebabSaveVcf}
           >
             <UserPlus className="w-4 h-4 stroke-[1.75]" />
           </button>
@@ -485,8 +490,8 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
             type="button"
             onClick={handleWebShare}
             className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title={sharedLink ? '링크 복사됨' : '공유하기'}
-            aria-label={sharedLink ? '링크 복사됨' : '공유하기'}
+            title={sharedLink ? t.common.copied : t.modals.shareShort}
+            aria-label={sharedLink ? t.common.copied : t.modals.shareShort}
           >
             {sharedLink ? (
               <Check className="w-4 h-4 stroke-[2] text-emerald-500" />
@@ -501,8 +506,8 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
             type="button"
             onClick={handleCopyLink}
             className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title={copiedLink ? '링크 복사됨' : '링크 복사'}
-            aria-label={copiedLink ? '링크 복사됨' : '링크 복사'}
+            title={copiedLink ? t.common.copied : t.modals.nfcCopyLink}
+            aria-label={copiedLink ? t.common.copied : t.modals.nfcCopyLink}
           >
             {copiedLink ? (
               <Check className="w-4 h-4 stroke-[2] text-emerald-500" />
@@ -516,8 +521,8 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
               type="button"
               onClick={handleSwitchToQuickQr}
               className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-              title="Quick QR 패스로 전환"
-              aria-label="Quick QR 패스로 전환"
+              title={t.modals.nfcSwitchQuickQr}
+              aria-label={t.modals.nfcSwitchQuickQr}
             >
               <QrCode className="w-4 h-4 stroke-[1.75]" />
             </button>

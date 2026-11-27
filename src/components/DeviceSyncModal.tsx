@@ -21,6 +21,7 @@ import {
   isWebRTCP2PSupported,
   startP2PSender,
 } from '../utils/p2pSync';
+import { useLocale } from '../hooks/useLocale';
 
 type SyncModalTab = 'p2p' | 'cloud';
 
@@ -33,23 +34,23 @@ interface DeviceSyncModalProps {
   onShowToast?: (msg: string) => void;
 }
 
-function getSenderStatusText(status: P2PConnectionStatus): string {
+function getSenderStatusText(status: P2PConnectionStatus, isEn: boolean): string {
   switch (status) {
     case 'initializing':
-      return 'P2P 연결 코드 생성 중...';
+      return isEn ? 'Generating P2P pairing code...' : 'P2P 연결 코드 생성 중...';
     case 'waiting':
-      return '상대 기기 스캔 대기 중';
+      return isEn ? 'Waiting for receiver to scan' : '상대 기기 스캔 대기 중';
     case 'connecting':
-      return '상대 기기와 직접 연결 중...';
+      return isEn ? 'Establishing direct connection...' : '상대 기기와 직접 연결 중...';
     case 'connected':
     case 'transferring':
-      return 'P2P 직접 연결됨';
+      return isEn ? 'P2P Direct Connected' : 'P2P 직접 연결됨';
     case 'completed':
-      return '전송 완료';
+      return isEn ? 'Transfer Complete' : '전송 완료';
     case 'expired':
-      return '연결 코드 유효 시간 만료';
+      return isEn ? 'Pairing Code Expired' : '연결 코드 유효 시간 만료';
     case 'error':
-      return '연결 오류';
+      return isEn ? 'Connection Error' : '연결 오류';
   }
 }
 
@@ -61,6 +62,7 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
   onJoinP2PRoom,
   onShowToast,
 }) => {
+  const { isEn } = useLocale();
   const [activeTab, setActiveTab] = useState<SyncModalTab>('p2p');
   const [p2pSubMode, setP2pSubMode] = useState<'send' | 'receive'>('send');
   const [manualRoomInput, setManualRoomInput] = useState('');
@@ -112,7 +114,7 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
 
     if (cards.length === 0) {
       setP2PStatus('error');
-      setP2PError('전송할 명함 데이터가 없습니다.');
+      setP2PError(isEn ? 'There are no business cards to transfer.' : '전송할 명함 데이터가 없습니다.');
       return;
     }
 
@@ -139,7 +141,11 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
         if (total > 0) setP2PTotalBytes(total);
       },
       onComplete: ({ cardCount }) => {
-        onShowToast?.(`P2P 직접 전송으로 명함 ${cardCount}장을 안전하게 보냈습니다.`);
+        onShowToast?.(
+          isEn
+            ? `Securely sent ${cardCount} card${cardCount === 1 ? '' : 's'} via P2P direct transfer.`
+            : `P2P 직접 전송으로 명함 ${cardCount}장을 안전하게 보냈습니다.`
+        );
       },
       onError: (msg) => {
         setP2PError(msg);
@@ -152,7 +158,7 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
     return () => {
       session.close();
     };
-  }, [isOpen, activeTab, p2pSubMode, p2pSupported, senderSeed, cards, categories, onShowToast]);
+  }, [isOpen, activeTab, p2pSubMode, p2pSupported, senderSeed, cards, categories, onShowToast, isEn]);
 
   // Render P2P pairing QR
   useEffect(() => {
@@ -213,7 +219,11 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
     setManualRoomError(null);
     const parsedRoomId = extractP2PRoomIdFromInput(manualRoomInput);
     if (!parsedRoomId) {
-      setManualRoomError('올바른 6~32자 P2P 연결 코드 또는 페어링 URL을 입력해 주세요.');
+      setManualRoomError(
+        isEn
+          ? 'Please enter a valid 6–32 character P2P pairing code or URL.'
+          : '올바른 6~32자 P2P 연결 코드 또는 페어링 URL을 입력해 주세요.'
+      );
       return;
     }
     onClose();
@@ -249,14 +259,14 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
               id="device-sync-modal-title"
               className="text-base font-bold text-[var(--app-text)] tracking-tight"
             >
-              기기 연결 및 보관함 전송
+              {isEn ? 'Device Sync & Vault Transfer' : '기기 연결 및 보관함 전송'}
             </h3>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition cursor-pointer"
-            aria-label="닫기"
+            aria-label={isEn ? 'Close' : '닫기'}
           >
             <X className="w-4 h-4" />
           </button>
@@ -276,9 +286,9 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
             }`}
           >
             <Wifi className="w-3.5 h-3.5" />
-            <span>P2P 직접 전송</span>
+            <span>{isEn ? 'P2P Direct' : 'P2P 직접 전송'}</span>
             <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-              권장
+              {isEn ? 'Recommended' : '권장'}
             </span>
           </button>
           <button
@@ -293,7 +303,7 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
             }`}
           >
             <Cloud className="w-3.5 h-3.5" />
-            <span>클라우드 릴레이 동기화</span>
+            <span>{isEn ? 'Cloud Relay Sync' : '클라우드 릴레이 동기화'}</span>
           </button>
         </div>
 
@@ -313,7 +323,7 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
                         : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
                     }`}
                   >
-                    이 기기에서 보내기 (QR)
+                    {isEn ? 'Send from This Device (QR)' : '이 기기에서 보내기 (QR)'}
                   </button>
                   <button
                     type="button"
@@ -324,7 +334,7 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
                         : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
                     }`}
                   >
-                    연결 코드로 받기
+                    {isEn ? 'Receive with Code' : '연결 코드로 받기'}
                   </button>
                 </div>
               )}
@@ -334,7 +344,12 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
                   <div className="rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] p-3 flex items-start gap-2 text-[11px] text-[var(--app-text-muted)]">
                     <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                     <p className="leading-relaxed">
-                      <strong className="text-[var(--app-text)]">Zero-Server 직접 전송:</strong> 서버에 명함 데이터를 저장하지 않고 WebRTC 암호화 채널로 기기 간 직접 전송합니다.
+                      <strong className="text-[var(--app-text)]">
+                        {isEn ? 'Zero-Server Direct Transfer:' : 'Zero-Server 직접 전송:'}
+                      </strong>{' '}
+                      {isEn
+                        ? 'Transfers directly between devices over an encrypted WebRTC channel without storing your card data on any server.'
+                        : '서버에 명함 데이터를 저장하지 않고 WebRTC 암호화 채널로 기기 간 직접 전송합니다.'}
                     </p>
                   </div>
 
@@ -346,10 +361,10 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
                         {(p2pStatus === 'expired' || p2pStatus === 'error') && (
                           <AlertTriangle className="w-3.5 h-3.5" />
                         )}
-                        <span>{getSenderStatusText(p2pStatus)}</span>
+                        <span>{getSenderStatusText(p2pStatus, isEn)}</span>
                       </span>
                       <span className="font-mono text-[10px] opacity-80">
-                        코드 {p2pRoomId || '...'}
+                        {isEn ? `Code ${p2pRoomId || '...'}` : `코드 ${p2pRoomId || '...'}`}
                       </span>
                     </div>
 
@@ -365,7 +380,9 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
                         <span>
                           {p2pTotalBytes > 0
                             ? `${formatBytesReadable(p2pTransferredBytes)} / ${formatBytesReadable(p2pTotalBytes)}`
-                            : `보관함 ${cards.length}장 대기`}
+                            : isEn
+                              ? `${cards.length} card${cards.length === 1 ? '' : 's'} queued`
+                              : `보관함 ${cards.length}장 대기`}
                         </span>
                         <span className="tabular-nums font-semibold">{p2pProgress}%</span>
                       </div>
@@ -384,7 +401,7 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
                         className="shrink-0 px-2.5 py-1 rounded-lg bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] font-medium cursor-pointer inline-flex items-center gap-1"
                       >
                         <RefreshCw className="w-3 h-3" />
-                        <span>새 코드</span>
+                        <span>{isEn ? 'New Code' : '새 코드'}</span>
                       </button>
                     </div>
                   )}
@@ -396,7 +413,9 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
                         <img src={p2pQrSrc} alt="P2P Pairing QR" className="w-44 h-44 block" />
                       </div>
                       <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
-                        받는 기기의 카메라로 QR을 스캔하거나 아래 링크를 여세요. (보안 유효시간 60초)
+                        {isEn
+                          ? 'Scan this QR with the receiving device or open the link below. (Valid for 60s)'
+                          : '받는 기기의 카메라로 QR을 스캔하거나 아래 링크를 여세요. (보안 유효시간 60초)'}
                       </p>
                     </div>
                   )}
@@ -410,8 +429,8 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
                       type="button"
                       onClick={handleCopyP2P}
                       className="text-[var(--app-text)] hover:bg-[var(--app-border)] rounded-lg p-1.5 transition flex items-center gap-1 cursor-pointer"
-                      title="P2P 페어링 링크 복사"
-                      aria-label="P2P 페어링 링크 복사"
+                      title={isEn ? 'Copy P2P pairing link' : 'P2P 페어링 링크 복사'}
+                      aria-label={isEn ? 'Copy P2P pairing link' : 'P2P 페어링 링크 복사'}
                     >
                       {copiedP2P ? (
                         <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -423,8 +442,8 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
                       type="button"
                       onClick={() => setSenderSeed((prev) => prev + 1)}
                       className="text-[var(--app-text)] hover:bg-[var(--app-border)] rounded-lg p-1.5 transition flex items-center gap-1 cursor-pointer"
-                      title="새 연결 코드 생성"
-                      aria-label="새 연결 코드 생성"
+                      title={isEn ? 'Generate new pairing code' : '새 연결 코드 생성'}
+                      aria-label={isEn ? 'Generate new pairing code' : '새 연결 코드 생성'}
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                     </button>
@@ -437,7 +456,9 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
                       htmlFor="p2p-manual-room-input"
                       className="block text-[11px] font-medium text-[var(--app-text)]"
                     >
-                      송신 기기의 연결 코드 또는 페어링 링크 입력
+                      {isEn
+                        ? 'Enter Pairing Code or URL from Sending Device'
+                        : '송신 기기의 연결 코드 또는 페어링 링크 입력'}
                     </label>
                     <input
                       id="p2p-manual-room-input"
@@ -447,7 +468,9 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
                         setManualRoomInput(e.target.value);
                         setManualRoomError(null);
                       }}
-                      placeholder="예: a8k3m9x2p1 또는 https://.../?p2p=..."
+                      placeholder={
+                        isEn ? 'e.g. a8k3m9x2p1 or https://.../?p2p=...' : '예: a8k3m9x2p1 또는 https://.../?p2p=...'
+                      }
                       className="w-full h-10 px-3 rounded-xl bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]/70 focus:outline-none focus:border-[var(--app-accent)] font-mono text-xs"
                     />
                     {manualRoomError && (
@@ -462,7 +485,7 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
                     disabled={!manualRoomInput.trim()}
                     className="w-full py-2.5 px-4 rounded-xl bg-[var(--app-accent)] hover:opacity-90 disabled:opacity-40 text-[var(--app-accent-fg)] font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <span>P2P 수신 연결 시작</span>
+                    <span>{isEn ? 'Start P2P Receiving' : 'P2P 수신 연결 시작'}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </form>
@@ -472,7 +495,9 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
             /* Tab 2: Cloud Relay Sync (Async QR via ?sync=) */
             <div className="space-y-4 text-center">
               <div className="rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] p-3 text-left text-[11px] text-[var(--app-text-muted)] leading-relaxed">
-                두 기기가 동시에 켜져 있지 않을 때 사용하는 비동기 릴레이 동기화입니다. QR 코드를 스캔하면 D1 릴레이에 보관된 동기화 보관함을 불러옵니다.
+                {isEn
+                  ? 'Async relay sync for when both devices are not online at the same time. Scanning this QR code loads your synced vault from the D1 relay.'
+                  : '두 기기가 동시에 켜져 있지 않을 때 사용하는 비동기 릴레이 동기화입니다. QR 코드를 스캔하면 D1 릴레이에 보관된 동기화 보관함을 불러옵니다.'}
               </div>
 
               {cloudQrSrc && (
@@ -489,8 +514,8 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
                   type="button"
                   onClick={handleCopyCloud}
                   className="text-[var(--app-text)] hover:bg-[var(--app-border)] rounded-lg p-1.5 transition flex items-center gap-1 cursor-pointer"
-                  title="동기화 링크 복사"
-                  aria-label="동기화 링크 복사"
+                  title={isEn ? 'Copy sync link' : '동기화 링크 복사'}
+                  aria-label={isEn ? 'Copy sync link' : '동기화 링크 복사'}
                 >
                   {copiedCloud ? (
                     <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />

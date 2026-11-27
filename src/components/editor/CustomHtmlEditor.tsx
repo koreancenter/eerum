@@ -3,6 +3,7 @@ import { Copy, RotateCcw, Check } from 'lucide-react';
 import { CardData } from '../../types/card';
 import { sanitizeHtml, detectUnsafeHtmlPatterns } from '../../utils/sanitizeHtml';
 import { CategorySelectSection, EDITOR_INPUT_CLASS } from './CategorySelectSection';
+import { useLocale } from '../../hooks/useLocale';
 
 interface CustomHtmlEditorProps {
   htmlFront: string;
@@ -35,6 +36,25 @@ export const CLOUD_AI_QUIET_LUXURY_PROMPT = `너는 최고급 하이엔드 브�
    - 주 텍스트: 소프트 오프화이트(text-[#F2F2F5])
    - 보조 및 보더: 섬세한 헤어라인(text-zinc-400 및 border-white/10)
 5. 오직 HTML 코드 블록(\`\`\`html ... \`\`\`)만 출력하고 불필요한 설명은 생략하세요.`;
+
+export const CLOUD_AI_QUIET_LUXURY_PROMPT_EN = `You are a senior UI/UX designer and frontend engineer specializing in Quiet Luxury digital branding.
+Write clean HTML code for the front face of a minimalist, high-craft digital business card using the details below.
+
+[Card Details]
+- Organization: (e.g. Goguma Studio)
+- Name & Title: (e.g. Alex Kim / Principal Designer)
+- Contact: (e.g. +1 415-555-0192 / contact@example.com)
+- Slogan or Website: (e.g. eerum.goguma.app)
+
+[Strict Technical & Design Constraints]
+1. Wrap everything in a single root <div>. Never include <html>, <head>, or <body> tags.
+2. Preserve standard landscape business card proportions (1.586:1) using \`w-full h-full aspect-[1.586/1]\`.
+3. Use Tailwind CSS utility classes only.
+4. Palette:
+   - Canvas: Matte Obsidian (bg-[#121214] or bg-[#161618])
+   - Primary text: Soft Off-White (text-[#F2F2F5])
+   - Muted & hairlines: text-zinc-400 and border-white/10
+5. Output ONLY a single \`\`\`html ... \`\`\` code block with no extra commentary.`;
 
 export const DEFAULT_LUXURY_HTML_FRONT = `<div class="w-full h-full aspect-[1.586/1] bg-[#121214] text-[#F2F2F5] p-7 flex flex-col justify-between border border-white/10 rounded-2xl relative overflow-hidden font-sans select-none">
   <div class="flex justify-between items-start">
@@ -86,16 +106,24 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
   category,
   onChangeCategory
 }) => {
+  const { isEn } = useLocale();
   const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
   const [templateStatus, setTemplateStatus] = useState<string | null>(null);
 
   const handleCopyPrompt = () => {
-    let promptText = CLOUD_AI_QUIET_LUXURY_PROMPT;
-    if (cardData.name || cardData.organizationKr) {
-      promptText = promptText.replace(
-        '[명함 정보]\n- 회사/조직명: (예: 고구마 스튜디오)\n- 이름 및 직함: (예: 홍길동 / 수석 디자이너)\n- 연락처: (예: 010-1234-5678 / contact@example.com)\n- 슬로건 또는 웹사이트: (예: goguma.app)',
-        `[명함 정보]\n- 회사/조직명: ${cardData.organizationKr || cardData.organization || '고구마 스튜디오'}\n- 이름 및 직함: ${cardData.name || '홍길동'} / ${cardData.titleKr || cardData.title || '수석 디자이너'}\n- 연락처: ${cardData.phone || '010-1234-5678'} / ${cardData.email || 'contact@goguma.app'}\n- 슬로건 또는 웹사이트: ${cardData.website || 'eerum.goguma.app'}`
-      );
+    let promptText = isEn ? CLOUD_AI_QUIET_LUXURY_PROMPT_EN : CLOUD_AI_QUIET_LUXURY_PROMPT;
+    if (cardData.name || cardData.organizationKr || cardData.organization) {
+      if (isEn) {
+        promptText = promptText.replace(
+          '[Card Details]\n- Organization: (e.g. Goguma Studio)\n- Name & Title: (e.g. Alex Kim / Principal Designer)\n- Contact: (e.g. +1 415-555-0192 / contact@example.com)\n- Slogan or Website: (e.g. eerum.goguma.app)',
+          `[Card Details]\n- Organization: ${cardData.organization || cardData.organizationKr || 'Goguma Studio'}\n- Name & Title: ${cardData.name || 'Alex Kim'} / ${cardData.title || cardData.titleKr || 'Principal Designer'}\n- Contact: ${cardData.phone || '+1 415-555-0192'} / ${cardData.email || 'contact@goguma.app'}\n- Slogan or Website: ${cardData.website || 'eerum.goguma.app'}`
+        );
+      } else {
+        promptText = promptText.replace(
+          '[명함 정보]\n- 회사/조직명: (예: 고구마 스튜디오)\n- 이름 및 직함: (예: 홍길동 / 수석 디자이너)\n- 연락처: (예: 010-1234-5678 / contact@example.com)\n- 슬로건 또는 웹사이트: (예: goguma.app)',
+          `[명함 정보]\n- 회사/조직명: ${cardData.organizationKr || cardData.organization || '고구마 스튜디오'}\n- 이름 및 직함: ${cardData.name || '홍길동'} / ${cardData.titleKr || cardData.title || '수석 디자이너'}\n- 연락처: ${cardData.phone || '010-1234-5678'} / ${cardData.email || 'contact@goguma.app'}\n- 슬로건 또는 웹사이트: ${cardData.website || 'eerum.goguma.app'}`
+        );
+      }
     }
 
     navigator.clipboard.writeText(promptText);
@@ -106,7 +134,7 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
   const handleApplyDefaultTemplate = () => {
     onChangeFront(sanitizeHtml(DEFAULT_LUXURY_HTML_FRONT));
     onChangeBack(sanitizeHtml(DEFAULT_LUXURY_HTML_BACK));
-    setTemplateStatus('기본 템플릿 코드가 적용되었습니다.');
+    setTemplateStatus(isEn ? 'Default template code applied.' : '기본 템플릿 코드가 적용되었습니다.');
     setTimeout(() => setTemplateStatus(null), 2400);
   };
 
@@ -122,7 +150,7 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
           <div
             className="inline-flex items-center gap-4 shrink-0"
             role="tablist"
-            aria-label="명함 면 선택"
+            aria-label={isEn ? 'Select card face' : '명함 면 선택'}
           >
             <button
               type="button"
@@ -134,8 +162,8 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
                   ? 'text-[var(--editor-text)] font-semibold'
                   : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
               }`}
-              title="앞면 코드 편집 (Front)"
-              aria-label="앞면 코드 편집"
+              title={isEn ? 'Edit front HTML' : '앞면 코드 편집 (Front)'}
+              aria-label={isEn ? 'Edit front HTML' : '앞면 코드 편집'}
             >
               Front
               {activeFace === 'front' && (
@@ -152,8 +180,8 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
                   ? 'text-[var(--editor-text)] font-semibold'
                   : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
               }`}
-              title="뒷면 코드 편집 (Back)"
-              aria-label="뒷면 코드 편집"
+              title={isEn ? 'Edit back HTML' : '뒷면 코드 편집 (Back)'}
+              aria-label={isEn ? 'Edit back HTML' : '뒷면 코드 편집'}
             >
               Back
               {activeFace === 'back' && (
@@ -168,8 +196,16 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
               type="button"
               onClick={handleCopyPrompt}
               className="p-1.5 rounded-lg text-[var(--editor-label)] hover:text-[var(--editor-text)] bg-[var(--editor-control-bg)] hover:bg-[var(--app-highlight)] border border-[var(--editor-control-border)] hover:border-[var(--editor-input-border-hover)] transition-all cursor-pointer relative"
-              title={copiedPrompt ? 'AI 프롬프트 복사됨' : 'AI 프롬프트 복사'}
-              aria-label={copiedPrompt ? 'AI 프롬프트 복사됨' : 'AI 프롬프트 복사'}
+              title={
+                copiedPrompt
+                  ? isEn ? 'AI Prompt Copied' : 'AI 프롬프트 복사됨'
+                  : isEn ? 'Copy AI Prompt' : 'AI 프롬프트 복사'
+              }
+              aria-label={
+                copiedPrompt
+                  ? isEn ? 'AI Prompt Copied' : 'AI 프롬프트 복사됨'
+                  : isEn ? 'Copy AI Prompt' : 'AI 프롬프트 복사'
+              }
             >
               {copiedPrompt ? (
                 <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 stroke-[2]" />
@@ -181,8 +217,8 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
               type="button"
               onClick={handleApplyDefaultTemplate}
               className="p-1.5 rounded-lg text-[var(--editor-label)] hover:text-[var(--editor-text)] bg-[var(--editor-control-bg)] hover:bg-[var(--app-highlight)] border border-[var(--editor-control-border)] hover:border-[var(--editor-input-border-hover)] transition-all cursor-pointer"
-              title="기본 프리셋 코드 적용"
-              aria-label="기본 프리셋 코드 적용"
+              title={isEn ? 'Apply default preset code' : '기본 프리셋 코드 적용'}
+              aria-label={isEn ? 'Apply default preset code' : '기본 프리셋 코드 적용'}
             >
               <RotateCcw className="w-4 h-4 stroke-[1.75]" />
             </button>
@@ -205,7 +241,11 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
         {(templateStatus || detectedUnsafe.length > 0) && (
           <div className="flex items-center justify-between text-[11px] text-[var(--editor-muted)] pt-0.5">
             {detectedUnsafe.length > 0 ? (
-              <span>허용되지 않는 스크립트 속성은 자동으로 제외됩니다.</span>
+              <span>
+                {isEn
+                  ? 'Disallowed script attributes are automatically stripped.'
+                  : '허용되지 않는 스크립트 속성은 자동으로 제외됩니다.'}
+              </span>
             ) : (
               <span>{templateStatus}</span>
             )}
@@ -216,24 +256,28 @@ export const CustomHtmlEditor: React.FC<CustomHtmlEditorProps> = ({
       {/* Essential Contact Metadata */}
       <section className="border-t border-[var(--editor-divider)] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
         <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">
-          연결 정보
+          {isEn ? 'Contact Reference' : '연결 정보'}
         </h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">성명</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'Full Name' : '성명'}
+            </label>
             <input
               type="text"
               required
               value={cardData.name}
               onChange={(e) => onChangeCardData('name', e.target.value)}
-              placeholder="박기홍"
+              placeholder={isEn ? 'Park, Gihong' : '박기홍'}
               className={EDITOR_INPUT_CLASS}
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--editor-label)] block">연락처</label>
+            <label className="text-xs font-medium text-[var(--editor-label)] block">
+              {isEn ? 'Phone' : '연락처'}
+            </label>
             <input
               type="text"
               required

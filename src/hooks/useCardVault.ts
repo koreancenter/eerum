@@ -51,6 +51,7 @@ import {
   syncCardThemeMapFromCards,
 } from '../utils/cardThemeStorage';
 import { getAccountOnboardingImportPromptDoneKey } from '../utils/accountStorage';
+import { getCurrentLocale, getTranslations } from './useLocale';
 
 function isOnboardingImportPromptDone(accountId?: string | null): boolean {
   if (typeof window === 'undefined') return false;
@@ -213,8 +214,8 @@ export function useCardVault({
     if (res.success) {
       unlockApp(activeAccountId);
       setCards(loadUserCards(activeAccountId));
-      showToast('생체 인증(Biometrics)으로 잠금이 해제되었습니다.');
-    } else if (res.error && !res.error.includes('취소')) {
+      showToast(getTranslations().toasts.unlockedBio);
+    } else if (res.error && !res.error.includes('취소') && !res.error.toLowerCase().includes('cancel')) {
       showToast(res.error);
     }
   }, [activeAccountId, unlockApp, showToast]);
@@ -256,11 +257,7 @@ export function useCardVault({
       if (res.ok && res.account) {
         hydrateSignedInAccount(res.account, res.cards || []);
         modals.closeCreateAccount();
-        showToast(
-          res.biometricError
-            ? `'${res.account.displayName}' 계정이 생성되었습니다. (${res.biometricError})`
-            : `'${res.account.displayName}' 로컬 계정이 준비되었습니다.`
-        );
+        showToast(getTranslations().toasts.accountCreated(res.account.displayName, res.biometricError));
       }
       return res;
     },
@@ -273,7 +270,7 @@ export function useCardVault({
       if (res.ok && res.account) {
         hydrateSignedInAccount(res.account, res.cards || []);
         modals.closeAll();
-        showToast(`'${res.account.displayName}' 보관함으로 로그인했습니다.`);
+        showToast(getTranslations().toasts.accountSignedIn(res.account.displayName));
       }
       return res;
     },
@@ -286,7 +283,7 @@ export function useCardVault({
       if (res.ok && res.account) {
         hydrateSignedInAccount(res.account, res.cards || []);
         modals.closeAll();
-        showToast(`생체 인증으로 '${res.account.displayName}' 보관함을 열었습니다.`);
+        showToast(getTranslations().toasts.accountBioSignedIn(res.account.displayName));
       }
       return res;
     },
@@ -310,7 +307,7 @@ export function useCardVault({
     setActiveTab('my-card');
     setShowWelcomeIntro(true);
     rawRefreshPinStatus(null);
-    showToast('로컬 계정에서 안전하게 로그아웃되었습니다.');
+    showToast(getTranslations().toasts.accountSignedOut);
   }, [
     clearScheduledAutoBackup,
     modals.closeAll,
@@ -347,9 +344,7 @@ export function useCardVault({
         rawRefreshPinStatus(null);
       }
 
-      showToast(
-        target ? `'${target.displayName}' 로컬 계정이 삭제되었습니다.` : '로컬 계정이 삭제되었습니다.'
-      );
+      showToast(getTranslations().toasts.accountDeleted(target?.displayName));
     },
     [
       accountsList,
@@ -578,7 +573,7 @@ export function useCardVault({
         },
         category: '글로벌 네트워크',
         createdAt: new Date().toISOString().split('T')[0],
-        notes: '내 디지털 명함',
+        notes: getCurrentLocale() === 'en' ? 'My Digital Card' : '내 디지털 명함',
         details: {
           en_name: '',
           sub_org: '',
@@ -716,7 +711,7 @@ export function useCardVault({
         const safeImported = normalizeStoredCards(newCards.map((nc) => sanitizeCardForVault(nc)));
         syncCardThemeMapFromCards(safeImported, { overwriteExisting: false });
         setCards((prev) => [...safeImported, ...prev]);
-        showToast(`${newCards.length}개의 연락처가 보관함에 등록되었습니다.`);
+        showToast(getTranslations().toasts.importedContacts(newCards.length));
       });
     },
     [requireUnlock, showToast]
@@ -726,7 +721,7 @@ export function useCardVault({
   const handleRegisterSharedCardToVault = useCallback(
     (sourceCard: StoredCard) => {
       if (!activeAccountId) {
-        showToast('명함을 보관하려면 먼저 로컬 계정을 만들거나 로그인해 주세요.');
+        showToast(getTranslations().toasts.sharedCardRequiresAccount);
         modals.openCreateAccount();
         return;
       }
@@ -746,7 +741,7 @@ export function useCardVault({
         const sanitized = sanitizeCardForVault(sourceCard, {
           id: isolatedVaultId,
           category: existingVaultCopy?.category || sourceCard.category || 'VIP 파트너',
-          notes: existingVaultCopy?.notes || sourceCard.notes || '공유 링크로 등록됨',
+          notes: existingVaultCopy?.notes || sourceCard.notes || '',
           interactionCount: existingVaultCopy?.interactionCount ?? sourceCard.interactionCount,
           lastInteractedAt: existingVaultCopy?.lastInteractedAt ?? new Date().toISOString(),
         });
@@ -772,7 +767,7 @@ export function useCardVault({
         setIsFlipped(false);
         setActiveTab('vault');
         setSelectedVaultCardId(sanitized.id);
-        showToast(`'${sanitized.data.name}' 명함이 보관함에 등록되었습니다.`);
+        showToast(getTranslations().toasts.sharedCardSaved(sanitized.data.name || sanitized.data.nameKr || getTranslations().common.cardFallback));
 
         maybeScheduleLazyPinPrompt(isFirstEverCard);
       });
@@ -846,8 +841,8 @@ export function useCardVault({
 
         showToast(
           modals.isCreatingCard
-            ? '새로운 내 명함이 생성되었습니다.'
-            : '내 명함 정보가 수정되었습니다.'
+            ? getTranslations().toasts.myCardCreated
+            : getTranslations().toasts.myCardUpdated
         );
 
         if (hadNoMyCards && vaultCards.length === 0 && !isOnboardingImportPromptDone(activeAccountId)) {
@@ -859,7 +854,7 @@ export function useCardVault({
             .then(({ publishPublicCardToEdge }) => publishPublicCardToEdge(normalizedMyCard))
             .then((result) => {
               if (result.forbidden) {
-                showToast('이미 사용 중인 슬러그이거나 수정 권한이 없습니다. 다른 슬러그를 사용해 주세요.');
+                showToast(getTranslations().toasts.slugConflict(normalizedMyCard.slug || ''));
                 return;
               }
               if (result.ok && result.ownerKey && result.ownerKey !== ensuredOwnerKey) {
@@ -934,8 +929,12 @@ export function useCardVault({
 
         showToast(
           existingVaultEntry
-            ? '보관 명함 정보가 수정되었습니다.'
-            : `'${sanitizedVaultCard.data.name}' 명함이 보관함에 등록되었습니다.`
+            ? getTranslations().toasts.vaultCardUpdated
+            : getTranslations().toasts.vaultCardSaved(
+                sanitizedVaultCard.data.name ||
+                  sanitizedVaultCard.data.nameKr ||
+                  getTranslations().common.cardFallback
+              )
         );
       }
 
@@ -975,7 +974,7 @@ export function useCardVault({
     setActiveTab('my-card');
     rawRefreshPinStatus(null);
     unlockApp(null);
-    showToast('모든 로컬 데이터가 안전하게 초기화되었습니다.');
+    showToast(getTranslations().toasts.localDataReset);
   }, [
     clearScheduledAutoBackup,
     onCleanPublicRoute,
@@ -1029,7 +1028,8 @@ export function useCardVault({
       if (selectedVaultCardId === cardId) {
         setSelectedVaultCardId(null);
       }
-      showToast(target.isMyCard ? '내 명함이 삭제되었습니다.' : '명함이 삭제되었습니다.');
+      const tr = getTranslations();
+      showToast(target.isMyCard ? tr.toasts.myCardDeleted : tr.toasts.vaultCardDeleted);
     },
     [cards, myCards, selectedMyCardId, selectedVaultCardId, showToast]
   );
@@ -1040,11 +1040,7 @@ export function useCardVault({
       setCards((prev) =>
         prev.map((c) => (c.category === oldName ? { ...c, category: newName } : c))
       );
-      showToast(
-        affectedCount > 0
-          ? `'${oldName}' 분류가 '${newName}'(으)로 변경되어 명함 ${affectedCount}장에 반영되었습니다.`
-          : `'${oldName}' 카테고리가 '${newName}'(으)로 변경되었습니다.`
-      );
+      showToast(getTranslations().toasts.categoryRenamed(oldName, newName, affectedCount));
     },
     [cards, showToast]
   );
@@ -1057,11 +1053,7 @@ export function useCardVault({
           c.category === sourceCategory ? { ...c, category: targetCategory } : c
         )
       );
-      showToast(
-        movedCount > 0
-          ? `'${sourceCategory}'의 명함 ${movedCount}장이 '${targetCategory}'(으)로 병합되었습니다.`
-          : `'${sourceCategory}' 카테고리가 '${targetCategory}'(으)로 병합되었습니다.`
-      );
+      showToast(getTranslations().toasts.categoryMerged(sourceCategory, targetCategory, movedCount));
     },
     [cards, showToast]
   );
@@ -1072,11 +1064,7 @@ export function useCardVault({
       setCards((prev) =>
         prev.map((c) => (c.category === deletedName ? { ...c, category: fallbackCategory } : c))
       );
-      showToast(
-        movedCount > 0
-          ? `'${deletedName}' 삭제 후 명함 ${movedCount}장이 '${fallbackCategory}'(으)로 이동되었습니다.`
-          : `'${deletedName}' 카테고리가 삭제되었습니다.`
-      );
+      showToast(getTranslations().toasts.categoryDeleted(deletedName, fallbackCategory, movedCount));
     },
     [cards, showToast]
   );
@@ -1176,10 +1164,12 @@ export function useCardVault({
       if (selectedVaultCardId && removeSet.has(selectedVaultCardId)) {
         setSelectedVaultCardId(safeMerged.id);
       }
+      const tr = getTranslations();
       showToast(
-        `중복 연락처 ${duplicateCardIds.length}건을 '${
-          safeMerged.data.name || safeMerged.data.nameKr || '대표 명함'
-        }'(으)로 병합했습니다.`
+        tr.toasts.duplicatesMerged(
+          duplicateCardIds.length,
+          safeMerged.data.name || safeMerged.data.nameKr || tr.common.cardFallback
+        )
       );
     },
     [isPinConfigured, isLocked, lockApp, selectedVaultCardId, showToast]
@@ -1199,7 +1189,10 @@ export function useCardVault({
           const activePin = getActiveSessionPin();
           void saveLocalRecoverySnapshot(cards, existingCategories, {
             reason: 'pre_restore',
-            label: '전체 교체 전 자동 안전 스냅샷',
+            label:
+              getCurrentLocale() === 'en'
+                ? 'Auto safety snapshot before full replace'
+                : '전체 교체 전 자동 안전 스냅샷',
             secret: activePin,
             encryptedWithPin: Boolean(isPinConfigured && activePin),
           });
@@ -1265,20 +1258,23 @@ export function useCardVault({
           setShowWelcomeIntro(false);
         }
 
+        const tr = getTranslations();
         if (mode === 'replace') {
-          showToast(`백업 파일의 명함 ${resolvedCards.length}장으로 보관함이 복원되었습니다.`);
+          showToast(tr.toasts.backupRestoredReplace(resolvedCards.length));
         } else if (result.addedCount === 0 && result.updatedCount === 0 && result.skippedCount > 0) {
-          showToast(`모든 명함(${result.skippedCount}장)이 이미 최신 상태로 보관함에 있습니다.`);
+          showToast(tr.toasts.backupRestoredUpToDate(result.skippedCount));
         } else if (result.updatedCount > 0) {
           showToast(
-            `신규 ${result.addedCount}장 추가, ${result.updatedCount}장 업데이트 완료 (건너뜀 ${result.skippedCount}장).`
+            tr.toasts.backupRestoredUpdated(
+              result.addedCount,
+              result.updatedCount,
+              result.skippedCount
+            )
           );
         } else if (result.skippedCount > 0) {
-          showToast(
-            `명함 ${result.addedCount}장이 병합 복원되었습니다 (중복 ${result.skippedCount}장 건너뜀).`
-          );
+          showToast(tr.toasts.backupRestoredMerged(result.addedCount, result.skippedCount));
         } else {
-          showToast(`명함 ${result.addedCount}장이 보관함에 안전하게 복원되었습니다.`);
+          showToast(tr.toasts.backupRestoredAdded(result.addedCount));
         }
       });
     },

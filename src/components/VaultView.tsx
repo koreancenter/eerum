@@ -41,6 +41,7 @@ import {
   type VaultSortOption,
   sortVaultCards,
 } from '../utils/cardSorting';
+import { useLocale } from '../hooks/useLocale';
 
 export type { VaultSortOption };
 export type VaultViewMode = 'grid' | 'list';
@@ -119,6 +120,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
   isSampleMode = false,
   onRequestCreateAccount,
 }) => {
+  const { locale, t } = useLocale();
   // Defensive filter: strictly isolate Vault cards from personal cards (`isMyCard: true` belongs exclusively to '내 명함')
   const cards = useMemo(() => rawCards.filter((c) => !c.isMyCard), [rawCards]);
   const cardsRef = useRef<StoredCard[]>(cards);
@@ -393,9 +395,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
     const SpeechRecognitionClass = getSpeechRecognitionClass();
 
     if (!SpeechRecognitionClass) {
-      triggerToast(
-        '현재 브라우저에서는 음성 검색(Web Speech API)을 지원하지 않습니다. Chrome 또는 Safari 최신 버전을 권장합니다.'
-      );
+      triggerToast(t.vault.voiceUnsupported);
       return;
     }
 
@@ -406,18 +406,15 @@ export const VaultView: React.FC<VaultViewProps> = ({
 
     try {
       const recognition = new SpeechRecognitionClass();
-      // Set recognition language to 'ko-KR' (or fallback to browser default)
-      const selectedLang: string = 'ko-KR';
-      const browserDefaultLang: string =
-        (typeof navigator !== 'undefined' && navigator.language) || 'ko-KR';
-      recognition.lang = selectedLang || browserDefaultLang;
+      const selectedLang: string = locale === 'en' ? 'en-US' : 'ko-KR';
+      recognition.lang = selectedLang;
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
       recognition.continuous = false;
 
       recognition.onstart = () => {
         setIsListening(true);
-        setVoiceFeedback('말씀하세요... (듣는 중)');
+        setVoiceFeedback(t.vault.voiceListening);
       };
 
       recognition.onresult = (event: any) => {
@@ -437,7 +434,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
         if (activeText) {
           // Automatically populate search state (`searchQuery`) upon `onresult` event to filter the card list instantaneously
           setSearchQuery(activeText);
-          setVoiceFeedback(`인식됨: "${activeText}"`);
+          setVoiceFeedback(t.vault.voiceRecognized(activeText));
         }
       };
 
@@ -447,13 +444,13 @@ export const VaultView: React.FC<VaultViewProps> = ({
         setVoiceFeedback(null);
 
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          triggerToast('마이크 사용 권한이 차단되었습니다. 브라우저 설정에서 마이크 권한을 허용해 주세요.');
+          triggerToast(t.vault.voiceMicDenied);
         } else if (event.error === 'no-speech') {
-          triggerToast('음성이 감지되지 않았습니다. 마이크에 대고 다시 말씀해 주세요.');
+          triggerToast(t.vault.voiceNoSpeech);
         } else if (event.error === 'network') {
-          triggerToast('음성 인식 네트워크 연결에 실패했습니다.');
+          triggerToast(t.vault.voiceNetworkError);
         } else if (event.error !== 'aborted') {
-          triggerToast(`음성 검색에 실패했습니다 (${event.error})`);
+          triggerToast(t.vault.voiceGenericError(String(event.error)));
         }
       };
 
@@ -470,9 +467,9 @@ export const VaultView: React.FC<VaultViewProps> = ({
       console.error('Failed to start voice search:', err);
       setIsListening(false);
       setVoiceFeedback(null);
-      triggerToast('음성 검색을 시작하지 못했습니다. 마이크 설정을 확인해 주세요.');
+      triggerToast(t.vault.voiceStartFailed);
     }
-  }, [isListening, stopVoiceSearch, triggerToast]);
+  }, [isListening, locale, stopVoiceSearch, t.vault, triggerToast]);
 
   const photoArchiveCard = useMemo(
     () => (photoArchiveCardId ? cards.find((c) => c.id === photoArchiveCardId) || null : null),
@@ -555,7 +552,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
   // Inline `+` Pill Add Category Handlers
   const handleStartInlineAdd = useCallback(() => {
     if (isSampleMode) {
-      triggerToast('샘플 모드에서는 카테고리를 추가할 수 없습니다. 로컬 계정을 만들어 보세요.');
+      triggerToast(t.vault.sampleCategoryAddWarn);
       onRequestCreateAccount?.();
       return;
     }
@@ -571,7 +568,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
       }
       inlineInputRef.current?.focus();
     }, 40);
-  }, [isSampleMode, onRequestCreateAccount, triggerToast]);
+  }, [isSampleMode, onRequestCreateAccount, t.vault.sampleCategoryAddWarn, triggerToast]);
 
   const handleCancelInlineAdd = useCallback(() => {
     setIsInlineAdding(false);
@@ -589,7 +586,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
       }
       const res = addVaultCategory(inlineCategoryName, cardsRef.current);
       if (!res.ok || !res.added) {
-        setInlineAddError(res.error || '카테고리를 추가할 수 없습니다.');
+        setInlineAddError(res.error || t.vault.categoryAddFailed);
         return;
       }
       setCategories(res.categories);
@@ -598,14 +595,14 @@ export const VaultView: React.FC<VaultViewProps> = ({
       setInlineCategoryName('');
       setInlineAddError(null);
     },
-    [inlineCategoryName, isSampleMode, onRequestCreateAccount]
+    [inlineCategoryName, isSampleMode, onRequestCreateAccount, t.vault.categoryAddFailed]
   );
 
   // Category Management Panel Callbacks
   const openCategoryPanel = useCallback(
     (focusAdd = false) => {
       if (isSampleMode) {
-        triggerToast('샘플 모드에서는 카테고리를 편집할 수 없습니다. 로컬 계정을 만들어 보세요.');
+        triggerToast(t.vault.sampleCategoryEditWarn);
         onRequestCreateAccount?.();
         return;
       }
@@ -614,7 +611,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
       setFocusAddInPanel(focusAdd);
       setIsCategoryPanelOpen(true);
     },
-    [isSampleMode, onRequestCreateAccount, triggerToast]
+    [isSampleMode, onRequestCreateAccount, t.vault.sampleCategoryEditWarn, triggerToast]
   );
 
   const closeCategoryPanel = useCallback(() => {
@@ -625,7 +622,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const handlePanelAddCategory = useCallback(
     (rawName: string) => {
       if (isSampleMode) {
-        return { ok: false, categories, error: '샘플 모드에서는 수정할 수 없습니다.' };
+        return { ok: false, categories, error: t.vault.sampleEditBlocked };
       }
       const res = addVaultCategory(rawName, cardsRef.current);
       if (res.ok && res.added) {
@@ -634,13 +631,13 @@ export const VaultView: React.FC<VaultViewProps> = ({
       }
       return res;
     },
-    [isSampleMode, categories]
+    [isSampleMode, categories, t.vault.sampleEditBlocked]
   );
 
   const handlePanelRenameCategory = useCallback(
     (oldName: string, newName: string) => {
       if (isSampleMode) {
-        return { ok: false, categories, error: '샘플 모드에서는 수정할 수 없습니다.' };
+        return { ok: false, categories, error: t.vault.sampleEditBlocked };
       }
       const snapshot = cardsRef.current;
       const trimmed = newName.trim();
@@ -661,13 +658,13 @@ export const VaultView: React.FC<VaultViewProps> = ({
       onRenameCategory?.(oldName, renamed);
       return preCheck;
     },
-    [selectedCategory, onRenameCategory, isSampleMode, categories]
+    [selectedCategory, onRenameCategory, isSampleMode, categories, t.vault.sampleEditBlocked]
   );
 
   const handlePanelMergeCategories = useCallback(
     (sourceCategory: string, targetCategory: string) => {
       if (isSampleMode) {
-        return { ok: false, categories, movedCount: 0, error: '샘플 모드에서는 수정할 수 없습니다.' };
+        return { ok: false, categories, movedCount: 0, error: t.vault.sampleEditBlocked };
       }
       const snapshot = cardsRef.current;
       const res = mergeVaultCategories(sourceCategory, targetCategory, snapshot);
@@ -687,13 +684,13 @@ export const VaultView: React.FC<VaultViewProps> = ({
       onMergeCategories?.(sourceCategory, resolvedTarget);
       return res;
     },
-    [selectedCategory, onMergeCategories, isSampleMode, categories]
+    [selectedCategory, onMergeCategories, isSampleMode, categories, t.vault.sampleEditBlocked]
   );
 
   const handlePanelDeleteCategory = useCallback(
     (targetCategory: string) => {
       if (isSampleMode) {
-        return { ok: false, categories, movedCount: 0, fallback: '기타', error: '샘플 모드에서는 수정할 수 없습니다.' };
+        return { ok: false, categories, movedCount: 0, fallback: '기타', error: t.vault.sampleEditBlocked };
       }
       const snapshot = cardsRef.current;
       const res = deleteVaultCategory(targetCategory, snapshot);
@@ -712,7 +709,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
       onDeleteCategory?.(targetCategory, res.fallback);
       return res;
     },
-    [selectedCategory, onDeleteCategory, isSampleMode, categories]
+    [selectedCategory, onDeleteCategory, isSampleMode, categories, t.vault.sampleEditBlocked]
   );
 
   const handlePanelResetCategories = useCallback(() => {
@@ -776,7 +773,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
       {/* Non-Intrusive Local-First Backup Safety Nudge */}
       {showBackupNudge && onOpenBackup && (
         <aside
-          aria-label="보관함 안전 백업 안내"
+          aria-label={t.vault.backupNudgeAria}
           className="w-full rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-[var(--app-shadow)] animate-in fade-in duration-200"
         >
           <div className="flex items-start sm:items-center gap-2.5 min-w-0">
@@ -786,11 +783,11 @@ export const VaultView: React.FC<VaultViewProps> = ({
             <div className="min-w-0">
               <p className="text-xs font-semibold text-[var(--app-text)] leading-snug">
                 {lastBackupTimestamp
-                  ? '마지막 백업 이후 30일이 지났습니다.'
-                  : `소중한 명함 ${effectiveTotalCardsCount}장을 기기 분실·초기화에 대비해 백업해 두세요.`}
+                  ? t.vault.backupNudge30Days
+                  : t.vault.backupNudgeCards(effectiveTotalCardsCount)}
               </p>
               <p className="text-[11px] text-[var(--app-text-muted)] leading-snug mt-0.5">
-                계정 없이 암호화된 로컬 백업 파일(.eerum)로 언제든 안전하게 복원할 수 있습니다.
+                {t.vault.backupNudgeSub}
               </p>
             </div>
           </div>
@@ -802,7 +799,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
               className="h-8 px-3 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-[11px] font-semibold inline-flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
             >
               <Download className="w-3.5 h-3.5 stroke-[2]" />
-              <span>백업 저장</span>
+              <span>{t.vault.backupSaveBtn}</span>
             </button>
             <button
               type="button"
@@ -810,8 +807,8 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 dismissBackupNudge();
                 setShowBackupNudge(false);
               }}
-              aria-label="백업 안내 닫기"
-              title="나중에 하기"
+              aria-label={t.vault.backupDismissAria}
+              title={t.vault.backupDismissTitle}
               className="w-8 h-8 rounded-xl text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] inline-flex items-center justify-center cursor-pointer shrink-0"
             >
               <X className="w-3.5 h-3.5 stroke-[1.75]" />
@@ -879,13 +876,13 @@ export const VaultView: React.FC<VaultViewProps> = ({
                       className={`inline-flex items-center gap-1 cursor-pointer transition-colors hover:text-[var(--app-text)] ${
                         sortBy === 'name' ? 'text-[var(--app-text)] font-semibold' : ''
                       }`}
-                      title="성명순 정렬"
+                      title={t.vault.table.sortByNameTitle}
                     >
-                      <span>성명</span>
+                      <span>{t.vault.table.name}</span>
                       <ArrowUpDown className="w-3 h-3 stroke-[1.75]" />
                     </button>
                   </th>
-                  <th className="py-2.5 px-3.5">직함</th>
+                  <th className="py-2.5 px-3.5">{t.vault.table.title}</th>
                   <th
                     className="py-2.5 px-3.5"
                     aria-sort={sortBy === 'company' ? 'ascending' : 'none'}
@@ -896,16 +893,16 @@ export const VaultView: React.FC<VaultViewProps> = ({
                       className={`inline-flex items-center gap-1 cursor-pointer transition-colors hover:text-[var(--app-text)] ${
                         sortBy === 'company' ? 'text-[var(--app-text)] font-semibold' : ''
                       }`}
-                      title="회사명순 정렬"
+                      title={t.vault.table.sortByCompanyTitle}
                     >
-                      <span>소속 회사/기관</span>
+                      <span>{t.vault.table.company}</span>
                       <ArrowUpDown className="w-3 h-3 stroke-[1.75]" />
                     </button>
                   </th>
-                  <th className="py-2.5 px-3.5">카테고리</th>
-                  <th className="py-2.5 px-3.5">실물 보관</th>
-                  <th className="py-2.5 px-3.5">연락처</th>
-                  <th className="py-2.5 px-3.5 text-right">액션</th>
+                  <th className="py-2.5 px-3.5">{t.vault.table.category}</th>
+                  <th className="py-2.5 px-3.5">{t.vault.table.photo}</th>
+                  <th className="py-2.5 px-3.5">{t.vault.table.contact}</th>
+                  <th className="py-2.5 px-3.5 text-right">{t.vault.table.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--app-border)] text-[var(--app-text)]">

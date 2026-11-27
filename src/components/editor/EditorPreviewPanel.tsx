@@ -5,6 +5,7 @@ import { BusinessCardFront } from '../BusinessCardFront';
 import { BusinessCardBack } from '../BusinessCardBack';
 import { SandboxedCardRenderer } from '../SandboxedCardRenderer';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
+import { useLocale } from '../../hooks/useLocale';
 
 interface EditorPreviewPanelProps {
   creationMode: CardCreationMode;
@@ -39,6 +40,7 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
   onFlipPreviewFace,
   isMobileModal = false,
 }) => {
+  const { isEn } = useLocale();
   const isCompletelyEmpty =
     !formData.name.trim() &&
     !(formData.nameEn || '').trim() &&
@@ -53,18 +55,18 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
   const cardDataForPreview: CardData = isCompletelyEmpty
     ? {
         ...formData,
-        name: '박기홍',
+        name: isEn ? 'Park, Gihong' : '박기홍',
         nameEn: '',
         nameKr: '',
         organization: '',
-        organizationKr: '고구마 지식 관리실',
+        organizationKr: isEn ? 'Goguma Knowledge Office' : '고구마 지식 관리실',
         subOrg: '',
         title: '',
-        titleKr: '대표 마스터',
+        titleKr: isEn ? 'Principal Master' : '대표 마스터',
         phone: '+82 10-1234-5678',
         phoneRaw: '+821012345678',
         email: 'master@goguma.app',
-        addressKr: '서울특별시 강남구 테헤란로 152',
+        addressKr: isEn ? '152 Teheran-ro, Gangnam-gu, Seoul' : '서울특별시 강남구 테헤란로 152',
         address_en: '',
         addressLines: [],
         website: effectiveUrl,
@@ -106,7 +108,7 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
               : 'w-full max-w-[480px] aspect-[9/5]'
         } flex-shrink-0 min-h-0 transition-transform duration-300 relative [perspective:1200px] cursor-pointer group`}
         onClick={onFlipPreviewFace}
-        title="클릭하여 면 전환"
+        title={isEn ? 'Click to flip card' : '클릭하여 면 전환'}
       >
         <div
           className={`w-full h-full relative rounded-xl sm:rounded-2xl transition-transform duration-500 ease-out [transform-style:preserve-3d] group-hover:scale-[1.01] shadow-[var(--app-shadow)] ring-1 ring-[var(--editor-control-border)] ${
@@ -132,7 +134,7 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
               frontImageUrl ? (
                 <img
                   src={frontImageUrl}
-                  alt={formData.name || '명함 앞면'}
+                  alt={formData.name || (isEn ? 'Card front' : '명함 앞면')}
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-contain rounded-xl sm:rounded-2xl"
                 />
@@ -161,7 +163,9 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
                 </div>
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-[var(--app-surface)] border border-[var(--editor-control-border)] rounded-xl sm:rounded-2xl">
-                  <p className="text-xs font-medium text-[var(--editor-muted)]">코드를 입력해 주세요</p>
+                  <p className="text-xs font-medium text-[var(--editor-muted)]">
+                    {isEn ? 'Enter HTML code to preview' : '코드를 입력해 주세요'}
+                  </p>
                 </div>
               )
             )}
@@ -186,7 +190,7 @@ export const EditorPreviewPanel: React.FC<EditorPreviewPanelProps> = ({
               backImageUrl ? (
                 <img
                   src={backImageUrl}
-                  alt="명함 뒷면"
+                  alt={isEn ? 'Card back' : '명함 뒷면'}
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-contain rounded-xl sm:rounded-2xl"
                 />

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Copy, Check, ExternalLink, Mail, Globe } from 'lucide-react';
 import type { LegalDocType } from './LegalModal';
+import { useLocale } from '../hooks/useLocale';
 
 export type AboutTab = 'philosophy' | 'features' | 'notes' | 'contact';
 
@@ -16,7 +17,7 @@ const NET_TO_DOT_ABSTRACT_URL = 'https://nettodot.org/pages/chapter01/abstract';
 const NET_TO_DOT_HOME_URL = 'https://nettodot.org';
 const CONTACT_EMAIL = 'dot@nettodot.org';
 
-const CORE_FEATURES = [
+const CORE_FEATURES_KO = [
   {
     lead: '무가입 즉시 생성',
     detail: '이메일이나 비밀번호 없이 접속 즉시 디지털 명함 제작',
@@ -35,6 +36,25 @@ const CORE_FEATURES = [
   },
 ];
 
+const CORE_FEATURES_EN = [
+  {
+    lead: 'Instant Creation, No Sign-Up',
+    detail: 'Create and share digital business cards immediately without email or passwords',
+  },
+  {
+    lead: '3-in-1 Hybrid Studio',
+    detail: 'Minimal typography presets, dual-sided physical card scan, and custom HTML/Tailwind cards',
+  },
+  {
+    lead: 'On-Device Security',
+    detail: 'Local encrypted vault secured with a 4-digit PIN and WebAuthn biometrics',
+  },
+  {
+    lead: 'Offline & Physical Ready',
+    detail: 'Offline QR passes, .vcf vCard export, 300 DPI print sheets with crop marks, and encrypted backups',
+  },
+];
+
 export const AboutModal: React.FC<AboutModalProps> = ({
   isOpen,
   initialTab = 'philosophy',
@@ -42,6 +62,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
   onOpenLegal,
   onShowToast,
 }) => {
+  const { isEn, t } = useLocale();
   const [copiedEmail, setCopiedEmail] = useState(false);
   const scrollBodyRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Record<AboutTab, HTMLElement | null>>({
@@ -75,14 +96,22 @@ export const AboutModal: React.FC<AboutModalProps> = ({
 
   if (!isOpen) return null;
 
+  const coreFeatures = isEn ? CORE_FEATURES_EN : CORE_FEATURES_KO;
+
   const handleCopyEmail = async () => {
     try {
       await navigator.clipboard.writeText(CONTACT_EMAIL);
       setCopiedEmail(true);
-      onShowToast?.('이메일 주소(dot@nettodot.org)가 복사되었습니다.');
+      onShowToast?.(
+        isEn
+          ? 'Email address (dot@nettodot.org) copied.'
+          : '이메일 주소(dot@nettodot.org)가 복사되었습니다.'
+      );
       window.setTimeout(() => setCopiedEmail(false), 2000);
     } catch {
-      onShowToast?.('이메일 주소 복사에 실패했습니다.');
+      onShowToast?.(
+        isEn ? 'Failed to copy email address.' : '이메일 주소 복사에 실패했습니다.'
+      );
     }
   };
 
@@ -118,8 +147,8 @@ export const AboutModal: React.FC<AboutModalProps> = ({
             type="button"
             onClick={onClose}
             className="min-w-[40px] min-h-[40px] -mr-2 flex items-center justify-center rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            title="닫기"
-            aria-label="닫기"
+            title={t.common.close}
+            aria-label={t.common.close}
           >
             <X className="w-5 h-5 stroke-[1.75]" />
           </button>
@@ -143,19 +172,19 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                 id="about-section-philosophy"
                 className="text-[10.5px] font-mono uppercase tracking-[0.18em] text-[var(--app-text-muted)]"
               >
-                01 · 철학 — Net to Dot Movement
+                {isEn ? '01 · Philosophy — Net to Dot Movement' : '01 · 철학 — Net to Dot Movement'}
               </p>
 
               <h3 className="text-lg sm:text-xl font-semibold text-[var(--app-text)] tracking-tight leading-snug">
-                거대한 그물(Net)에서 독립된 점(Dot)으로
+                {isEn
+                  ? 'From the Giant Net to an Independent Dot'
+                  : '거대한 그물(Net)에서 독립된 점(Dot)으로'}
               </h3>
 
               <p className="text-[13.5px] sm:text-sm text-[var(--app-text-muted)] leading-[1.8] tracking-[-0.01em] break-keep">
-                eerum은 거대 플랫폼이 장악한 중앙 네트워크(Net)의 데이터 종속과 일방향적 감시에서
-                벗어나, 사용자 스스로 데이터의 주권을 되찾고 디지털 기기를 능동적 도구로 다루는
-                Net to Dot Movement의 실천적 결과물입니다. 불필요한 클라우드 서버 왕복과 상시
-                트래킹을 배제해 개인정보를 온전히 기기 안에 보호하고, 지속 가능한 가벼운 디지털
-                생태계를 지향합니다.
+                {isEn
+                  ? 'eerum is a practical expression of the Net to Dot Movement—stepping away from centralized platform lock-in and passive tracking so individuals reclaim full ownership of their data and treat digital tools actively. By avoiding unnecessary cloud round-trips and persistent analytics, your identity stays private on your own device.'
+                  : 'eerum은 거대 플랫폼이 장악한 중앙 네트워크(Net)의 데이터 종속과 일방향적 감시에서 벗어나, 사용자 스스로 데이터의 주권을 되찾고 디지털 기기를 능동적 도구로 다루는 Net to Dot Movement의 실천적 결과물입니다. 불필요한 클라우드 서버 왕복과 상시 트래킹을 배제해 개인정보를 온전히 기기 안에 보호하고, 지속 가능한 가벼운 디지털 생태계를 지향합니다.'}
               </p>
 
               <div className="pt-1">
@@ -165,7 +194,9 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-2 min-h-[42px] px-5 py-2.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-xs sm:text-[13px] font-semibold tracking-tight transition-opacity cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                 >
-                  <span>Net to Dot 선언문 초록 읽기 ↗</span>
+                  <span>
+                    {isEn ? 'Read Net to Dot Manifesto Abstract ↗' : 'Net to Dot 선언문 초록 읽기 ↗'}
+                  </span>
                 </a>
               </div>
             </section>
@@ -182,11 +213,11 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                 id="about-section-features"
                 className="text-[10.5px] font-mono uppercase tracking-[0.18em] text-[var(--app-text-muted)]"
               >
-                02 · 주요 기능 안내
+                {isEn ? '02 · Key Features' : '02 · 주요 기능 안내'}
               </h3>
 
               <ul className="space-y-3 text-[13px] sm:text-[13.5px] leading-[1.75] text-[var(--app-text-muted)]">
-                {CORE_FEATURES.map((item) => (
+                {coreFeatures.map((item) => (
                   <li key={item.lead} className="flex items-start gap-3">
                     <span
                       className="mt-[0.62em] w-1 h-1 rounded-full bg-[var(--app-accent)] shrink-0"
@@ -214,14 +245,13 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                 id="about-section-notes"
                 className="text-[10.5px] font-mono uppercase tracking-[0.18em] text-[var(--app-text-muted)]"
               >
-                03 · 개발자 노트
+                {isEn ? '03 · Developer Note' : '03 · 개발자 노트'}
               </h3>
 
               <p className="text-[13.5px] sm:text-sm text-[var(--app-text-muted)] leading-[1.85] tracking-[-0.01em] break-keep">
-                명함은 누군가에게 나를 건네는 가장 사적인 첫인상입니다. 그 기록이 중앙 서버의
-                데이터베이스에 쌓이거나 구독료에 묶이지 않기를 바랐습니다. eerum에는 가입 절차도,
-                행동 추적 쿠키도, 서버의 개인정보 수집도 없습니다. 기기 안의 작은 점(Dot)으로
-                온전히 작동하며, 당신의 연결이 오직 당신의 통제 아래 머물도록 설계했습니다.
+                {isEn
+                  ? 'A business card is the most personal first impression we hand to someone. We wanted those connections free from central databases and subscription walls. eerum has no sign-up walls, no behavioral cookies, and no server-side profiling—designed as an independent dot on your device so your network remains solely under your control.'
+                  : '명함은 누군가에게 나를 건네는 가장 사적인 첫인상입니다. 그 기록이 중앙 서버의 데이터베이스에 쌓이거나 구독료에 묶이지 않기를 바랐습니다. eerum에는 가입 절차도, 행동 추적 쿠키도, 서버의 개인정보 수집도 없습니다. 기기 안의 작은 점(Dot)으로 온전히 작동하며, 당신의 연결이 오직 당신의 통제 아래 머물도록 설계했습니다.'}
               </p>
 
               <p className="text-xs font-mono tracking-wide text-[var(--app-text-muted)] pt-1">
@@ -241,7 +271,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                 id="about-section-contact"
                 className="text-[10.5px] font-mono uppercase tracking-[0.18em] text-[var(--app-text-muted)]"
               >
-                04 · 연락처 및 프라이버시 원칙
+                {isEn ? '04 · Contact & Privacy Principles' : '04 · 연락처 및 프라이버시 원칙'}
               </h3>
 
               <div className="divide-y divide-[var(--app-border)] rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] overflow-hidden">
@@ -261,17 +291,17 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                     type="button"
                     onClick={handleCopyEmail}
                     className="min-h-[34px] px-3 py-1.5 rounded-lg bg-[var(--app-surface)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] border border-[var(--app-border)] text-[var(--app-text)] text-[11px] font-medium inline-flex items-center gap-1.5 shrink-0 cursor-pointer transition-colors"
-                    aria-label="이메일 주소 복사"
+                    aria-label={isEn ? 'Copy email address' : '이메일 주소 복사'}
                   >
                     {copiedEmail ? (
                       <>
                         <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                        <span>복사됨</span>
+                        <span>{t.common.copied}</span>
                       </>
                     ) : (
                       <>
                         <Copy className="w-3.5 h-3.5 shrink-0" />
-                        <span>복사</span>
+                        <span>{t.common.copy}</span>
                       </>
                     )}
                   </button>
@@ -298,14 +328,16 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                     rel="noopener noreferrer"
                     className="min-h-[34px] px-3 py-1.5 rounded-lg bg-[var(--app-surface)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] border border-[var(--app-border)] text-[var(--app-text)] text-[11px] font-medium inline-flex items-center gap-1 shrink-0 transition-colors"
                   >
-                    <span>방문</span>
+                    <span>{isEn ? 'Visit' : '방문'}</span>
                     <ExternalLink className="w-3 h-3 shrink-0" />
                   </a>
                 </div>
               </div>
 
               <p className="text-xs text-[var(--app-text-muted)] leading-relaxed">
-                본 앱은 어떠한 추적 쿠키나 개인정보도 수집하지 않습니다.
+                {isEn
+                  ? 'This application collects zero tracking cookies and zero personal data.'
+                  : '본 앱은 어떠한 추적 쿠키나 개인정보도 수집하지 않습니다.'}
               </p>
             </section>
           </div>
@@ -327,7 +359,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                   }}
                   className="px-1.5 py-0.5 rounded hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
                 >
-                  개인정보처리방침
+                  {t.footer.privacy}
                 </button>
                 <span aria-hidden="true" className="opacity-40 select-none">·</span>
                 <button
@@ -338,7 +370,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                   }}
                   className="px-1.5 py-0.5 rounded hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
                 >
-                  이용약관
+                  {t.footer.terms}
                 </button>
                 <span aria-hidden="true" className="opacity-40 select-none">·</span>
                 <button
@@ -349,7 +381,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                   }}
                   className="px-1.5 py-0.5 rounded hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
                 >
-                  라이선스
+                  {t.footer.licenses}
                 </button>
               </div>
             )}
@@ -360,7 +392,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
             onClick={onClose}
             className="min-h-[36px] px-4 py-1.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-xs font-semibold cursor-pointer transition-opacity ml-auto"
           >
-            닫기
+            {t.common.close}
           </button>
         </footer>
       </div>

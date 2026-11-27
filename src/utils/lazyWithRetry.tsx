@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import { RefreshCw, X } from 'lucide-react';
+import { getCurrentLocale } from '../hooks/useLocale';
 
 async function retryDynamicImport<T>(
   importer: () => Promise<T>,
@@ -93,6 +94,7 @@ export class LazyErrorBoundary extends Component<
     }
 
     const { variant = 'inline', onDismiss } = this.props;
+    const isEn = getCurrentLocale() === 'en';
 
     if (variant === 'silent') {
       return null;
@@ -111,20 +113,24 @@ export class LazyErrorBoundary extends Component<
             className="w-full max-w-sm rounded-2xl bg-[#121214] border border-white/10 p-5 text-center space-y-4 shadow-2xl"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-white">모듈 연결 지연</span>
+              <span className="text-xs font-bold text-white">
+                {isEn ? 'Module Load Delayed' : '모듈 연결 지연'}
+              </span>
               {onDismiss && (
                 <button
                   type="button"
                   onClick={onDismiss}
                   className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
-                  aria-label="닫기"
+                  aria-label={isEn ? 'Close' : '닫기'}
                 >
                   <X className="w-4 h-4" />
                 </button>
               )}
             </div>
             <p className="text-xs text-zinc-400 leading-relaxed">
-              일시적인 네트워크 지연으로 화면 모듈을 불러오지 못했습니다. 다시 시도해 주세요.
+              {isEn
+                ? 'Could not load this view due to a temporary network delay. Please try again.'
+                : '일시적인 네트워크 지연으로 화면 모듈을 불러오지 못했습니다. 다시 시도해 주세요.'}
             </p>
             <div className="flex items-center justify-center gap-2">
               {onDismiss && (
@@ -133,7 +139,7 @@ export class LazyErrorBoundary extends Component<
                   onClick={onDismiss}
                   className="px-3.5 py-2 rounded-xl text-xs text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
                 >
-                  닫기
+                  {isEn ? 'Close' : '닫기'}
                 </button>
               )}
               <button
@@ -142,7 +148,7 @@ export class LazyErrorBoundary extends Component<
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 font-bold text-xs cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>다시 시도</span>
+                <span>{isEn ? 'Retry' : '다시 시도'}</span>
               </button>
             </div>
           </div>
@@ -153,7 +159,9 @@ export class LazyErrorBoundary extends Component<
     return (
       <div className="w-full max-w-md rounded-2xl bg-[#121214] border border-white/10 p-6 text-center space-y-3">
         <p className="text-xs text-zinc-400">
-          일시적인 네트워크 지연으로 화면 구성을 불러오지 못했습니다.
+          {isEn
+            ? 'Could not load this view due to a temporary network delay.'
+            : '일시적인 네트워크 지연으로 화면 구성을 불러오지 못했습니다.'}
         </p>
         <button
           type="button"
@@ -161,7 +169,7 @@ export class LazyErrorBoundary extends Component<
           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-neutral-950 font-bold text-xs cursor-pointer"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-          <span>다시 시도</span>
+          <span>{isEn ? 'Retry' : '다시 시도'}</span>
         </button>
       </div>
     );

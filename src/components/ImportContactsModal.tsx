@@ -17,6 +17,7 @@ import {
   convertContactToStoredCard,
   ParsedContact,
 } from '../utils/vCardParser';
+import { useLocale } from '../hooks/useLocale';
 
 export interface ImportContactsModalProps {
   isOpen: boolean;
@@ -82,6 +83,7 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
   showToast = () => {},
   embedded = false,
 }) => {
+  const { isEn, t } = useLocale();
   const [contacts, setContacts] = useState<ParsedContact[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [targetCategory, setTargetCategory] = useState<string>(
@@ -100,12 +102,16 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
 
   // Process raw text content from vCard
   const handleProcessVCardString = useCallback(
-    (vcfString: string, sourceName = 'vCard 파일') => {
+    (vcfString: string, sourceName = isEn ? 'vCard file' : 'vCard 파일') => {
       setIsProcessing(true);
       try {
         const parsed = parseVCardContent(vcfString);
         if (parsed.length === 0) {
-          showToast('유효한 연락처 정보(vCard)를 찾을 수 없습니다.');
+          showToast(
+            isEn
+              ? 'No valid contact entries (vCard) were found.'
+              : '유효한 연락처 정보(vCard)를 찾을 수 없습니다.'
+          );
           setIsProcessing(false);
           return;
         }
@@ -125,19 +131,29 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
         const dupCount = withDups.filter((c) => c.isDuplicate).length;
         if (dupCount > 0) {
           showToast(
-            `${sourceName}에서 ${parsed.length}개의 연락처를 읽었습니다. (중복 ${dupCount}개 감지)`
+            isEn
+              ? `Read ${parsed.length} contacts from ${sourceName} (${dupCount} duplicates detected).`
+              : `${sourceName}에서 ${parsed.length}개의 연락처를 읽었습니다. (중복 ${dupCount}개 감지)`
           );
         } else {
-          showToast(`${sourceName}에서 ${parsed.length}개의 연락처를 불러왔습니다.`);
+          showToast(
+            isEn
+              ? `Loaded ${parsed.length} contacts from ${sourceName}.`
+              : `${sourceName}에서 ${parsed.length}개의 연락처를 불러왔습니다.`
+          );
         }
       } catch (err) {
         console.error('Failed to parse vCard:', err);
-        showToast('연락처 파일을 파싱하는 도중 오류가 발생했습니다.');
+        showToast(
+          isEn
+            ? 'An error occurred while parsing the contact file.'
+            : '연락처 파일을 파싱하는 도중 오류가 발생했습니다.'
+        );
       } finally {
         setIsProcessing(false);
       }
     },
-    [existingCards, showToast]
+    [existingCards, showToast, isEn]
   );
 
   // Handle file upload
@@ -160,7 +176,11 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
   // Option B: Native Contact Picker API
   const handleNativeContactPicker = useCallback(async () => {
     if (!isNativeContactsSupported) {
-      showToast('이 기기/브라우저는 기기 주소록 직접 선택(Contacts API)을 지원하지 않습니다.');
+      showToast(
+        isEn
+          ? 'This device or browser does not support the Contacts Picker API.'
+          : '이 기기/브라우저는 기기 주소록 직접 선택(Contacts API)을 지원하지 않습니다.'
+      );
       return;
     }
 
@@ -177,7 +197,7 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
       }
 
       const parsedList: ParsedContact[] = results.map((item: any, idx: number) => {
-        const name = Array.isArray(item.name) ? item.name[0] : item.name || '이름 없음';
+        const name = Array.isArray(item.name) ? item.name[0] : item.name || t.common.unnamed;
         const tel = Array.isArray(item.tel) ? item.tel[0] : item.tel || '';
         const email = Array.isArray(item.email) ? item.email[0] : item.email || '';
         const org = Array.isArray(item.organization)
@@ -201,21 +221,29 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
         if (!c.isDuplicate) nonDups.add(c.id);
       });
       setSelectedIds(nonDups);
-      showToast(`기기 주소록에서 ${parsedList.length}개의 연락처를 가져왔습니다.`);
+      showToast(
+        isEn
+          ? `Imported ${parsedList.length} contacts from device address book.`
+          : `기기 주소록에서 ${parsedList.length}개의 연락처를 가져왔습니다.`
+      );
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         console.error('Contact picker error:', err);
-        showToast('주소록을 가져오는 중 오류가 발생했거나 취소되었습니다.');
+        showToast(
+          isEn
+            ? 'Failed to import contacts or operation was canceled.'
+            : '주소록을 가져오는 중 오류가 발생했거나 취소되었습니다.'
+        );
       }
     } finally {
       setIsProcessing(false);
     }
-  }, [isNativeContactsSupported, existingCards, showToast]);
+  }, [isNativeContactsSupported, existingCards, showToast, isEn, t.common.unnamed]);
 
   // Load sample vCard for immediate preview
   const handleLoadSample = useCallback(() => {
-    handleProcessVCardString(SAMPLE_VCF_DATA, '테스트 샘플');
-  }, [handleProcessVCardString]);
+    handleProcessVCardString(SAMPLE_VCF_DATA, isEn ? 'test sample' : '테스트 샘플');
+  }, [handleProcessVCardString, isEn]);
 
   // Selection toggles
   const handleToggleSelectAll = useCallback(() => {
@@ -252,7 +280,11 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
   const handleCommitImport = useCallback(() => {
     const selectedContacts = contacts.filter((c) => selectedIds.has(c.id));
     if (selectedContacts.length === 0) {
-      showToast('가져올 연락처를 최소 1개 이상 선택해주세요.');
+      showToast(
+        isEn
+          ? 'Please select at least 1 contact to import.'
+          : '가져올 연락처를 최소 1개 이상 선택해주세요.'
+      );
       return;
     }
 
@@ -262,13 +294,15 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
 
     onImportCards(newCards);
     showToast(
-      `${newCards.length}개의 연락처가 '${targetCategory}' 카테고리로 보관함에 저장되었습니다.`
+      isEn
+        ? `Saved ${newCards.length} contacts to the '${targetCategory}' category.`
+        : `${newCards.length}개의 연락처가 '${targetCategory}' 카테고리로 보관함에 저장되었습니다.`
     );
     onClose();
     // Reset state
     setContacts([]);
     setSelectedIds(new Set());
-  }, [contacts, selectedIds, targetCategory, onImportCards, onClose, showToast]);
+  }, [contacts, selectedIds, targetCategory, onImportCards, onClose, showToast, isEn]);
 
   const duplicateCount = useMemo(
     () => contacts.filter((c) => c.isDuplicate).length,
@@ -314,13 +348,22 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                   <Upload className="w-5 h-5 text-[var(--app-text)]" />
                 </div>
                 <h3 className="text-sm font-semibold text-[var(--app-text)] mb-1">
-                  vCard (.vcf) 파일 업로드
+                  {isEn ? 'Upload vCard (.vcf) File' : 'vCard (.vcf) 파일 업로드'}
                 </h3>
                 <p className="text-xs text-[var(--app-text-muted)] text-center max-w-sm">
-                  스마트폰 주소록이나 연락처 앱에서 내보낸 <code className="text-[var(--app-text)] font-medium">.vcf</code> 파일을 끌어다 놓거나 클릭하여 선택하세요.
+                  {isEn ? (
+                    <>
+                      Drag and drop or click to choose a <code className="text-[var(--app-text)] font-medium">.vcf</code> file exported from your phone or contacts app.
+                    </>
+                  ) : (
+                    <>
+                      스마트폰 주소록이나 연락처 앱에서 내보낸 <code className="text-[var(--app-text)] font-medium">.vcf</code> 파일을 끌어다 놓거나 클릭하여 선택하세요.
+                    </>
+                  )}
                 </p>
                 <span className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--app-surface)] border border-[var(--app-border)] text-[11px] text-[var(--app-text-muted)] font-medium">
-                  <FileText className="w-3 h-3 text-[var(--app-text-muted)]" /> 단일 또는 수백 건 대량 vCard 지원
+                  <FileText className="w-3 h-3 text-[var(--app-text-muted)]" />{' '}
+                  {isEn ? 'Supports single or bulk vCards' : '단일 또는 수백 건 대량 vCard 지원'}
                 </span>
               </div>
 
@@ -329,10 +372,14 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Smartphone className="w-4 h-4 text-[var(--app-text)]" />
-                    <h4 className="text-xs font-semibold text-[var(--app-text)]">기기 주소록 선택</h4>
+                    <h4 className="text-xs font-semibold text-[var(--app-text)]">
+                      {isEn ? 'Pick from Device Contacts' : '기기 주소록 선택'}
+                    </h4>
                   </div>
                   <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
-                    스마트폰 브라우저(Android Chrome 등)에서 기기에 저장된 연락처를 직접 선택합니다.
+                    {isEn
+                      ? 'Select contacts directly from your mobile browser (such as Android Chrome).'
+                      : '스마트폰 브라우저(Android Chrome 등)에서 기기에 저장된 연락처를 직접 선택합니다.'}
                   </p>
                 </div>
                 <button
@@ -347,8 +394,12 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                 >
                   <span>
                     {isNativeContactsSupported
-                      ? '기기 주소록 열기'
-                      : '모바일 환경에서 지원'}
+                      ? isEn
+                        ? 'Open Device Contacts'
+                        : '기기 주소록 열기'
+                      : isEn
+                        ? 'Supported on mobile browsers'
+                        : '모바일 환경에서 지원'}
                   </span>
                 </button>
               </div>
@@ -356,14 +407,14 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
               {/* Sample Test Data Bar */}
               <div className="pt-2 flex items-center justify-between border-t border-[var(--app-border)]">
                 <span className="text-[11px] text-[var(--app-text-muted)]">
-                  준비된 파일이 없으신가요?
+                  {isEn ? "Don't have a file handy?" : '준비된 파일이 없으신가요?'}
                 </span>
                 <button
                   type="button"
                   onClick={handleLoadSample}
                   className="text-xs text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] inline-flex items-center px-2.5 py-1 rounded-lg transition-colors cursor-pointer font-medium"
                 >
-                  <span>테스트용 샘플 vCard 불러오기</span>
+                  <span>{isEn ? 'Load Sample vCard' : '테스트용 샘플 vCard 불러오기'}</span>
                 </button>
               </div>
             </div>
@@ -374,16 +425,16 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 p-3 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-xs">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-[var(--app-text)]">
-                    {contacts.length}개의 연락처 발견
+                    {isEn ? `${contacts.length} contacts found` : `${contacts.length}개의 연락처 발견`}
                   </span>
                   <span className="text-[var(--app-text-muted)]">·</span>
                   <span className="text-[var(--app-text-muted)] font-mono">
-                    {selectedIds.size}개 선택됨
+                    {isEn ? `${selectedIds.size} selected` : `${selectedIds.size}개 선택됨`}
                   </span>
                   {duplicateCount > 0 && (
                     <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-700 dark:text-amber-300 text-[11px] font-medium inline-flex items-center gap-1">
                       <AlertTriangle className="w-3 h-3" />
-                      중복 {duplicateCount}개
+                      {isEn ? `${duplicateCount} duplicates` : `중복 ${duplicateCount}개`}
                     </span>
                   )}
                 </div>
@@ -394,7 +445,13 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                     onClick={handleToggleSelectAll}
                     className="px-2.5 py-1 rounded-lg bg-[var(--app-surface)] hover:bg-[var(--app-border)] border border-[var(--app-border)] text-[var(--app-text)] transition-colors cursor-pointer text-[11px]"
                   >
-                    {selectedIds.size === contacts.length ? '전체 해제' : '전체 선택'}
+                    {selectedIds.size === contacts.length
+                      ? isEn
+                        ? 'Deselect All'
+                        : '전체 해제'
+                      : isEn
+                        ? 'Select All'
+                        : '전체 선택'}
                   </button>
                   {duplicateCount > 0 && (
                     <button
@@ -402,7 +459,7 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                       onClick={handleSelectNonDuplicatesOnly}
                       className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 transition-colors cursor-pointer text-[11px] font-medium"
                     >
-                      중복 제외 선택
+                      {isEn ? 'Exclude Duplicates' : '중복 제외 선택'}
                     </button>
                   )}
                   <button
@@ -412,10 +469,10 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                       setSelectedIds(new Set());
                     }}
                     className="px-2 py-1 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-colors cursor-pointer text-[11px] inline-flex items-center gap-1"
-                    title="다시 선택"
+                    title={isEn ? 'Choose again' : '다시 선택'}
                   >
                     <RotateCcw className="w-3 h-3" />
-                    <span>초기화</span>
+                    <span>{isEn ? 'Choose again' : '다시 선택'}</span>
                   </button>
                 </div>
               </div>
@@ -423,7 +480,7 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
               {/* Target Category Select */}
               <div className="flex items-center justify-between px-1 text-xs">
                 <label htmlFor="import-target-category" className="text-[var(--app-text-muted)]">
-                  저장할 보관함 카테고리:
+                  {isEn ? 'Destination Vault Category:' : '저장할 보관함 카테고리:'}
                 </label>
                 <select
                   id="import-target-category"
@@ -453,7 +510,7 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                         <button
                           type="button"
                           onClick={handleToggleSelectAll}
-                          aria-label="모두 선택/해제"
+                          aria-label={isEn ? 'Toggle select all' : '모두 선택/해제'}
                           className="cursor-pointer"
                         >
                           {selectedIds.size === contacts.length && contacts.length > 0 ? (
@@ -463,10 +520,10 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                           )}
                         </button>
                       </th>
-                      <th className="py-2.5 px-3 font-medium">이름</th>
-                      <th className="py-2.5 px-3 font-medium hidden sm:table-cell">회사 / 직함</th>
-                      <th className="py-2.5 px-3 font-medium">연락처</th>
-                      <th className="py-2.5 px-3 font-medium hidden md:table-cell">이메일</th>
+                      <th className="py-2.5 px-3 font-medium">{t.vault.table.name}</th>
+                      <th className="py-2.5 px-3 font-medium hidden sm:table-cell">{isEn ? 'Company · Title' : '소속 · 직함'}</th>
+                      <th className="py-2.5 px-3 font-medium">{t.vault.table.contact}</th>
+                      <th className="py-2.5 px-3 font-medium hidden md:table-cell">{isEn ? 'Email' : '이메일'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--app-border)]">
@@ -501,7 +558,7 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
                                   className="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/35"
                                   title={contact.duplicateReason}
                                 >
-                                  이미 보관됨
+                                  {isEn ? 'Already saved' : '이미 보관됨'}
                                 </span>
                               )}
                             </div>
@@ -536,7 +593,7 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 rounded-xl text-xs text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
           >
-            취소
+            {t.common.cancel}
           </button>
 
           {contacts.length > 0 && (
@@ -551,7 +608,11 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
               }`}
             >
               <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>선택한 명함 {selectedIds.size}개 보관함에 등록</span>
+              <span>
+                {isEn
+                  ? `Save ${selectedIds.size} Selected to Vault`
+                  : `선택한 명함 ${selectedIds.size}개 보관함에 등록`}
+              </span>
             </button>
           )}
         </div>
@@ -566,7 +627,7 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="연락처 가져오기 모달"
+      aria-label={isEn ? 'Import Contacts' : '연락처 가져오기 모달'}
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-[var(--app-overlay)] backdrop-blur-md animate-in fade-in duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -576,12 +637,12 @@ export const ImportContactsModal: React.FC<ImportContactsModalProps> = ({
         {/* Modal Header */}
         <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-[var(--app-border)] bg-[var(--app-bg)]">
           <h2 className="text-sm sm:text-base font-semibold text-[var(--app-text)] tracking-tight">
-            연락처 대량 가져오기
+            {isEn ? 'Bulk Import Contacts' : '연락처 대량 가져오기'}
           </h2>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
-            aria-label="닫기"
+            aria-label={t.common.close}
           >
             <X className="w-4 h-4" />
           </button>

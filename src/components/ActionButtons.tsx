@@ -17,6 +17,7 @@ import {
   StickyNote,
   type LucideIcon,
 } from 'lucide-react';
+import { useLocale } from '../hooks/useLocale';
 
 interface ActionButtonsProps {
   data: CardData;
@@ -59,6 +60,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   onShowToast,
   onInteraction,
 }) => {
+  const { t } = useLocale();
   const phoneTarget = data.phoneRaw || data.phone?.replace(/[^0-9+]/g, '');
   const iconButtonClass =
     'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]';
@@ -71,29 +73,29 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
         key: 'call',
         href: `tel:${phoneTarget}`,
         Icon: Phone,
-        title: `전화 걸기 (${data.phone})`,
-        ariaLabel: '전화 걸기',
+        title: `${t.cardActions.call} (${data.phone})`,
+        ariaLabel: t.cardActions.call,
       },
       phoneTarget && {
         key: 'sms',
         href: `sms:${phoneTarget}`,
         Icon: MessageSquare,
-        title: `문자 보내기 (${data.phone})`,
-        ariaLabel: '문자 보내기',
+        title: `${t.cardActions.sms} (${data.phone})`,
+        ariaLabel: t.cardActions.sms,
       },
       data.email && {
         key: 'email',
         href: `mailto:${data.email}`,
         Icon: Mail,
-        title: `이메일 작성 (${data.email})`,
-        ariaLabel: '이메일 작성',
+        title: `${t.cardActions.email} (${data.email})`,
+        ariaLabel: t.cardActions.email,
       },
       safeWebsiteUrl && {
         key: 'website',
         href: safeWebsiteUrl,
         Icon: Globe,
-        title: isOwner ? '온라인 웹사이트 보기' : '웹사이트 방문',
-        ariaLabel: isOwner ? '온라인 웹사이트' : '웹사이트',
+        title: isOwner ? t.cardActions.websiteOwner : t.cardActions.websiteVisitor,
+        ariaLabel: isOwner ? t.cardActions.websiteOwner : t.cardActions.websiteVisitor,
         external: true,
       },
     ] as Array<ContactChannelItem | '' | undefined>
@@ -104,7 +106,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
     onInteraction?.();
     downloadVCard(data);
     if (onShowToast) {
-      onShowToast(`${data.name}님의 연락처(vCard)가 다운로드되었습니다.`);
+      onShowToast(t.cardActions.vcardDownloadedToast(data.name || t.common.cardFallback));
     }
   };
 
@@ -113,14 +115,14 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
     onInteraction?.();
     const targetUrl = cardUrl || (typeof window !== 'undefined' ? window.location.href : '');
     const title = `${data.name} — ${data.organization}`;
-    const text = `${data.organization} ${data.title} ${data.name} 디지털 명함`;
+    const text = `${data.organization} ${data.title} ${data.name}`;
 
     await shareOrCopyLink({
       title,
       text,
       url: targetUrl,
-      onCopied: () => onShowToast?.('명함 링크가 복사되었습니다.'),
-      onCopyError: () => onShowToast?.('명함 링크 복사에 실패했습니다.'),
+      onCopied: () => onShowToast?.(t.cardActions.linkCopiedToast),
+      onCopyError: () => onShowToast?.(t.cardActions.linkCopyFailedToast),
     });
   };
 
@@ -128,7 +130,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
     <div
       className="flex items-center justify-center gap-1.5 sm:gap-2.5 py-1"
       role="toolbar"
-      aria-label="명함 빠른 작업"
+      aria-label={t.cardActions.toolbarAria}
     >
       {/* Shared Contact Channels (Call, SMS, Email, Website) */}
       {contactChannels.map(({ key, href, Icon, title, ariaLabel, external }) => (
@@ -157,8 +159,8 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           <button
             onClick={handleDownloadContact}
             className={iconButtonClass}
-            title="연락처에 저장 (vCard 다운로드)"
-            aria-label="연락처 저장"
+            title={t.cardActions.saveContactTitle}
+            aria-label={t.cardActions.saveContact}
           >
             <UserPlus className="w-4 h-4" />
           </button>
@@ -167,21 +169,29 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           <button
             onClick={handleShareCardLink}
             className={iconButtonClass}
-            title="명함 링크 공유"
-            aria-label="명함 링크 공유"
+            title={t.cardActions.shareLink}
+            aria-label={t.cardActions.shareLink}
           >
             <Share2 className="w-4 h-4" />
           </button>
         </>
       ) : (
         <>
-          {/* Orientation Toggle (명함 가로/세로 보기) */}
+          {/* Orientation Toggle */}
           {onToggleOrientation && (
             <button
               onClick={onToggleOrientation}
               className={iconButtonClass}
-              title={orientation === 'portrait' ? '명함 가로 보기' : '명함 세로 보기'}
-              aria-label={orientation === 'portrait' ? '명함 가로 보기' : '명함 세로 보기'}
+              title={
+                orientation === 'portrait'
+                  ? t.cardActions.orientationLandscape
+                  : t.cardActions.orientationPortrait
+              }
+              aria-label={
+                orientation === 'portrait'
+                  ? t.cardActions.orientationLandscape
+                  : t.cardActions.orientationPortrait
+              }
             >
               {orientation === 'portrait' ? (
                 <RectangleHorizontal className="w-4 h-4" />
@@ -205,8 +215,8 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
                   ? 'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] ring-1 ring-[var(--app-border)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]'
                   : iconButtonClass
               }`}
-              title={isMemoOpen ? '개인 메모 닫기' : '개인 메모 열기'}
-              aria-label={isMemoOpen ? '개인 메모 닫기' : '개인 메모 열기'}
+              title={isMemoOpen ? t.cardActions.memoClose : t.cardActions.memoOpen}
+              aria-label={isMemoOpen ? t.cardActions.memoClose : t.cardActions.memoOpen}
             >
               <StickyNote className="w-4 h-4" />
               {!isMemoOpen && hasMemo && (
@@ -223,8 +233,8 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
             <button
               onClick={onOpenEdit}
               className={iconButtonClass}
-              title="명함 편집"
-              aria-label="명함 편집"
+              title={t.cardActions.editCard}
+              aria-label={t.cardActions.editCard}
             >
               <Edit3 className="w-4 h-4" />
             </button>
@@ -237,8 +247,8 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
               onOpenShare();
             }}
             className={iconButtonClass}
-            title="명함 공유 (QR, 링크, 인쇄, HTML 내보내기)"
-            aria-label="명함 공유"
+            title={t.cardActions.shareCardTitle}
+            aria-label={t.cardActions.shareCard}
           >
             <Share2 className="w-4 h-4" />
           </button>
@@ -248,8 +258,8 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
             <button
               onClick={onDelete}
               className={`${iconButtonClass} hover:text-rose-500 hover:bg-rose-500/10`}
-              title="내 명함 삭제"
-              aria-label="내 명함 삭제"
+              title={t.cardActions.deleteMyCard}
+              aria-label={t.cardActions.deleteMyCard}
             >
               <Trash2 className="w-4 h-4" />
             </button>

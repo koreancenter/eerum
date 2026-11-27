@@ -1,5 +1,6 @@
 import React from 'react';
 import { Lock, ShieldCheck, X, ArrowRight } from 'lucide-react';
+import { useLocale } from '../hooks/useLocale';
 
 interface LazyPinSetupModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ export const LazyPinSetupModal: React.FC<LazyPinSetupModalProps> = ({
   onClose,
   onProceedSetup,
 }) => {
+  const { isEn, t } = useLocale();
   if (!isOpen) return null;
 
   return (
@@ -26,7 +28,7 @@ export const LazyPinSetupModal: React.FC<LazyPinSetupModalProps> = ({
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
-          aria-label="닫기"
+          aria-label={t.common.close}
         >
           <X className="w-4 h-4" />
         </button>
@@ -38,23 +40,29 @@ export const LazyPinSetupModal: React.FC<LazyPinSetupModalProps> = ({
 
         {/* Title */}
         <h3 id="lazy-pin-title" className="text-lg font-bold text-[var(--app-text)] tracking-tight">
-          4자리 PIN 번호로 보호하시겠습니까?
+          {isEn ? 'Protect with a 4-Digit PIN?' : '4자리 PIN 번호로 보호하시겠습니까?'}
         </h3>
 
         {/* Subtitle */}
         <p className="text-xs text-[var(--app-text-muted)] font-medium mt-1">
-          첫 번째 명함이 기기 로컬 저장소에 안전하게 등록되었습니다.
+          {isEn
+            ? 'Your first card has been saved safely to local storage.'
+            : '첫 번째 명함이 기기 로컬 저장소에 안전하게 등록되었습니다.'}
         </p>
 
         {/* Body Description */}
         <p className="text-xs text-[var(--app-text-muted)] leading-relaxed mt-3.5 max-w-sm">
-          공유 기기 사용이나 타인의 무단 수정을 방지하려면 4자리 PIN 번호를 설정해 명함 편집 및 보관함을 암호화 잠금할 수 있습니다.
+          {isEn
+            ? 'To prevent unauthorized edits on shared devices, set a 4-digit PIN to lock your vault and card editor.'
+            : '공용 기기 사용이나 타인의 무단 수정을 방지하려면 4자리 PIN 번호를 설정해 명함 편집 및 보관함을 암호화 잠금할 수 있습니다.'}
         </p>
 
         <div className="w-full mt-4 p-3 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-left flex items-start gap-2.5">
           <ShieldCheck className="w-4 h-4 text-[var(--app-text)] shrink-0 mt-0.5" />
           <p className="text-[11px] text-[var(--app-text-muted)] leading-snug">
-            PIN 번호는 서버에 저장되지 않고 단말기 내 브라우저에서 안전한 SHA-256 해시로만 검증됩니다. 상단 설정 메뉴에서 언제든 변경할 수 있습니다.
+            {isEn
+              ? 'Your PIN is never sent to any server and is verified locally with a SHA-256 hash. You can change it anytime in Settings.'
+              : 'PIN 번호는 서버에 저장되지 않고 단말기 내 브라우저에서 안전한 SHA-256 해시로만 검증됩니다. 상단 설정 메뉴에서 언제든 변경할 수 있습니다.'}
           </p>
         </div>
 
@@ -64,7 +72,7 @@ export const LazyPinSetupModal: React.FC<LazyPinSetupModalProps> = ({
             onClick={onProceedSetup}
             className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95 whitespace-nowrap"
           >
-            <span>4자리 PIN 설정하기</span>
+            <span>{isEn ? 'Set 4-Digit PIN' : '4자리 PIN 설정하기'}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
 
@@ -72,7 +80,7 @@ export const LazyPinSetupModal: React.FC<LazyPinSetupModalProps> = ({
             onClick={onClose}
             className="w-full sm:w-auto py-2.5 px-4 rounded-xl border border-[var(--app-border)] hover:bg-[var(--app-surface-subtle)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-colors text-xs font-medium cursor-pointer whitespace-nowrap"
           >
-            나중에 하기
+            {isEn ? 'Maybe Later' : '나중에 하기'}
           </button>
         </div>
       </div>

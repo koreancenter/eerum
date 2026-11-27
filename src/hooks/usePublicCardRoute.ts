@@ -14,6 +14,7 @@ import {
 } from '@/utils/cardSerializer';
 
 import { isValidP2PRoomId } from '../types/api';
+import { getCurrentLocale } from './useLocale';
 
 export interface UsePublicCardRouteOptions {
   isAuthenticatedAccount: boolean;
@@ -83,7 +84,11 @@ export function usePublicCardRoute({
         setIsPublicExternalView(false);
         callbacksRef.current.onDetectP2PRoom?.(trimmedRoom);
       } else {
-        callbacksRef.current.showToast('유효하지 않은 P2P 연결 코드입니다.');
+        callbacksRef.current.showToast(
+          getCurrentLocale() === 'en'
+            ? 'Invalid P2P pairing code.'
+            : '유효하지 않은 P2P 연결 코드입니다.'
+        );
       }
       return;
     }
@@ -97,7 +102,11 @@ export function usePublicCardRoute({
             setPublicCard(null);
             setIsPublicExternalView(false);
             callbacksRef.current.onApplySyncedCards(normalized);
-            callbacksRef.current.showToast('기기 보관함이 성공적으로 동기화되었습니다.');
+            callbacksRef.current.showToast(
+              getCurrentLocale() === 'en'
+                ? 'Device vault synced successfully.'
+                : '기기 보관함이 성공적으로 동기화되었습니다.'
+            );
           }
           const url = new URL(window.location.href);
           url.searchParams.delete('sync');

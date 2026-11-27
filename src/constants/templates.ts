@@ -23,8 +23,10 @@ export interface ThemePresetDefinition {
 export interface LayoutPresetDefinition {
   id: CardLayoutType;
   name: string;
+  nameEn: string;
   aspectRatio: string;
   description: string;
+  descriptionEn: string;
 }
 
 export function isVerticalLayout(layoutType?: CardLayoutType): boolean {
@@ -35,38 +37,50 @@ export const LAYOUT_PRESETS: LayoutPresetDefinition[] = [
   {
     id: 'editorial_minimal',
     name: '에디토리얼 미니멀',
+    nameEn: 'Editorial Minimal',
     aspectRatio: '9:5',
-    description: '비대칭 2단 그리드와 국·영문 조화가 돋보이는 건축적 미니멀 레이아웃'
+    description: '비대칭 2단 그리드와 국·영문 조화가 돋보이는 건축적 미니멀 레이아웃',
+    descriptionEn: 'Architectural minimal layout with an asymmetric 2-column grid and balanced typography'
   },
   {
     id: 'monogram_executive',
     name: '모노그램 이그제큐티브',
+    nameEn: 'Monogram Executive',
     aspectRatio: '9:5',
-    description: '상단 중앙 실(Seal) 모노그램과 클래식 세리프 중심의 임원용 대칭 구도'
+    description: '상단 중앙 실(Seal) 모노그램과 클래식 세리프 중심의 임원용 대칭 구도',
+    descriptionEn: 'Symmetric executive composition anchored by a top center seal monogram and classic serif type'
   },
   {
     id: 'swiss_typo_bold',
     name: '스위스 타이포 볼드',
+    nameEn: 'Swiss Typo Bold',
     aspectRatio: '9:5',
-    description: '고대비 그로테스크 서체와 정교한 마이크로 그리드의 모더니즘 레이아웃'
+    description: '고대비 그로테스크 서체와 정교한 마이크로 그리드의 모더니즘 레이아웃',
+    descriptionEn: 'Modernist layout featuring high-contrast grotesque typography and a precision micro-grid'
   },
   {
     id: 'warm_organic',
     name: '매트 오가닉 페이퍼',
+    nameEn: 'Matte Organic Paper',
     aspectRatio: '9:5',
-    description: '여백의 미와 매트 파인아트 지류 감성을 극대화한 정제된 밸런스'
+    description: '여백의 미와 매트 파인아트 지류 감성을 극대화한 정제된 밸런스',
+    descriptionEn: 'Refined balance emphasizing generous whitespace and fine-art matte paper sensibility'
   },
   {
     id: 'vertical_atelier',
     name: '버티컬 아틀리에',
+    nameEn: 'Vertical Atelier',
     aspectRatio: '5:8',
-    description: '건축가·디렉터·크리에이터를 위한 절제된 수직형 아틀리에 포맷'
+    description: '건축가·디렉터·크리에이터를 위한 절제된 수직형 아틀리에 포맷',
+    descriptionEn: 'Restrained portrait atelier format crafted for architects, directors, and creators'
   },
   {
     id: 'serenity_vertical',
     name: '세레니티 버티컬',
+    nameEn: 'Serenity Vertical',
     aspectRatio: '5:8',
-    description: '여백의 미와 타이포그래피에 집중한 절제된 세로형 구도의 프리셋'
+    description: '여백의 미와 타이포그래피에 집중한 절제된 세로형 구도의 프리셋',
+    descriptionEn: 'Minimal vertical composition focused on quiet whitespace and pure typographic clarity'
   }
 ];
 

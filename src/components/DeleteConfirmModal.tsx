@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { Trash2, AlertTriangle, X } from 'lucide-react';
+import { Trash2, X } from 'lucide-react';
+import { useLocale } from '../hooks/useLocale';
 
 export interface DeleteConfirmModalProps {
   isOpen: boolean;
@@ -14,10 +15,18 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
   isOpen,
   onClose,
   onConfirm,
-  title = '내 명함 삭제',
-  description = '선택한 명함을 삭제하시겠습니까? 삭제된 명함은 복구할 수 없습니다.',
+  title,
+  description,
   cardName,
 }) => {
+  const { isEn, t } = useLocale();
+  const resolvedTitle = title ?? (isEn ? 'Delete My Card' : '내 명함 삭제');
+  const resolvedDesc =
+    description ??
+    (isEn
+      ? 'Delete the selected card? Deleted cards cannot be recovered.'
+      : '선택한 명함을 삭제하시겠습니까? 삭제된 명함은 복구할 수 없습니다.');
+
   // Close on Escape key
   useEffect(() => {
     if (!isOpen) return;
@@ -49,7 +58,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
           type="button"
           onClick={onClose}
           className="absolute top-3.5 right-3.5 p-1.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
-          aria-label="닫기"
+          aria-label={t.common.close}
         >
           <X className="w-4 h-4" />
         </button>
@@ -61,7 +70,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 
         {/* Title */}
         <h3 id="delete-confirm-title" className="text-base sm:text-lg font-bold text-[var(--app-text)] tracking-tight">
-          {title}
+          {resolvedTitle}
         </h3>
 
         {/* Card Name highlight if provided */}
@@ -73,7 +82,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 
         {/* Description */}
         <p className="text-xs text-[var(--app-text-muted)] mt-2.5 leading-relaxed text-balance">
-          {description}
+          {resolvedDesc}
         </p>
 
         {/* Action Buttons */}
@@ -83,7 +92,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
             onClick={onClose}
             className="flex-1 py-2 sm:py-2.5 px-4 rounded-xl text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-xs font-medium transition-all cursor-pointer active:scale-95 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
           >
-            취소
+            {t.common.cancel}
           </button>
           <button
             type="button"
@@ -94,7 +103,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
             className="flex-1 py-2 sm:py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-lg shadow-rose-950/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>삭제하기</span>
+            <span>{t.common.confirmDelete}</span>
           </button>
         </div>
       </div>

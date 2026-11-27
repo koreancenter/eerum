@@ -3,6 +3,7 @@ import { StoredCard } from '@/types/card';
 import { getCardDisplayUrl, getCardShareUrl } from './cardSerializer';
 import { escapeHtmlText } from './sanitizeHtml';
 import { sanitizeExternalUrl } from './sanitizeUrl';
+import { getCurrentLocale } from '../hooks/useLocale';
 
 export type EmailSignatureTheme = 'light' | 'dark';
 
@@ -37,7 +38,8 @@ function buildMetaLine(card: StoredCard): {
   shareDisplayUrl: string;
 } {
   const d = card.data;
-  const primaryName = (d.name || d.nameKr || '디지털 명함').trim();
+  const fallbackCardName = getCurrentLocale() === 'en' ? 'Digital Business Card' : '디지털 명함';
+  const primaryName = (d.name || d.nameKr || fallbackCardName).trim();
   const secondaryCandidate = (
     d.nameEn ||
     d.details?.en_name ||
@@ -205,10 +207,11 @@ export function buildEmailSignatureHtml(
     );
   }
 
+  const isEn = getCurrentLocale() === 'en';
   const qrImageTag =
     includeQrBadge && options.qrDataUrl && /^data:image\/png;base64,/i.test(options.qrDataUrl)
       ? `<a href="${safeShareUrl}" target="_blank" rel="noopener noreferrer" style="display:block;text-decoration:none;border:0;">` +
-        `<img src="${options.qrDataUrl}" width="72" height="72" alt="${safeName} 디지털 명함 QR" style="display:block;width:72px;height:72px;border:1px solid ${badgeBorder};border-radius:8px;background:${bgCard};padding:3px;" />` +
+        `<img src="${options.qrDataUrl}" width="72" height="72" alt="${safeName} ${isEn ? 'Digital Card QR' : '디지털 명함 QR'}" style="display:block;width:72px;height:72px;border:1px solid ${badgeBorder};border-radius:8px;background:${bgCard};padding:3px;" />` +
         `</a>`
       : '';
 
@@ -216,8 +219,8 @@ export function buildEmailSignatureHtml(
     ? `<td valign="middle" align="center" style="padding:0 0 0 16px;border-left:1px solid ${dividerColor};vertical-align:middle;text-align:center;width:96px;">` +
       (qrImageTag
         ? `${qrImageTag}<div style="margin-top:5px;font-family:'SFMono-Regular',Consolas,monospace;font-size:9px;letter-spacing:0.08em;color:${textMuted};line-height:12px;text-transform:uppercase;">` +
-          `<a href="${safeShareUrl}" target="_blank" rel="noopener noreferrer" style="color:${textSecondary};text-decoration:none;font-weight:600;">QR &middot; 명함 열기</a></div>`
-        : `<a href="${safeShareUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:10px 12px;border-radius:8px;background-color:${badgeBg};border:1px solid ${badgeBorder};color:${badgeText};font-size:11px;font-weight:600;text-decoration:none;line-height:15px;">디지털 명함<br/><span style="font-size:9px;font-weight:500;color:${textMuted};">바로 열기 &#8599;</span></a>`) +
+          `<a href="${safeShareUrl}" target="_blank" rel="noopener noreferrer" style="color:${textSecondary};text-decoration:none;font-weight:600;">QR &middot; ${isEn ? 'Open Card' : '명함 열기'}</a></div>`
+        : `<a href="${safeShareUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:10px 12px;border-radius:8px;background-color:${badgeBg};border:1px solid ${badgeBorder};color:${badgeText};font-size:11px;font-weight:600;text-decoration:none;line-height:15px;">${isEn ? 'Digital Card' : '디지털 명함'}<br/><span style="font-size:9px;font-weight:500;color:${textMuted};">${isEn ? 'Open Now' : '바로 열기'} &#8599;</span></a>`) +
       `</td>`
     : '';
 
@@ -239,7 +242,7 @@ export function buildEmailSignatureHtml(
       : `<tr><td style="padding:0 0 8px 0;border-bottom:1px solid ${dividerColor};font-size:1px;line-height:1px;">&nbsp;</td></tr>`) +
     `<tr><td style="padding:8px 0 0 0;"><table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;"><tbody>${contactRows.join('')}</tbody></table></td></tr>` +
     `<tr><td style="padding:8px 0 0 0;">` +
-    `<a href="${safeShareUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:5px 10px;border-radius:6px;background-color:${badgeBg};border:1px solid ${badgeBorder};color:${badgeText};font-size:11px;line-height:15px;font-weight:600;text-decoration:none;">&#9670;&nbsp;디지털 명함 보기 &middot; <span style="font-family:'SFMono-Regular',Consolas,monospace;font-weight:500;">${safeShareDisplay}</span> &#8599;</a>` +
+    `<a href="${safeShareUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:5px 10px;border-radius:6px;background-color:${badgeBg};border:1px solid ${badgeBorder};color:${badgeText};font-size:11px;line-height:15px;font-weight:600;text-decoration:none;">&#9670;&nbsp;${isEn ? 'View Digital Card' : '디지털 명함 보기'} &middot; <span style="font-family:'SFMono-Regular',Consolas,monospace;font-weight:500;">${safeShareDisplay}</span> &#8599;</a>` +
     `</td></tr>` +
     `</tbody></table>` +
     `</td>` +

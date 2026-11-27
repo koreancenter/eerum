@@ -1,6 +1,7 @@
 import { StoredCard } from '@/types/card';
 import { getCardShareUrl } from './cardSerializer';
 import { generateVCard } from './cardExporter';
+import { getCurrentLocale } from '../hooks/useLocale';
 
 export type NfcPayloadMode = 'url' | 'vcard' | 'both';
 
@@ -97,50 +98,63 @@ export function estimateNdefPayloadBytes(records: NdefRecordInit[]): number {
 }
 
 export function parseWebNfcError(err: unknown): NfcWriteErrorResult {
+  const isEn = getCurrentLocale() === 'en';
   const name = err instanceof Error ? err.name : '';
   if (name === 'AbortError') {
-    return { cancelled: true, message: 'NFC 전송이 취소되었습니다.' };
+    return {
+      cancelled: true,
+      message: isEn ? 'NFC transfer cancelled.' : 'NFC 전송이 취소되었습니다.',
+    };
   }
   if (name === 'NotAllowedError') {
     return {
       cancelled: false,
-      message:
-        'NFC 접근 권한이 거부되었습니다. 브라우저 주소창 또는 사이트 설정에서 NFC 권한을 허용해 주세요.',
+      message: isEn
+        ? 'NFC access denied. Please allow NFC permission in your browser or site settings.'
+        : 'NFC 접근 권한이 거부되었습니다. 브라우저 주소창 또는 사이트 설정에서 NFC 권한을 허용해 주세요.',
     };
   }
   if (name === 'NotSupportedError') {
     return {
       cancelled: false,
-      message:
-        '기기에서 NFC가 비활성화되어 있거나 지원되지 않습니다. 기기 설정에서 NFC(기본 모드)를 켜주세요.',
+      message: isEn
+        ? 'NFC is disabled or unsupported on this device. Please turn on NFC in device settings.'
+        : '기기에서 NFC가 비활성화되어 있거나 지원되지 않습니다. 기기 설정에서 NFC(기본 모드)를 켜주세요.',
     };
   }
   if (name === 'SecurityError') {
     return {
       cancelled: false,
-      message:
-        '임베드된 창(iframe)에서는 Web NFC가 제한될 수 있습니다. Chrome 새 탭 또는 설치된 PWA 앱에서 실행해 주세요.',
+      message: isEn
+        ? 'Web NFC may be restricted in an embedded frame. Please open in a new Chrome tab or installed PWA.'
+        : '임베드된 창(iframe)에서는 Web NFC가 제한될 수 있습니다. Chrome 새 탭 또는 설치된 PWA 앱에서 실행해 주세요.',
     };
   }
   if (name === 'NetworkError') {
     return {
       cancelled: false,
-      message:
-        'NFC 기기/태그와 연결이 끊어졌거나 읽기 전용 태그입니다. 1~2초간 가까이 유지한 뒤 다시 시도해 주세요.',
+      message: isEn
+        ? 'NFC connection was lost or tag is read-only. Hold steady for 1–2 seconds and try again.'
+        : 'NFC 기기/태그와 연결이 끊어졌거나 읽기 전용 태그입니다. 1~2초간 가까이 유지한 뒤 다시 시도해 주세요.',
     };
   }
   if (name === 'NotReadableError') {
     return {
       cancelled: false,
-      message:
-        'NFC 모듈을 사용할 수 없습니다. 다른 NFC 앱을 종료한 뒤 다시 시도해 주세요.',
+      message: isEn
+        ? 'NFC module is unavailable. Please close other NFC apps and try again.'
+        : 'NFC 모듈을 사용할 수 없습니다. 다른 NFC 앱을 종료한 뒤 다시 시도해 주세요.',
     };
   }
 
   const fallbackMsg = err instanceof Error && err.message ? err.message : '';
   return {
     cancelled: false,
-    message: fallbackMsg || 'NFC 전송 중 문제가 발생했습니다. 기기 뒷면을 가까이 대고 다시 시도해 주세요.',
+    message:
+      fallbackMsg ||
+      (isEn
+        ? 'An error occurred during NFC transfer. Hold the backs of devices close together and try again.'
+        : 'NFC 전송 중 문제가 발생했습니다. 기기 뒷면을 가까이 대고 다시 시도해 주세요.'),
   };
 }
 

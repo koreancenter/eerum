@@ -7,6 +7,7 @@ import { deriveCardThemeHarmony } from '../utils/cardThemeHarmony';
 import { BusinessCardFront } from './BusinessCardFront';
 import { BusinessCardBack } from './BusinessCardBack';
 import { ActionButtons } from './ActionButtons';
+import { useLocale } from '../hooks/useLocale';
 
 interface CardContainerProps {
   data: CardData;
@@ -91,6 +92,7 @@ export const CardContainer: React.FC<CardContainerProps> = ({
   onCardClick,
   onInteraction,
 }) => {
+  const { isEn } = useLocale();
   const cardRef = useRef<HTMLDivElement>(null);
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -451,8 +453,8 @@ export const CardContainer: React.FC<CardContainerProps> = ({
               triggerPrevCard();
             }}
             className="hidden sm:flex absolute -left-11 md:-left-13 z-30 p-2 rounded-full bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] backdrop-blur-md active:scale-90 cursor-pointer shadow-[var(--app-shadow)] transition-colors"
-            title="이전 명함 보기"
-            aria-label="이전 명함"
+            title={isEn ? 'Previous card' : '이전 명함 보기'}
+            aria-label={isEn ? 'Previous card' : '이전 명함'}
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -466,8 +468,8 @@ export const CardContainer: React.FC<CardContainerProps> = ({
               triggerNextCard();
             }}
             className="hidden sm:flex absolute -right-11 md:-right-13 z-30 p-2 rounded-full bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] backdrop-blur-md active:scale-90 cursor-pointer shadow-[var(--app-shadow)] transition-colors"
-            title="다음 명함 보기"
-            aria-label="다음 명함"
+            title={isEn ? 'Next card' : '다음 명함 보기'}
+            aria-label={isEn ? 'Next card' : '다음 명함'}
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -511,8 +513,8 @@ export const CardContainer: React.FC<CardContainerProps> = ({
                 color: themeHarmony.badgeText,
               }}
               className="absolute top-3 right-3 z-30 opacity-50 group-hover:opacity-100 transition-[opacity,background-color,border-color,color] duration-200 p-1.5 rounded-full backdrop-blur-md border cursor-pointer hover:scale-105 active:scale-95"
-              title="앞·뒷면 뒤집기 (클릭)"
-              aria-label="앞·뒷면 뒤집기"
+              title={isEn ? 'Flip card (click)' : '앞·뒷면 뒤집기 (클릭)'}
+              aria-label={isEn ? 'Flip card' : '앞·뒷면 뒤집기'}
             >
               <RefreshCw className="w-3 h-3" />
             </button>

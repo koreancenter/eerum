@@ -10,6 +10,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { getDeleteFallbackCategory } from '../utils/categories';
+import { useLocale } from '../hooks/useLocale';
 
 export interface CategoryManagementPanelProps {
   isOpen: boolean;
@@ -52,6 +53,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
   onDeleteCategory,
   onResetCategories,
 }) => {
+  const { isEn } = useLocale();
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
@@ -125,14 +127,16 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
     if (!res.ok) {
       setFeedback({
         type: 'error',
-        message: res.error || '카테고리를 추가할 수 없습니다.',
+        message: res.error || (isEn ? 'Unable to add category.' : '카테고리를 추가할 수 없습니다.'),
       });
       return;
     }
     setNewCategoryName('');
     setFeedback({
       type: 'info',
-      message: `'${res.added}' 카테고리가 추가되었습니다.`,
+      message: isEn
+        ? `Category '${res.added}' added.`
+        : `'${res.added}' 카테고리가 추가되었습니다.`,
     });
   };
 
@@ -154,7 +158,8 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
       setRenameConflictTarget(res.conflictTarget || null);
       setFeedback({
         type: 'error',
-        message: res.error || '카테고리 이름을 변경할 수 없습니다.',
+        message:
+          res.error || (isEn ? 'Unable to rename category.' : '카테고리 이름을 변경할 수 없습니다.'),
       });
       return;
     }
@@ -162,8 +167,11 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
     const count = res.updatedCount ?? 0;
     setFeedback({
       type: 'info',
-      message:
-        count > 0
+      message: isEn
+        ? count > 0
+          ? `Renamed '${oldName}' to '${res.renamed}' across ${count} card${count === 1 ? '' : 's'}.`
+          : `Renamed '${oldName}' to '${res.renamed}'.`
+        : count > 0
           ? `'${oldName}' 카테고리가 '${res.renamed}'(으)로 변경되어 명함 ${count}장에 반영되었습니다.`
           : `'${oldName}' 카테고리가 '${res.renamed}'(으)로 변경되었습니다.`,
     });
@@ -183,7 +191,8 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
     if (!res.ok || !res.target) {
       setFeedback({
         type: 'error',
-        message: res.error || '카테고리를 병합할 수 없습니다.',
+        message:
+          res.error || (isEn ? 'Unable to merge categories.' : '카테고리를 병합할 수 없습니다.'),
       });
       return;
     }
@@ -191,8 +200,11 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
     const moved = res.movedCount ?? 0;
     setFeedback({
       type: 'info',
-      message:
-        moved > 0
+      message: isEn
+        ? moved > 0
+          ? `Merged ${moved} card${moved === 1 ? '' : 's'} from '${sourceCat}' into '${res.target}'.`
+          : `Merged '${sourceCat}' into '${res.target}'.`
+        : moved > 0
           ? `'${sourceCat}'의 명함 ${moved}장이 '${res.target}'(으)로 병합되었습니다.`
           : `'${sourceCat}' 카테고리가 '${res.target}'(으)로 통합되었습니다.`,
     });
@@ -209,7 +221,8 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
     if (!res.ok) {
       setFeedback({
         type: 'error',
-        message: res.error || '카테고리를 삭제할 수 없습니다.',
+        message:
+          res.error || (isEn ? 'Unable to delete category.' : '카테고리를 삭제할 수 없습니다.'),
       });
       return;
     }
@@ -217,8 +230,11 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
     const moved = res.movedCount ?? 0;
     setFeedback({
       type: 'info',
-      message:
-        moved > 0
+      message: isEn
+        ? moved > 0
+          ? `Deleted '${cat}' and moved ${moved} card${moved === 1 ? '' : 's'} to '${res.fallback}'.`
+          : `Deleted category '${cat}'.`
+        : moved > 0
           ? `'${cat}' 카테고리가 삭제되었으며, 명함 ${moved}장이 '${res.fallback}'(으)로 이동되었습니다.`
           : `'${cat}' 카테고리가 삭제되었습니다.`,
     });
@@ -229,7 +245,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
     onResetCategories();
     setFeedback({
       type: 'info',
-      message: '기본 카테고리 구성이 복원되었습니다.',
+      message: isEn ? 'Default categories restored.' : '기본 카테고리 구성이 복원되었습니다.',
     });
   };
 
@@ -243,7 +259,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label="카테고리 관리 패널"
+        aria-label={isEn ? 'Manage Categories' : '카테고리 관리 패널'}
         className="relative w-full max-w-md h-full bg-[var(--app-surface)] border-l border-[var(--app-border)] text-[var(--app-text)] shadow-[var(--app-shadow)] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -251,12 +267,16 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
         <div className="px-6 pt-5 pb-4 border-b border-[var(--app-border)] flex items-start justify-between gap-4 shrink-0">
           <div className="space-y-1 min-w-0">
             <h3 className="text-base font-semibold text-[var(--app-text)] tracking-tight">
-              카테고리 관리
+              {isEn ? 'Manage Categories' : '카테고리 관리'}
             </h3>
             <div className="flex items-center gap-1.5 text-xs text-[var(--app-text-muted)]">
-              <span className="tabular-nums">{categories.length}개 분류</span>
+              <span className="tabular-nums">
+                {isEn ? `${categories.length} categories` : `${categories.length}개 분류`}
+              </span>
               <span aria-hidden="true">·</span>
-              <span className="tabular-nums">명함 총 {totalCardCount}장</span>
+              <span className="tabular-nums">
+                {isEn ? `${totalCardCount} cards total` : `명함 총 ${totalCardCount}장`}
+              </span>
             </div>
           </div>
 
@@ -264,8 +284,8 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
             type="button"
             onClick={onClose}
             className="min-w-[40px] min-h-[40px] -mr-2 -mt-1 flex items-center justify-center rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            aria-label="패널 닫기"
-            title="닫기"
+            aria-label={isEn ? 'Close panel' : '패널 닫기'}
+            title={isEn ? 'Close' : '닫기'}
           >
             <X className="w-4 h-4 stroke-[1.5]" />
           </button>
@@ -286,8 +306,10 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                 setNewCategoryName(e.target.value);
                 if (feedback?.type === 'error') setFeedback(null);
               }}
-              placeholder="새 카테고리 추가 (예: 디자인·브랜딩)"
-              aria-label="새 카테고리 이름"
+              placeholder={
+                isEn ? 'New category (e.g. Design & Brand)' : '새 카테고리 추가 (예: 디자인·브랜딩)'
+              }
+              aria-label={isEn ? 'New category name' : '새 카테고리 이름'}
               className="flex-1 min-w-0 h-10 px-3.5 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] focus:border-[var(--app-accent)] focus:outline-none text-xs text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]/70"
             />
             <button
@@ -296,7 +318,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
               className="h-10 px-4 rounded-xl bg-[var(--app-accent)] hover:opacity-90 disabled:opacity-35 disabled:pointer-events-none text-[var(--app-accent-fg)] font-semibold text-xs whitespace-nowrap shrink-0 inline-flex items-center gap-1 cursor-pointer transition-all"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2]" />
-              <span>추가</span>
+              <span>{isEn ? 'Add' : '추가'}</span>
             </button>
           </div>
 
@@ -314,8 +336,12 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
 
         {/* Section Guide Line */}
         <div className="px-6 py-2.5 border-b border-[var(--app-border)] flex items-center justify-between text-[11px] text-[var(--app-text-muted)] shrink-0">
-          <span>분류 목록</span>
-          <span>이름 변경 및 병합 시 소속 명함에 즉시 반영</span>
+          <span>{isEn ? 'Categories' : '분류 목록'}</span>
+          <span>
+            {isEn
+              ? 'Renames & merges sync to cards immediately'
+              : '이름 변경 및 병합 시 소속 명함에 즉시 반영'}
+          </span>
         </div>
 
         {/* Category Hairline List (Zero Nested Card Borders) */}
@@ -335,9 +361,15 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                   /* ================= INLINE RENAME FLOW ================= */
                   <div className="space-y-2.5">
                     <div className="flex items-center justify-between text-[11px] text-[var(--app-text-muted)]">
-                      <span>&lsquo;{cat}&rsquo; 이름 변경</span>
+                      <span>{isEn ? `Rename '${cat}'` : `'${cat}' 이름 변경`}</span>
                       <span className="tabular-nums">
-                        {count > 0 ? `소속 명함 ${count}장 동시 변경` : '할당된 명함 없음'}
+                        {isEn
+                          ? count > 0
+                            ? `Updates ${count} card${count === 1 ? '' : 's'}`
+                            : 'No cards assigned'
+                          : count > 0
+                            ? `소속 명함 ${count}장 동시 변경`
+                            : '할당된 명함 없음'}
                       </span>
                     </div>
 
@@ -359,7 +391,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                             clearRowModes();
                           }
                         }}
-                        aria-label={`${cat} 새 이름 입력`}
+                        aria-label={isEn ? `Enter new name for ${cat}` : `${cat} 새 이름 입력`}
                         className="flex-1 min-w-0 h-10 px-3.5 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] focus:border-[var(--app-accent)] focus:outline-none text-xs text-[var(--app-text)]"
                       />
                       <button
@@ -369,21 +401,23 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                         className="h-10 px-3.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 disabled:opacity-35 text-[var(--app-accent-fg)] font-semibold text-xs inline-flex items-center gap-1 cursor-pointer shrink-0"
                       >
                         <Check className="w-3.5 h-3.5 stroke-[2]" />
-                        <span>저장</span>
+                        <span>{isEn ? 'Save' : '저장'}</span>
                       </button>
                       <button
                         type="button"
                         onClick={clearRowModes}
                         className="h-10 px-3 rounded-xl text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] text-xs cursor-pointer shrink-0"
                       >
-                        취소
+                        {isEn ? 'Cancel' : '취소'}
                       </button>
                     </div>
 
                     {renameConflictTarget && (
                       <div className="flex items-center justify-between gap-2 pt-1 text-[11px]">
                         <span className="text-[var(--app-text-muted)]">
-                          &lsquo;{renameConflictTarget}&rsquo; 카테고리로 바로 통합할까요?
+                          {isEn
+                            ? `Merge into '${renameConflictTarget}' instead?`
+                            : `'${renameConflictTarget}' 카테고리로 바로 통합할까요?`}
                         </span>
                         <button
                           type="button"
@@ -391,7 +425,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                           className="px-3 py-1.5 rounded-lg bg-[var(--app-highlight)] hover:opacity-90 text-[var(--app-highlight-fg)] font-medium cursor-pointer shrink-0 inline-flex items-center gap-1"
                         >
                           <GitMerge className="w-3 h-3 stroke-[1.75]" />
-                          <span>병합하기</span>
+                          <span>{isEn ? 'Merge' : '병합하기'}</span>
                         </button>
                       </div>
                     )}
@@ -401,12 +435,14 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="text-[var(--app-text)] font-medium">
-                        &lsquo;{cat}&rsquo; ({count}장) 병합 대상 선택
+                        {isEn
+                          ? `Select target to merge '${cat}' (${count})`
+                          : `'${cat}' (${count}장) 병합 대상 선택`}
                       </span>
                       <span className="text-[var(--app-text-muted)] tabular-nums inline-flex items-center gap-1">
-                        <span>{count}장</span>
+                        <span>{isEn ? `${count}` : `${count}장`}</span>
                         <ArrowRight className="w-3 h-3 stroke-[1.5]" />
-                        <span>총 {count + targetCount}장</span>
+                        <span>{isEn ? `Total ${count + targetCount}` : `총 ${count + targetCount}장`}</span>
                       </span>
                     </div>
 
@@ -414,7 +450,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                       <select
                         value={mergeTarget}
                         onChange={(e) => setMergeTarget(e.target.value)}
-                        aria-label={`${cat} 병합 대상 카테고리`}
+                        aria-label={isEn ? `Merge target for ${cat}` : `${cat} 병합 대상 카테고리`}
                         className="flex-1 min-w-0 h-10 px-3 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] focus:border-[var(--app-accent)] focus:outline-none text-xs text-[var(--app-text)] cursor-pointer"
                       >
                         {availableMergeTargets.map((target) => (
@@ -423,7 +459,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                             value={target}
                             className="bg-[var(--app-surface)] text-[var(--app-text)]"
                           >
-                            {target} ({categoryCounts[target] ?? 0}장)
+                            {target} ({isEn ? `${categoryCounts[target] ?? 0}` : `${categoryCounts[target] ?? 0}장`})
                           </option>
                         ))}
                       </select>
@@ -435,7 +471,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                         className="h-10 px-3.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 disabled:opacity-35 text-[var(--app-accent-fg)] font-semibold text-xs inline-flex items-center gap-1 cursor-pointer shrink-0"
                       >
                         <GitMerge className="w-3.5 h-3.5 stroke-[1.75]" />
-                        <span>병합 적용</span>
+                        <span>{isEn ? 'Apply Merge' : '병합 적용'}</span>
                       </button>
 
                       <button
@@ -443,23 +479,31 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                         onClick={clearRowModes}
                         className="h-10 px-3 rounded-xl text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] text-xs cursor-pointer shrink-0"
                       >
-                        취소
+                        {isEn ? 'Cancel' : '취소'}
                       </button>
                     </div>
 
                     <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
-                      {count > 0
-                        ? `'${cat}' 카테고리는 목록에서 통합 제거되며, 소속된 명함 ${count}장이 모두 '${mergeTarget}' 분류로 이동합니다.`
-                        : `'${cat}' 카테고리가 '${mergeTarget}' 분류로 통합 제거됩니다.`}
+                      {isEn
+                        ? count > 0
+                          ? `'${cat}' will be removed and its ${count} card${count === 1 ? '' : 's'} will move to '${mergeTarget}'.`
+                          : `'${cat}' will be merged into '${mergeTarget}'.`
+                        : count > 0
+                          ? `'${cat}' 카테고리는 목록에서 통합 제거되며, 소속된 명함 ${count}장이 모두 '${mergeTarget}' 분류로 이동합니다.`
+                          : `'${cat}' 카테고리가 '${mergeTarget}' 분류로 통합 제거됩니다.`}
                     </p>
                   </div>
                 ) : isConfirmingDelete ? (
                   /* ================= INLINE DELETE CONFIRMATION ================= */
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-[11px] text-[var(--app-text)] leading-snug">
-                      {count > 0
-                        ? `삭제 시 명함 ${count}장이 '${deleteFallback}' 분류로 이동합니다.`
-                        : `'${cat}' 카테고리를 삭제할까요?`}
+                      {isEn
+                        ? count > 0
+                          ? `Deleting moves ${count} card${count === 1 ? '' : 's'} to '${deleteFallback}'.`
+                          : `Delete category '${cat}'?`
+                        : count > 0
+                          ? `삭제 시 명함 ${count}장이 '${deleteFallback}' 분류로 이동합니다.`
+                          : `'${cat}' 카테고리를 삭제할까요?`}
                     </span>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
@@ -467,14 +511,14 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                         onClick={() => handleExecuteDelete(cat)}
                         className="h-9 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium cursor-pointer"
                       >
-                        삭제
+                        {isEn ? 'Delete' : '삭제'}
                       </button>
                       <button
                         type="button"
                         onClick={clearRowModes}
                         className="h-9 px-2.5 rounded-lg text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] text-xs cursor-pointer"
                       >
-                        취소
+                        {isEn ? 'Cancel' : '취소'}
                       </button>
                     </div>
                   </div>
@@ -487,7 +531,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                         ·
                       </span>
                       <span className="text-[11px] text-[var(--app-text-muted)] font-mono tabular-nums shrink-0">
-                        {count}장
+                        {isEn ? `${count}` : `${count}장`}
                       </span>
                     </div>
 
@@ -496,11 +540,11 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                         type="button"
                         onClick={() => handleStartRename(cat)}
                         className="h-8 px-2.5 rounded-lg text-[11px] text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] inline-flex items-center gap-1 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                        aria-label={`${cat} 이름 변경`}
-                        title="이름 변경"
+                        aria-label={isEn ? `Rename ${cat}` : `${cat} 이름 변경`}
+                        title={isEn ? 'Rename' : '이름 변경'}
                       >
                         <Pencil className="w-3 h-3 stroke-[1.5]" />
-                        <span>이름 변경</span>
+                        <span>{isEn ? 'Rename' : '이름 변경'}</span>
                       </button>
 
                       <button
@@ -508,11 +552,11 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                         disabled={!canMergeOrDelete}
                         onClick={() => handleStartMerge(cat)}
                         className="h-8 px-2.5 rounded-lg text-[11px] text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] disabled:opacity-35 disabled:pointer-events-none inline-flex items-center gap-1 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                        aria-label={`${cat} 다른 카테고리로 병합`}
-                        title="다른 카테고리로 병합"
+                        aria-label={isEn ? `Merge ${cat} into another category` : `${cat} 다른 카테고리로 병합`}
+                        title={isEn ? 'Merge into another category' : '다른 카테고리로 병합'}
                       >
                         <GitMerge className="w-3 h-3 stroke-[1.5]" />
-                        <span>병합</span>
+                        <span>{isEn ? 'Merge' : '병합'}</span>
                       </button>
 
                       <button
@@ -520,8 +564,8 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
                         disabled={!canMergeOrDelete}
                         onClick={() => handleStartDelete(cat)}
                         className="w-8 h-8 rounded-lg text-[var(--app-text-muted)] hover:text-rose-500 hover:bg-[var(--app-surface-subtle)] disabled:opacity-35 disabled:pointer-events-none flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                        aria-label={`${cat} 삭제`}
-                        title="삭제"
+                        aria-label={isEn ? `Delete ${cat}` : `${cat} 삭제`}
+                        title={isEn ? 'Delete' : '삭제'}
                       >
                         <Trash2 className="w-3.5 h-3.5 stroke-[1.5]" />
                       </button>
@@ -541,7 +585,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
             className="min-h-[40px] px-3 py-2 -ml-2 rounded-xl text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
           >
             <RotateCcw className="w-3.5 h-3.5 stroke-[1.5]" />
-            <span>기본값 복원</span>
+            <span>{isEn ? 'Restore Defaults' : '기본값 복원'}</span>
           </button>
 
           <button
@@ -549,7 +593,7 @@ export const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = (
             onClick={onClose}
             className="min-h-[40px] px-5 py-2 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] font-semibold text-xs cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
           >
-            완료
+            {isEn ? 'Done' : '완료'}
           </button>
         </div>
       </aside>

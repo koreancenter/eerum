@@ -1,4 +1,5 @@
 import type { StoredCard } from '../types/card';
+import { getCurrentLocale, type AppLocale } from '../hooks/useLocale';
 
 export type VaultViewScope = 'all' | 'recent';
 
@@ -16,14 +17,28 @@ export interface VaultSortOptionMeta {
   description?: string;
 }
 
-export const SORT_OPTIONS: VaultSortOptionMeta[] = [
-  { id: 'smart', label: '자동 추천순', description: '연락 빈도 · 등록일 반영' },
-  { id: 'frequency', label: '자주 찾는순', description: '열람 · 연락 횟수순' },
-  { id: 'newest', label: '최신 등록순', description: '최근 생성 · 등록일순' },
-  { id: 'oldest', label: '오래된순', description: '이전 생성 · 등록일순' },
-  { id: 'name', label: '이름순' },
-  { id: 'company', label: '회사명순' },
-];
+export function getSortOptions(locale: AppLocale = getCurrentLocale()): VaultSortOptionMeta[] {
+  if (locale === 'en') {
+    return [
+      { id: 'smart', label: 'Smart Sort', description: 'Based on contact frequency & date' },
+      { id: 'frequency', label: 'Most Contacted', description: 'Most viewed & contacted' },
+      { id: 'newest', label: 'Newest', description: 'Recently created or added' },
+      { id: 'oldest', label: 'Oldest', description: 'Earliest created or added' },
+      { id: 'name', label: 'Name (A–Z)' },
+      { id: 'company', label: 'Company' },
+    ];
+  }
+  return [
+    { id: 'smart', label: '자동 추천순', description: '연락 빈도 · 등록일 반영' },
+    { id: 'frequency', label: '자주 찾는순', description: '열람 · 연락 횟수순' },
+    { id: 'newest', label: '최신 등록순', description: '최근 생성 · 등록일순' },
+    { id: 'oldest', label: '오래된순', description: '이전 생성 · 등록일순' },
+    { id: 'name', label: '이름순' },
+    { id: 'company', label: '회사명순' },
+  ];
+}
+
+export const SORT_OPTIONS: VaultSortOptionMeta[] = getSortOptions('ko');
 
 export const RECENT_WINDOW_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -95,15 +110,16 @@ export const getSmartSortScore = (card: StoredCard): number => {
 };
 
 const compareByKoreanName = (a: StoredCard, b: StoredCard): number => {
+  const compareLocale = getCurrentLocale() === 'en' ? 'en' : 'ko';
   const nameA = (a.data.name || a.data.nameKr || '').trim();
   const nameB = (b.data.name || b.data.nameKr || '').trim();
   if (!nameA && nameB) return 1;
   if (nameA && !nameB) return -1;
-  const cmp = nameA.localeCompare(nameB, 'ko', { numeric: true, sensitivity: 'base' });
+  const cmp = nameA.localeCompare(nameB, compareLocale, { numeric: true, sensitivity: 'base' });
   if (cmp !== 0) return cmp;
   const orgA = (a.data.organizationKr || a.data.organization || '').trim();
   const orgB = (b.data.organizationKr || b.data.organization || '').trim();
-  return orgA.localeCompare(orgB, 'ko', { numeric: true, sensitivity: 'base' });
+  return orgA.localeCompare(orgB, compareLocale, { numeric: true, sensitivity: 'base' });
 };
 
 export const sortVaultCards = (
@@ -111,6 +127,7 @@ export const sortVaultCards = (
   sortBy: VaultSortOption
 ): StoredCard[] => {
   const list = [...cards];
+  const compareLocale = getCurrentLocale() === 'en' ? 'en' : 'ko';
 
   if (sortBy === 'name') {
     return list.sort(compareByKoreanName);
@@ -134,7 +151,7 @@ export const sortVaultCards = (
       ).trim();
       if (!orgA && orgB) return 1;
       if (orgA && !orgB) return -1;
-      const cmp = orgA.localeCompare(orgB, 'ko', { numeric: true, sensitivity: 'base' });
+      const cmp = orgA.localeCompare(orgB, compareLocale, { numeric: true, sensitivity: 'base' });
       if (cmp !== 0) return cmp;
       return compareByKoreanName(a, b);
     });

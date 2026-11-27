@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StoredCard } from '../types/card';
+import { useLocale } from '../hooks/useLocale';
 
 export interface VaultMeetingContextUpdate {
   metAt?: string;
@@ -18,6 +19,7 @@ export const CardPersonalMemo: React.FC<CardPersonalMemoProps> = ({
   onSaveMemo,
   onSaveContext,
 }) => {
+  const { t } = useLocale();
   const incomingMemo = card.memo ?? card.notes ?? '';
 
   const [memoText, setMemoText] = useState<string>(incomingMemo);
@@ -64,11 +66,11 @@ export const CardPersonalMemo: React.FC<CardPersonalMemoProps> = ({
       <textarea
         id={`vault-memo-${card.id}`}
         ref={textareaRef}
-        aria-label="메모"
+        aria-label={t.modals.memoAria}
         value={memoText}
         onChange={handleMemoChange}
         onBlur={handleBlurTrim}
-        placeholder="대화 핵심 내용, 주요 관심사, 후속 팔로업 일정을 자유롭게 기록하세요."
+        placeholder={t.modals.memoPlaceholder}
         rows={3}
         className="w-full min-h-[96px] max-h-[260px] px-4 py-3.5 rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] text-[var(--app-text)] text-xs sm:text-[13px] leading-relaxed placeholder:text-[var(--app-text-muted)]/65 focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]/35 focus:border-[var(--app-accent)] transition-colors resize-y font-sans block"
       />

@@ -20,6 +20,8 @@ import {
   X,
 } from 'lucide-react';
 import { AppThemeSelector } from './AppThemeSelector';
+import { LocaleToggle } from './LocaleToggle';
+import { useLocale } from '../hooks/useLocale';
 import type { ActiveTab } from '../hooks/useCardVault';
 import type { LocalAccountMeta } from '../utils/localAccount';
 import type { LegalDocType } from './LegalModal';
@@ -95,6 +97,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onOpenReset,
   onShowToast,
 }) => {
+  const { t } = useLocale();
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState<boolean>(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
@@ -144,28 +147,29 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           </div>
         </>
       ) : isLoggedOutLanding ? (
-        /* Minimal Unauthenticated Welcome Header: Theme Selector + About Only */
+        /* Minimal Unauthenticated Welcome Header: Theme Selector + Locale + About */
         <>
           <div className="flex items-center gap-2 header-full-nav">
             <span className="text-sm font-black tracking-tight text-[var(--app-text)] select-none">
               eerum
             </span>
             <span className="hidden sm:inline text-[10px] font-mono uppercase tracking-[0.16em] text-[var(--app-text-muted)]">
-              Local-First Vault
+              {t.header.landingSubtitle}
             </span>
           </div>
 
           <div className="flex items-center justify-end gap-1.5 sm:gap-2 min-h-[32px] header-full-nav">
             <AppThemeSelector />
+            <LocaleToggle />
             <button
               type="button"
               onClick={onOpenAbout}
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-xs font-medium text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-colors cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-              title="앱 소개 · Net to Dot 철학"
-              aria-label="앱 소개"
+              title={t.header.aboutFull}
+              aria-label={t.header.aboutShort}
             >
               <Compass className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden sm:inline">앱 소개</span>
+              <span className="hidden sm:inline">{t.header.aboutShort}</span>
             </button>
           </div>
         </>
@@ -189,8 +193,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 }
               }}
               className="p-1.5 rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
-              title={isMyCardTabActive ? '보관함으로 전환' : '내 명함으로 전환'}
-              aria-label="화면 전환"
+              title={isMyCardTabActive ? t.header.switchToVault : t.header.switchToMyCard}
+              aria-label={t.header.switchViewAria}
             >
               {isMyCardTabActive ? (
                 <FolderArchive className="w-3.5 h-3.5" />
@@ -202,11 +206,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               <button
                 onClick={() => {
                   onLockApp();
-                  onShowToast('화면이 보안 잠금되었습니다.');
+                  onShowToast(t.header.screenLockedToast);
                 }}
                 className="p-1.5 rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
-                title="즉시 화면 잠금"
-                aria-label="화면 잠금"
+                title={t.header.lockScreenTitle}
+                aria-label={t.header.lockScreen}
               >
                 <Lock className="w-3.5 h-3.5" />
               </button>
@@ -215,16 +219,16 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               <button
                 onClick={onToggleSettings}
                 className="p-1.5 rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
-                title="설정"
-                aria-label="설정"
+                title={t.header.settingsTitle}
+                aria-label={t.header.settingsAria}
               >
                 <Settings className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
-          {/* Center Navigation: Switcher (내 명함 vs 명함 보관함) */}
-          <nav aria-label="주요 메뉴" className="flex items-center gap-1 sm:gap-1.5 min-w-0 header-full-nav">
+          {/* Center Navigation: Switcher (My Card vs Vault) */}
+          <nav aria-label={t.header.mainNavAria} className="flex items-center gap-1 sm:gap-1.5 min-w-0 header-full-nav">
             <button
               onClick={() => handleSelectTab('my-card')}
               className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-semibold cursor-pointer whitespace-nowrap shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
@@ -234,7 +238,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               }`}
             >
               <CreditCard className="w-3.5 h-3.5 shrink-0" />
-              <span>내 명함</span>
+              <span>{t.header.myCard}</span>
             </button>
 
             <button
@@ -246,7 +250,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               }`}
             >
               <FolderArchive className="w-3.5 h-3.5 shrink-0" />
-              <span>명함 보관함</span>
+              <span>{t.header.vault}</span>
               {!isSamplePreview && isPinConfigured && isLocked && (
                 <Lock className="w-3 h-3 shrink-0" />
               )}
@@ -260,9 +264,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             </button>
           </nav>
 
-          {/* Right Header: Sample CTA OR Logged-In Account Pill, Lock & Settings */}
+          {/* Right Header: Theme + Locale + Sample CTA OR Logged-In Account Pill, Lock & Settings */}
           <div className="sm:flex-1 flex items-center justify-end gap-1 sm:gap-2 min-h-[32px] relative shrink-0 header-full-nav">
             <AppThemeSelector />
+            <LocaleToggle />
 
             {isSamplePreview ? (
               <div className="inline-flex items-center rounded-full bg-[var(--app-surface)] border border-[var(--app-border)] shadow-sm shrink-0">
@@ -271,14 +276,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   onClick={onExitSampleToCreateAccount}
                   className="pl-2.5 sm:pl-3 pr-1.5 sm:pr-2 py-1.5 text-[11px] sm:text-xs font-semibold text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] rounded-l-full transition-colors cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                 >
-                  계정 만들기
+                  {t.header.sampleCreateAccount}
                 </button>
                 <span className="h-3.5 w-px bg-[var(--app-border)] shrink-0" aria-hidden="true" />
                 <button
                   type="button"
                   onClick={onExitSample}
-                  title="샘플 종료"
-                  aria-label="샘플 종료"
+                  title={t.header.exitSample}
+                  aria-label={t.header.exitSample}
                   className="pl-1.5 pr-2 sm:pr-2.5 py-1.5 text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] rounded-r-full transition-colors cursor-pointer inline-flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -298,7 +303,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                       aria-expanded={isAccountMenuOpen}
                       aria-haspopup="menu"
                       className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                      title={`로컬 계정: ${activeAccount.displayName}`}
+                      title={t.header.localAccountTitle(activeAccount.displayName)}
                     >
                       <UserCheck className="w-3.5 h-3.5 text-[var(--app-accent)] shrink-0" />
                       <span className="truncate max-w-[72px] sm:max-w-[110px]">
@@ -314,7 +319,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     {isAccountMenuOpen && (
                       <div
                         role="menu"
-                        aria-label="로컬 계정 메뉴"
+                        aria-label={t.header.localAccountMenuAria}
                         className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] p-2 z-50 animate-in fade-in zoom-in-95 duration-150 text-xs text-[var(--app-text)]"
                       >
                         <div className="px-2.5 py-2 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] mb-1.5">
@@ -323,11 +328,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                               {activeAccount.displayName}
                             </span>
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text-muted)] shrink-0">
-                              {isPinConfigured ? 'PIN 잠금' : '잠금 없음'}
+                              {isPinConfigured ? t.header.pinLockedBadge : t.header.noLockBadge}
                             </span>
                           </div>
                           <p className="text-[11px] text-[var(--app-text-muted)] mt-1 tabular-nums">
-                            내 명함 {myCardsCount} · 보관함 {vaultCardsCount}
+                            {t.header.accountCardCounts(myCardsCount, vaultCardsCount)}
                           </p>
                         </div>
 
@@ -340,14 +345,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                           className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left font-medium"
                         >
                           <LogOut className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                          <span>계정 잠금 / 로그아웃</span>
+                          <span>{t.header.lockOrLogout}</span>
                         </button>
 
                         {accountsList.filter((a) => a.id !== activeAccount?.id).length > 0 && (
                           <>
                             <div className="my-1.5 border-t border-[var(--app-border)]" />
                             <p className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-text-muted)]">
-                              로컬 계정 전환
+                              {t.header.switchAccount}
                             </p>
                             <div className="max-h-36 overflow-y-auto space-y-0.5">
                               {accountsList
@@ -362,7 +367,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                                         await onLoginAccount(acct.id);
                                       } else {
                                         onLogoutAccount();
-                                        onShowToast(`'${acct.displayName}' 계정의 PIN을 입력해 주세요.`);
+                                        onShowToast(t.header.pinPromptForAccount(acct.displayName));
                                       }
                                     }}
                                     className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
@@ -386,12 +391,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                           className="w-full flex items-center gap-2.5 px-2.5 py-2 mt-0.5 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                         >
                           <UserPlus className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                          <span>새 로컬 계정 추가</span>
+                          <span>{t.header.addLocalAccount}</span>
                         </button>
 
                         <div className="my-1.5 border-t border-[var(--app-border)]" />
                         <p className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-text-muted)]">
-                          계정 보안 및 백업
+                          {t.header.accountSecuritySection}
                         </p>
                         <button
                           type="button"
@@ -402,7 +407,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                           className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                         >
                           <KeyRound className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                          <span>{isPinConfigured ? 'PIN 번호 변경' : '4자리 PIN 설정'}</span>
+                          <span>{isPinConfigured ? t.header.changePin : t.header.setupPin}</span>
                         </button>
                         <button
                           type="button"
@@ -413,7 +418,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                           className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                         >
                           <HardDriveDownload className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                          <span>암호화 백업 (.eerum)</span>
+                          <span>{t.header.encryptedBackup}</span>
                         </button>
                       </div>
                     )}
@@ -425,11 +430,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     onClick={() => {
                       setIsAccountMenuOpen(false);
                       onLockApp();
-                      onShowToast('화면이 보안 잠금되었습니다.');
+                      onShowToast(t.header.screenLockedToast);
                     }}
                     className="p-2 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-all cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                    title="즉시 화면 잠금 (Lock Screen)"
-                    aria-label="화면 잠금"
+                    title={t.header.lockScreenTitle}
+                    aria-label={t.header.lockScreen}
                   >
                     <Lock className="w-4 h-4" />
                   </button>
@@ -444,8 +449,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     aria-expanded={isSettingsOpen}
                     aria-haspopup="menu"
                     className="p-2 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-all cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                    title="보안 및 기기 설정"
-                    aria-label="설정 메뉴"
+                    title={t.header.settingsTitle}
+                    aria-label={t.header.settingsAria}
                   >
                     <Settings className="w-4 h-4" />
                   </button>
@@ -460,7 +465,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                       >
                         <Lock className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                        <span>{isPinConfigured ? 'PIN 번호 변경 / 관리' : '4자리 PIN 보안 설정'}</span>
+                        <span>{isPinConfigured ? t.header.managePin : t.header.setupPinFull}</span>
                       </button>
 
                       <button
@@ -471,7 +476,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                       >
                         <Fingerprint className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                        <span>생체 인증 (Face ID / 지문)</span>
+                        <span>{t.header.biometrics}</span>
                       </button>
 
                       <div className="my-1 border-t border-[var(--app-border)]" />
@@ -484,7 +489,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                       >
                         <HardDriveDownload className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                        <span>보관함 백업 내보내기 (.eerum)</span>
+                        <span>{t.header.exportBackup}</span>
                       </button>
 
                       <button
@@ -495,7 +500,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                       >
                         <Upload className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                        <span>백업 파일에서 복원</span>
+                        <span>{t.header.restoreBackup}</span>
                       </button>
 
                       <button
@@ -506,7 +511,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                       >
                         <Smartphone className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                        <span>기기 연결 및 동기화</span>
+                        <span>{t.header.deviceSync}</span>
                       </button>
 
                       <button
@@ -518,11 +523,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                       >
                         <div className="flex items-center gap-2.5">
                           <Download className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                          <span>홈 화면에 앱 설치 (PWA)</span>
+                          <span>{t.header.pwaInstall}</span>
                         </div>
                         {isPwaInstalled && (
                           <span className="text-[10px] text-emerald-600 bg-emerald-500/15 px-1.5 py-0.5 rounded font-medium border border-emerald-500/25">
-                            설치됨
+                            {t.header.pwaInstalled}
                           </span>
                         )}
                       </button>
@@ -537,7 +542,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                       >
                         <Compass className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                        <span>앱 소개 · Net to Dot 철학</span>
+                        <span>{t.header.aboutFull}</span>
                       </button>
 
                       {onOpenLegal && (
@@ -549,7 +554,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                         >
                           <FileText className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                          <span>개인정보처리방침 · 약관 · 라이선스</span>
+                          <span>{t.header.legalPrivacyTerms}</span>
                         </button>
                       )}
 
@@ -561,7 +566,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
                       >
                         <LogOut className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                        <span>로그아웃 / 계정 전환</span>
+                        <span>{t.header.lockOrLogout}</span>
                       </button>
 
                       <button
@@ -572,7 +577,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-rose-600 dark:text-rose-400 transition-colors cursor-pointer text-left"
                       >
                         <RotateCcw className="w-3.5 h-3.5 shrink-0" />
-                        <span>로컬 데이터 초기화</span>
+                        <span>{t.header.resetLocalData}</span>
                       </button>
                     </div>
                   )}

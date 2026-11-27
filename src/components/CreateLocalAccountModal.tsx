@@ -9,6 +9,7 @@ import type {
   LocalAccountActionResult,
 } from '../utils/localAccount';
 import { isBiometricSupported } from '../utils/biometrics';
+import { useLocale } from '../hooks/useLocale';
 
 export interface CreateLocalAccountSubmitParams extends CreateLocalAccountParams {
   includeSampleDrafts?: boolean;
@@ -27,6 +28,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
   onCreateAccount,
   sampleDraftCount = 0,
 }) => {
+  const { isEn, t } = useLocale();
   const [displayName, setDisplayName] = useState('');
   const [usePin, setUsePin] = useState(true);
   const [pin, setPin] = useState('');
@@ -97,17 +99,17 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
 
     const trimmedName = displayName.trim();
     if (!trimmedName) {
-      setError('계정 이름을 입력해 주세요.');
+      setError(isEn ? 'Please enter an account name.' : '계정 이름을 입력해 주세요.');
       return;
     }
 
     if (usePin) {
       if (!/^\d{4}$/.test(cleanPin)) {
-        setError('4자리 숫자 PIN 번호를 입력해 주세요.');
+        setError(isEn ? 'Please enter a 4-digit numeric PIN.' : '4자리 숫자 PIN 번호를 입력해 주세요.');
         return;
       }
       if (cleanPin !== cleanConfirm) {
-        setError('확인 PIN 번호가 일치하지 않습니다.');
+        setError(isEn ? 'Confirmation PIN does not match.' : '확인 PIN 번호가 일치하지 않습니다.');
         return;
       }
     }
@@ -115,7 +117,11 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
     if (hasLegacyData && importLegacyData && legacyPinProtected) {
       const cleanLegacy = legacyPin.replace(/\D/g, '').slice(0, 4);
       if (!/^\d{4}$/.test(cleanLegacy)) {
-        setError('기존 보관함 데이터를 가져오려면 기존 4자리 PIN을 입력해 주세요.');
+        setError(
+          isEn
+            ? 'Enter your existing 4-digit PIN to import legacy vault data.'
+            : '기존 보관함 데이터를 가져오려면 기존 4자리 PIN을 입력해 주세요.'
+        );
         return;
       }
     }
@@ -132,10 +138,18 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
       });
 
       if (!result.ok) {
-        setError(result.error || '로컬 계정을 생성하지 못했습니다.');
+        setError(
+          result.error || (isEn ? 'Failed to create local account.' : '로컬 계정을 생성하지 못했습니다.')
+        );
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '계정 생성 중 오류가 발생했습니다.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : isEn
+            ? 'An error occurred while creating the account.'
+            : '계정 생성 중 오류가 발생했습니다.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -159,7 +173,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
           type="button"
           onClick={onClose}
           disabled={isSubmitting}
-          aria-label="닫기"
+          aria-label={t.common.close}
           className="absolute top-5 right-5 p-2 rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer disabled:opacity-40"
         >
           <X className="w-4 h-4" />
@@ -171,10 +185,12 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
             id="create-local-account-title"
             className="text-lg font-semibold tracking-tight text-[var(--app-text)]"
           >
-            로컬 계정 만들기
+            {isEn ? 'Create Local Account' : '로컬 계정 만들기'}
           </h2>
           <p className="text-xs text-[var(--app-text-muted)] mt-1">
-            서버 전송 없이 이 기기에만 저장되는 암호화 계정입니다.
+            {isEn
+              ? 'An encrypted account stored solely on this device with zero server uploads.'
+              : '서버 전송 없이 이 기기에만 저장되는 암호화 계정입니다.'}
           </p>
         </div>
 
@@ -185,7 +201,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
               htmlFor="local-account-name"
               className="block text-xs font-medium text-[var(--app-text)] mb-1.5"
             >
-              계정 이름
+              {isEn ? 'Account Name' : '계정 이름'}
             </label>
             <input
               ref={nameInputRef}
@@ -197,7 +213,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
                 setDisplayName(e.target.value);
                 if (error) setError(null);
               }}
-              placeholder="예: 개인, 비즈니스"
+              placeholder={isEn ? 'e.g., Personal, Business' : '예: 개인, 비즈니스'}
               className="w-full h-11 px-3.5 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-sm text-[var(--app-text)] placeholder:text-[var(--app-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]/35 focus:border-[var(--app-accent)] transition-all"
             />
           </div>
@@ -206,7 +222,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
           <div className="rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] p-4 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-medium text-[var(--app-text)]">
-                보안 PIN (4자리)
+                {isEn ? 'Security PIN (4 digits)' : '보안 PIN (4자리)'}
               </span>
               <button
                 type="button"
@@ -222,7 +238,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
                     : 'bg-[var(--app-surface)] text-[var(--app-text-muted)] border-[var(--app-border)]'
                 }`}
               >
-                {usePin ? '사용함' : '미사용'}
+                {usePin ? (isEn ? 'Enabled' : '사용함') : (isEn ? 'Off' : '미사용')}
               </button>
             </div>
 
@@ -233,7 +249,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
                     htmlFor="local-account-pin"
                     className="block text-[11px] font-medium text-[var(--app-text-muted)] mb-1"
                   >
-                    4자리 PIN
+                    {isEn ? '4-Digit PIN' : '4자리 PIN'}
                   </label>
                   <input
                     id="local-account-pin"
@@ -255,7 +271,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
                     htmlFor="local-account-pin-confirm"
                     className="block text-[11px] font-medium text-[var(--app-text-muted)] mb-1"
                   >
-                    PIN 확인
+                    {isEn ? 'Confirm PIN' : 'PIN 확인'}
                   </label>
                   <input
                     id="local-account-pin-confirm"
@@ -276,7 +292,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
                 {bioSupported && (
                   <label className="col-span-2 flex items-center justify-between gap-2 pt-2 border-t border-[var(--app-border)] cursor-pointer select-none">
                     <span className="text-xs text-[var(--app-text)]">
-                      지문 · Face ID 빠른 잠금 해제
+                      {isEn ? 'Quick unlock with Touch ID · Face ID' : '지문 · Face ID 빠른 잠금 해제'}
                     </span>
                     <input
                       type="checkbox"
@@ -295,7 +311,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
             <div className="rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] p-4 space-y-2.5">
               <label className="flex items-center justify-between gap-3 cursor-pointer select-none">
                 <span className="text-xs font-medium text-[var(--app-text)]">
-                  기존 기기 명함 데이터 가져오기
+                  {isEn ? 'Import existing card data from this device' : '기존 기기 명함 데이터 가져오기'}
                 </span>
                 <input
                   type="checkbox"
@@ -314,7 +330,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
                     htmlFor="legacy-vault-pin"
                     className="block text-[11px] font-medium text-[var(--app-text-muted)] mb-1"
                   >
-                    기존 보관함 4자리 PIN 확인
+                    {isEn ? 'Verify existing 4-digit vault PIN' : '기존 보관함 4자리 PIN 확인'}
                   </label>
                   <input
                     id="legacy-vault-pin"
@@ -326,7 +342,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
                       setLegacyPin(e.target.value.replace(/\D/g, '').slice(0, 4));
                       if (error) setError(null);
                     }}
-                    placeholder="기존 PIN 4자리"
+                    placeholder={isEn ? 'Existing 4-digit PIN' : '기존 PIN 4자리'}
                     className="w-full h-10 px-3 rounded-xl bg-[var(--app-surface)] border border-[var(--app-border)] text-center font-mono text-sm tracking-[0.25em] text-[var(--app-text)] placeholder:tracking-normal placeholder:font-sans placeholder:text-xs placeholder:text-[var(--app-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]/35"
                   />
                 </div>
@@ -339,9 +355,11 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
             <div className="rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] p-4">
               <label className="flex items-center justify-between gap-3 cursor-pointer select-none">
                 <span className="text-xs font-medium text-[var(--app-text)]">
-                  체험 중 만든 명함 새 계정에 바로 저장하기
+                  {isEn
+                    ? 'Save cards drafted in Sample Mode to new account'
+                    : '체험 중 만든 명함 새 계정에 바로 저장하기'}
                   <span className="ml-1.5 text-[11px] font-normal text-[var(--app-text-muted)] tabular-nums">
-                    {sampleDraftCount}장
+                    {isEn ? `${sampleDraftCount}` : `${sampleDraftCount}장`}
                   </span>
                 </span>
                 <input
@@ -376,7 +394,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
               disabled={isSubmitting}
               className="h-11 px-4 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] text-xs font-medium text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-colors cursor-pointer whitespace-nowrap"
             >
-              취소
+              {t.common.cancel}
             </button>
             <button
               type="submit"
@@ -386,10 +404,10 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>계정 생성 중...</span>
+                  <span>{isEn ? 'Creating account...' : '계정 생성 중...'}</span>
                 </>
               ) : (
-                <span>계정 만들기</span>
+                <span>{isEn ? 'Create Account' : '계정 만들기'}</span>
               )}
             </button>
           </div>

@@ -22,6 +22,7 @@ import {
   Mail,
   ChevronRight,
 } from 'lucide-react';
+import { useLocale } from '@/hooks/useLocale';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -46,6 +47,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   onOpenEmailSignature,
   onShowToast,
 }) => {
+  const { isEn, t } = useLocale();
   const [copied, setCopied] = useState(false);
   const [qrType, setQrType] = useState<'url' | 'vcard'>('url');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
@@ -83,26 +85,29 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     try {
       await navigator.clipboard.writeText(resolvedUrl);
       setCopied(true);
-      onShowToast?.('명함 웹 링크가 복사되었습니다.');
+      onShowToast?.(t.cardActions.linkCopiedToast);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      onShowToast?.('링크 복사에 실패했습니다.');
+      onShowToast?.(t.cardActions.linkCopyFailedToast);
     }
   };
 
   const handleDownloadVCard = () => {
     downloadVCard(data);
-    onShowToast?.(`${data.name || data.nameKr}님의 연락처(.vcf)가 저장되었습니다.`);
+    onShowToast?.(t.cardActions.vcardDownloadedToast(data.name || data.nameKr || t.common.cardFallback));
   };
 
   const handleNativeShare = async () => {
+    const summary = [data.organizationKr || data.organization, data.titleKr || data.title, data.name]
+      .filter(Boolean)
+      .join(' ');
     await shareOrCopyLink({
       title: `${data.name} — ${data.organization}`,
-      text: `${data.organizationKr || data.organization} ${data.titleKr || data.title} ${data.name}의 디지털 명함입니다.`,
+      text: t.modals.shareCardIntroText(summary),
       url: resolvedUrl,
       onCopied: () => {
         setCopied(true);
-        onShowToast?.('명함 링크가 복사되었습니다.');
+        onShowToast?.(t.cardActions.linkCopiedToast);
         setTimeout(() => setCopied(false), 2000);
       },
     });
@@ -128,11 +133,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         theme: wallpaperTheme,
         qrMode: qrType,
       });
-      onShowToast?.(
-        `잠금화면 QR 배경화면(${wallpaperTheme === 'dark' ? '다크' : '라이트'})이 저장되었습니다.`
-      );
+      onShowToast?.(t.modals.wallpaperSavedToast(wallpaperTheme));
     } catch {
-      onShowToast?.('잠금화면 배경화면 저장에 실패했습니다.');
+      onShowToast?.(t.modals.wallpaperFailedToast);
     } finally {
       setIsSavingWallpaper(false);
     }
@@ -147,7 +150,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="디지털 명함 공유"
+        aria-label={t.modals.shareAria}
         className="relative w-full max-w-[380px] sm:max-w-[400px] max-h-[92dvh] overflow-y-auto bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text)] rounded-3xl px-5 py-6 sm:px-7 sm:py-7 shadow-[var(--app-shadow)] flex flex-col items-center my-auto"
         onClick={(e) => e.stopPropagation()}
       >
@@ -156,8 +159,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           type="button"
           onClick={onClose}
           className="absolute top-3.5 right-3.5 min-w-[40px] min-h-[40px] flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] rounded-full hover:bg-[var(--app-surface-subtle)] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-          title="닫기"
-          aria-label="닫기"
+          title={t.common.close}
+          aria-label={t.common.close}
         >
           <X className="w-4 h-4 stroke-[1.75]" />
         </button>
@@ -177,7 +180,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         {/* 2. Sleek 2-Tab Segmented Switcher */}
         <div
           role="tablist"
-          aria-label="QR 코드 유형"
+          aria-label={t.modals.qrTypeAria}
           className="w-full grid grid-cols-2 p-1 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] mb-6"
         >
           <button
@@ -191,7 +194,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
             }`}
           >
-            웹 링크 QR
+            {t.modals.webLinkQr}
           </button>
           <button
             type="button"
@@ -204,7 +207,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
             }`}
           >
-            연락처 (.vcf) QR
+            {t.modals.vcardQr}
           </button>
         </div>
 
@@ -214,20 +217,20 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             {qrDataUrl ? (
               <img
                 src={qrDataUrl}
-                alt={qrType === 'url' ? '웹 링크 QR 코드' : '연락처 (.vcf) QR 코드'}
+                alt={qrType === 'url' ? t.modals.webLinkQr : t.modals.vcardQr}
                 className="w-40 h-40 sm:w-44 sm:h-44 object-contain select-none shrink-0"
               />
             ) : (
               <div className="w-40 h-40 sm:w-44 sm:h-44 flex items-center justify-center text-xs text-neutral-500 shrink-0">
-                QR 생성 중...
+                {t.modals.qrGenerating}
               </div>
             )}
           </div>
 
           <p className="text-xs text-[var(--app-text-muted)] mt-3.5 text-center">
             {qrType === 'url'
-              ? '스캔하여 디지털 명함 보기'
-              : '스캔하여 연락처 바로 저장'}
+              ? t.modals.scanToViewCard
+              : t.modals.scanToSaveContact}
           </p>
 
           {qrType === 'url' ? (
@@ -239,12 +242,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               {copied ? (
                 <>
                   <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <span>복사됨</span>
+                  <span>{t.common.copied}</span>
                 </>
               ) : (
                 <>
                   <Copy className="w-3.5 h-3.5 text-[var(--app-text-muted)] shrink-0" />
-                  <span>링크 복사</span>
+                  <span>{t.cardActions.copyLink}</span>
                 </>
               )}
             </button>
@@ -255,7 +258,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               className="mt-1.5 min-h-[36px] px-3 py-1 text-xs font-medium text-[var(--app-text)] hover:opacity-80 inline-flex items-center gap-1.5 cursor-pointer transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] rounded-lg"
             >
               <Download className="w-3.5 h-3.5 text-[var(--app-text-muted)] shrink-0" />
-              <span>.vcf 다운로드</span>
+              <span>{t.modals.downloadVcf}</span>
             </button>
           )}
         </div>
@@ -270,7 +273,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 className="min-h-[36px] px-2 py-1 text-[11px] font-medium text-[var(--app-text-muted)] hover:text-[var(--app-text)] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
               >
                 <Printer className="w-3.5 h-3.5 stroke-[1.75]" />
-                <span>인쇄 · PDF</span>
+                <span>{t.modals.printPdf}</span>
               </button>
             )}
 
@@ -281,7 +284,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 className="min-h-[36px] px-2 py-1 text-[11px] font-medium text-[var(--app-text-muted)] hover:text-[var(--app-text)] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
               >
                 <Mail className="w-3.5 h-3.5 stroke-[1.75]" />
-                <span>이메일 서명</span>
+                <span>{t.modals.emailSignature}</span>
               </button>
             )}
 
@@ -292,7 +295,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               className="min-h-[36px] px-2 py-1 text-[11px] font-medium text-[var(--app-text-muted)] hover:text-[var(--app-text)] inline-flex items-center gap-1.5 cursor-pointer transition-colors disabled:opacity-50"
             >
               <Wallpaper className="w-3.5 h-3.5 stroke-[1.75]" />
-              <span>{isSavingWallpaper ? '생성 중...' : '배경화면 저장'}</span>
+              <span>{isSavingWallpaper ? t.modals.generatingWallpaper : t.modals.saveWallpaper}</span>
             </button>
 
             <button
@@ -307,7 +310,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               className="min-h-[36px] px-2 py-1 text-[11px] font-medium text-[var(--app-text-muted)] hover:text-[var(--app-text)] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
             >
               <FileCode2 className="w-3.5 h-3.5 stroke-[1.75]" />
-              <span>HTML 배포</span>
+              <span>{t.modals.htmlExport}</span>
             </button>
           </div>
         ) : (
@@ -321,17 +324,17 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 type="button"
                 onClick={handleCopyLink}
                 className="shrink-0 min-h-[34px] px-3 py-1.5 rounded-lg bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] font-medium text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                title="링크 복사"
+                title={t.cardActions.copyLink}
               >
                 {copied ? (
                   <>
                     <Check className="w-3.5 h-3.5 shrink-0" />
-                    <span>복사됨</span>
+                    <span>{t.common.copied}</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-3.5 h-3.5 shrink-0" />
-                    <span>복사</span>
+                    <span>{t.common.copy}</span>
                   </>
                 )}
               </button>
@@ -346,19 +349,19 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 className="flex-1 min-h-[38px] px-3 py-2 rounded-lg bg-[var(--app-surface)] hover:bg-[var(--app-highlight)] hover:text-[var(--app-highlight-fg)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap transition-colors"
               >
                 <Wallpaper className="w-3.5 h-3.5 stroke-[1.75] shrink-0" />
-                <span>{isSavingWallpaper ? '생성 중...' : '잠금화면 배경화면 저장'}</span>
+                <span>{isSavingWallpaper ? t.modals.generatingWallpaper : t.modals.saveWallpaperFull}</span>
               </button>
 
               <div
                 role="group"
-                aria-label="잠금화면 배경화면 테마"
+                aria-label={t.modals.wallpaperThemeAria}
                 className="flex items-center p-0.5 rounded-lg bg-[var(--app-bg)] border border-[var(--app-border)] shrink-0"
               >
                 <button
                   type="button"
                   onClick={() => setWallpaperTheme('dark')}
-                  title="다크 배경화면"
-                  aria-label="다크 배경화면"
+                  title={t.modals.darkWallpaper}
+                  aria-label={t.modals.darkWallpaper}
                   aria-pressed={wallpaperTheme === 'dark'}
                   className={`p-1.5 rounded-md cursor-pointer transition-colors ${
                     wallpaperTheme === 'dark'
@@ -371,8 +374,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setWallpaperTheme('light')}
-                  title="라이트 배경화면"
-                  aria-label="라이트 배경화면"
+                  title={t.modals.lightWallpaper}
+                  aria-label={t.modals.lightWallpaper}
                   aria-pressed={wallpaperTheme === 'light'}
                   className={`p-1.5 rounded-md cursor-pointer transition-colors ${
                     wallpaperTheme === 'light'
@@ -393,7 +396,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               >
                 <span className="flex items-center gap-2 min-w-0">
                   <Mail className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">HTML 이메일 서명 만들기 (Gmail · Mail · Outlook)</span>
+                  <span className="truncate">{t.modals.emailSigBanner}</span>
                 </span>
                 <ChevronRight className="w-3.5 h-3.5 shrink-0 opacity-70" />
               </button>
@@ -402,37 +405,37 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             {/* Preserved Bottom Toolbar for !isMyCard */}
             <div
               role="toolbar"
-              aria-label="명함 공유 및 배포 도구"
+              aria-label={t.modals.shareToolbarAria}
               className="w-full pt-4 mt-4 border-t border-[var(--app-border)] grid grid-cols-4 gap-1"
             >
               <button
                 type="button"
                 onClick={handleDownloadVCard}
                 className="min-h-[54px] py-2 px-1 rounded-xl text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] flex flex-col items-center justify-center gap-1.5 cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                aria-label="연락처 파일 저장"
+                aria-label={t.modals.saveContactShort}
               >
                 <UserPlus className="w-4 h-4 stroke-[1.75] shrink-0" />
-                <span className="text-[11px] font-medium whitespace-nowrap">연락처 저장</span>
+                <span className="text-[11px] font-medium whitespace-nowrap">{t.modals.saveContactShort}</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleNativeShare}
                 className="min-h-[54px] py-2 px-1 rounded-xl text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] flex flex-col items-center justify-center gap-1.5 cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                aria-label="명함 링크 공유하기"
+                aria-label={t.modals.shareShort}
               >
                 <Share2 className="w-4 h-4 stroke-[1.75] shrink-0" />
-                <span className="text-[11px] font-medium whitespace-nowrap">공유하기</span>
+                <span className="text-[11px] font-medium whitespace-nowrap">{t.modals.shareShort}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onOpenPrint?.()}
                 className="min-h-[54px] py-2 px-1 rounded-xl text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] flex flex-col items-center justify-center gap-1.5 cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                aria-label="인쇄 및 PDF 설정 열기"
+                aria-label={t.modals.printTitle}
               >
                 <Printer className="w-4 h-4 stroke-[1.75] shrink-0" />
-                <span className="text-[11px] font-medium whitespace-nowrap">인쇄 · PDF</span>
+                <span className="text-[11px] font-medium whitespace-nowrap">{t.modals.printPdf}</span>
               </button>
 
               <button
@@ -445,10 +448,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   }
                 }}
                 className="min-h-[54px] py-2 px-1 rounded-xl text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] flex flex-col items-center justify-center gap-1.5 cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                aria-label="독립 HTML 파일 배포 설정 열기"
+                aria-label={isEn ? 'Open standalone HTML export' : '독립 HTML 파일 배포 설정 열기'}
               >
                 <FileCode2 className="w-4 h-4 stroke-[1.75] shrink-0" />
-                <span className="text-[11px] font-medium whitespace-nowrap">HTML 배포</span>
+                <span className="text-[11px] font-medium whitespace-nowrap">{t.modals.htmlExport}</span>
               </button>
             </div>
           </>

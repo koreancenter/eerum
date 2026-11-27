@@ -13,6 +13,7 @@ import { cropAndCompressCardImage } from '../../utils/imageProcess';
 import { LayoutMiniWireframe } from './LayoutMiniWireframe';
 import { CategorySelectSection, EDITOR_INPUT_CLASS } from './CategorySelectSection';
 import { ProfileFieldsGroup } from './ProfileFieldsGroup';
+import { useLocale } from '../../hooks/useLocale';
 
 interface TemplateModeEditorProps {
   theme: CardTheme;
@@ -69,6 +70,7 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
   metLocation,
   onChangeMetLocation,
 }) => {
+  const { isEn, t } = useLocale();
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bgImageInputRef = useRef<HTMLInputElement>(null);
   const [isProcessingBgImage, setIsProcessingBgImage] = useState(false);
@@ -169,21 +171,21 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
       <div
         className="flex items-center gap-5 sm:gap-6 border-b border-[var(--editor-divider)]"
         role="tablist"
-        aria-label="템플릿 편집 항목"
+        aria-label={isEn ? 'Template editor sections' : '템플릿 편집 항목'}
       >
         <button
           type="button"
           role="tab"
           aria-selected={subTab === 'visual_atelier'}
           onClick={() => onChangeSubTab('visual_atelier')}
-          title="지류 색상, 배경 이미지 및 명함 레이아웃 구도 선택"
+          title={isEn ? 'Choose paper finish, background image, and card layout' : '지류 색상, 배경 이미지 및 명함 레이아웃 구도 선택'}
           className={`relative pb-2.5 text-xs tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none ${
             subTab === 'visual_atelier'
               ? 'text-[var(--editor-text)] font-semibold'
               : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
           }`}
         >
-          소재 및 구도
+          {isEn ? 'Materials & Layout' : '소재 및 구도'}
           {subTab === 'visual_atelier' && (
             <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
           )}
@@ -193,14 +195,14 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
           role="tab"
           aria-selected={subTab === 'identity_profile'}
           onClick={() => onChangeSubTab('identity_profile')}
-          title="성명, 소속, 직함, 연락처 및 주소 정보 입력"
+          title={isEn ? 'Enter name, affiliation, title, contact details, and address' : '성명, 소속, 직함, 연락처 및 주소 정보 입력'}
           className={`relative pb-2.5 text-xs tracking-wide cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none ${
             subTab === 'identity_profile'
               ? 'text-[var(--editor-text)] font-semibold'
               : 'text-[var(--editor-muted)] hover:text-[var(--editor-text)] font-medium'
           }`}
         >
-          인적 정보
+          {isEn ? 'Identity & Profile' : '인적 정보'}
           {subTab === 'identity_profile' && (
             <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
           )}
@@ -214,24 +216,25 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
           <section className="space-y-3 sm:space-y-3.5">
             <h4
               className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide inline-block"
-              title="5종 기본 테마 색상, 사용자 지정 HEX/팔레트 색상 및 배경 이미지 설정"
+              title={isEn ? '5 curated paper presets, custom HEX/palette color, and background image' : '5종 기본 테마 색상, 사용자 지정 HEX/팔레트 색상 및 배경 이미지 설정'}
             >
-              지류 및 마감
+              {isEn ? 'Paper & Finish' : '지류 및 마감'}
             </h4>
 
             {/* Swatch Buttons Only + Custom Color Palette + HEX Input */}
             <div className="flex flex-wrap items-center gap-2.5">
-              {THEME_OPTIONS.map((t) => {
-                const isSelected = !activeCustomHex && theme === t.id;
+              {THEME_OPTIONS.map((themeOpt) => {
+                const isSelected = !activeCustomHex && theme === themeOpt.id;
+                const themeLabel = isEn ? themeOpt.description : themeOpt.name;
                 return (
                   <button
-                    key={t.id}
+                    key={themeOpt.id}
                     type="button"
-                    onClick={() => handleSelectPresetTheme(t.id)}
-                    title={`${t.name} (${t.dotColor})`}
-                    aria-label={`${t.name} (${t.dotColor})`}
+                    onClick={() => handleSelectPresetTheme(themeOpt.id)}
+                    title={`${themeLabel} (${themeOpt.dotColor})`}
+                    aria-label={`${themeLabel} (${themeOpt.dotColor})`}
                     aria-pressed={isSelected}
-                    style={{ backgroundColor: t.dotColor }}
+                    style={{ backgroundColor: themeOpt.dotColor }}
                     className={`w-8 h-8 rounded-full border cursor-pointer transition-transform hover:scale-105 focus-visible:outline-none ${
                       isSelected
                         ? 'border-black/25 dark:border-white/25 ring-2 ring-[var(--app-accent)] ring-offset-2 ring-offset-[var(--app-surface)]'
@@ -247,10 +250,14 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
               <label
                 title={
                   activeCustomHex
-                    ? `사용자 지정 색상 (${activeCustomHex}) · 클릭하여 변경`
-                    : '컬러 팔레트에서 사용자 색상 지정'
+                    ? isEn
+                      ? `Custom color (${activeCustomHex}) · Click to change`
+                      : `사용자 지정 색상 (${activeCustomHex}) · 클릭하여 변경`
+                    : isEn
+                      ? 'Pick a custom color from palette'
+                      : '컬러 팔레트에서 사용자 색상 지정'
                 }
-                aria-label="컬러 팔레트에서 사용자 색상 지정"
+                aria-label={isEn ? 'Pick a custom color from palette' : '컬러 팔레트에서 사용자 색상 지정'}
                 style={{ backgroundColor: activeCustomHex || resolvedCanvasHex }}
                 className={`relative w-8 h-8 rounded-full border flex items-center justify-center cursor-pointer transition-transform hover:scale-105 shrink-0 ${
                   activeCustomHex
@@ -271,7 +278,7 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                   value={activeCustomHex || resolvedCanvasHex}
                   onChange={handleColorPickerChange}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  aria-label="컬러 팔레트"
+                  aria-label={isEn ? 'Color palette' : '컬러 팔레트'}
                 />
               </label>
 
@@ -283,8 +290,8 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                 onChange={handleHexInputChange}
                 onBlur={handleHexInputBlur}
                 placeholder="#F8F7F4"
-                title="HEX 색상 코드 직접 입력 (예: #1A2B3C)"
-                aria-label="HEX 색상 코드 입력"
+                title={isEn ? 'Enter HEX color code directly (e.g. #1A2B3C)' : 'HEX 색상 코드 직접 입력 (예: #1A2B3C)'}
+                aria-label={isEn ? 'Enter HEX color code' : 'HEX 색상 코드 입력'}
                 className="w-[90px] h-8 px-2.5 rounded-lg bg-[var(--editor-input-bg)] border border-[var(--editor-input-border)] hover:border-[var(--editor-input-border-hover)] focus:outline-none focus:border-[var(--app-accent)] focus:bg-[var(--editor-input-bg-focus)] text-[var(--editor-text)] placeholder:text-[var(--editor-placeholder)] font-mono text-xs uppercase tracking-wider transition-colors"
               />
             </div>
@@ -304,13 +311,13 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                     type="button"
                     onClick={() => bgImageInputRef.current?.click()}
                     disabled={isProcessingBgImage}
-                    title="배경 이미지 변경"
-                    aria-label="배경 이미지 변경"
+                    title={isEn ? 'Change background image' : '배경 이미지 변경'}
+                    aria-label={isEn ? 'Change background image' : '배경 이미지 변경'}
                     className="group relative h-9 aspect-[9/5] rounded-lg overflow-hidden border border-[var(--editor-control-border)] hover:border-[var(--editor-input-border-hover)] cursor-pointer shrink-0 transition-colors"
                   >
                     <img
                       src={features.custom_bg_image}
-                      alt="배경 이미지"
+                      alt={isEn ? 'Background image' : '배경 이미지'}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover"
                     />
@@ -319,18 +326,20 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                     type="button"
                     onClick={() => bgImageInputRef.current?.click()}
                     disabled={isProcessingBgImage}
-                    title="다른 배경 이미지 선택"
+                    title={isEn ? 'Select a different background image' : '다른 배경 이미지 선택'}
                     className="h-9 px-3 rounded-lg border border-[var(--editor-control-border)] bg-[var(--editor-control-bg)] hover:border-[var(--editor-input-border-hover)] hover:bg-[var(--app-highlight)] text-xs font-medium text-[var(--editor-label)] hover:text-[var(--editor-text)] cursor-pointer transition-colors"
                   >
-                    {isProcessingBgImage ? '최적화 중...' : '변경'}
+                    {isProcessingBgImage
+                      ? isEn ? 'Optimizing...' : '최적화 중...'
+                      : isEn ? 'Change' : '변경'}
                   </button>
                   <button
                     type="button"
                     onClick={() =>
                       onChangeFeatures((prev) => ({ ...prev, custom_bg_image: '' }))
                     }
-                    title="배경 이미지 삭제"
-                    aria-label="배경 이미지 삭제"
+                    title={isEn ? 'Remove background image' : '배경 이미지 삭제'}
+                    aria-label={isEn ? 'Remove background image' : '배경 이미지 삭제'}
                     className="h-9 w-9 rounded-lg border border-[var(--editor-control-border)] bg-[var(--editor-control-bg)] hover:border-rose-500/40 hover:bg-rose-500/10 text-[var(--editor-label)] hover:text-rose-500 inline-flex items-center justify-center cursor-pointer transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5 stroke-[1.75]" />
@@ -341,11 +350,15 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                   type="button"
                   onClick={() => bgImageInputRef.current?.click()}
                   disabled={isProcessingBgImage}
-                  title="명함 배경으로 사용할 이미지 업로드"
+                  title={isEn ? 'Upload an image for the card background' : '명함 배경으로 사용할 이미지 업로드'}
                   className="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg bg-[var(--editor-input-bg)] border border-dashed border-[var(--editor-input-border)] hover:border-[var(--editor-input-border-hover)] hover:bg-[var(--app-highlight)] text-xs font-medium text-[var(--editor-label)] hover:text-[var(--editor-text)] cursor-pointer transition-colors"
                 >
                   <ImagePlus className="w-3.5 h-3.5 stroke-[1.75]" />
-                  <span>{isProcessingBgImage ? '최적화 중...' : '배경 이미지'}</span>
+                  <span>
+                    {isProcessingBgImage
+                      ? isEn ? 'Optimizing...' : '최적화 중...'
+                      : isEn ? 'Background Image' : '배경 이미지'}
+                  </span>
                 </button>
               )}
             </div>
@@ -354,7 +367,7 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
           {/* Architectural Layouts (Zero Box-in-Box, Stationary Inline Description Bar) */}
           <section className="border-t border-[var(--editor-divider)] pt-4 sm:pt-6 space-y-3 sm:space-y-3.5">
             <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide inline-block">
-              레이아웃
+              {isEn ? 'Layout' : '레이아웃'}
             </h4>
 
             <div
@@ -364,6 +377,8 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
               {LAYOUT_PRESETS.map((preset) => {
                 const isSelected = layoutType === preset.id;
                 const vertical = isVerticalLayout(preset.id);
+                const presetName = isEn ? preset.nameEn : preset.name;
+                const presetDesc = isEn ? preset.descriptionEn : preset.description;
                 return (
                   <div key={preset.id} className="flex items-center justify-center">
                     <button
@@ -374,7 +389,7 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                       onBlur={() =>
                         setHoveredLayoutId((prev) => (prev === preset.id ? null : prev))
                       }
-                      aria-label={`${preset.name} (${preset.aspectRatio}) · ${preset.description}`}
+                      aria-label={`${presetName} (${preset.aspectRatio}) · ${presetDesc}`}
                       aria-pressed={isSelected}
                       className={`${
                         vertical ? 'w-[56%] aspect-[5/8]' : 'w-full aspect-[9/5]'
@@ -397,12 +412,12 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                 className="min-h-[2.25rem] text-xs leading-[1.125rem] text-[var(--app-fg-muted,var(--app-text-muted))] transition-colors"
               >
                 <span className="font-medium text-[var(--editor-text)]">
-                  {activeLayoutPreset.name}
+                  {isEn ? activeLayoutPreset.nameEn : activeLayoutPreset.name}
                 </span>
                 <span className="mx-1.5 opacity-50" aria-hidden="true">
                   ·
                 </span>
-                <span>{activeLayoutPreset.description}</span>
+                <span>{isEn ? activeLayoutPreset.descriptionEn : activeLayoutPreset.description}</span>
               </p>
             )}
           </section>
@@ -423,12 +438,14 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
           {/* Monogram & Mark */}
           <section className="border-t border-[var(--editor-divider)] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
             <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">
-              모노그램 및 심볼
+              {isEn ? 'Monogram & Logo' : '모노그램 및 심볼'}
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[var(--editor-label)] block">모노그램</label>
+                <label className="text-xs font-medium text-[var(--editor-label)] block">
+                  {isEn ? 'Monogram' : '모노그램'}
+                </label>
                 <input
                   type="text"
                   maxLength={4}
@@ -444,7 +461,9 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[var(--editor-label)] block">로고 이미지</label>
+                <label className="text-xs font-medium text-[var(--editor-label)] block">
+                  {isEn ? 'Logo Image' : '로고 이미지'}
+                </label>
                 <input
                   type="file"
                   ref={logoInputRef}
@@ -456,7 +475,7 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                   <div className="flex items-center justify-between px-3.5 py-2 rounded-lg bg-[var(--editor-input-bg)] border border-[var(--editor-input-border)]">
                     <img
                       src={features.custom_logo}
-                      alt="로고"
+                      alt={isEn ? 'Logo' : '로고'}
                       referrerPolicy="no-referrer"
                       className="h-6 w-auto max-w-[80px] object-contain rounded"
                     />
@@ -466,8 +485,8 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                         onChangeFeatures((prev) => ({ ...prev, custom_logo: undefined }))
                       }
                       className="p-1 rounded-md text-[var(--editor-label)] hover:text-[var(--editor-text)] hover:bg-[var(--app-surface)] cursor-pointer"
-                      title="삭제"
-                      aria-label="삭제"
+                      title={t.common.delete}
+                      aria-label={t.common.delete}
                     >
                       <Trash2 className="w-3.5 h-3.5 stroke-[1.75]" />
                     </button>
@@ -478,7 +497,7 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                     onClick={() => logoInputRef.current?.click()}
                     className="w-full px-3.5 py-2 sm:py-2.5 rounded-lg bg-[var(--editor-input-bg)] border border-dashed border-[var(--editor-input-border)] hover:border-[var(--editor-input-border-hover)] hover:bg-[var(--app-highlight)] text-[var(--editor-label)] hover:text-[var(--editor-text)] cursor-pointer text-xs sm:text-[13px] font-medium text-center transition-colors"
                   >
-                    이미지 선택
+                    {isEn ? 'Choose Image' : '이미지 선택'}
                   </button>
                 )}
               </div>
@@ -488,13 +507,17 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
           {/* Address Slug & Classification */}
           <section className="border-t border-[var(--editor-divider)] pt-4 sm:pt-6 lg:pt-8 space-y-3 sm:space-y-4">
             <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide">
-              {isMyCardMode ? '고유 주소 및 분류' : '웹사이트 및 보관함 분류'}
+              {isMyCardMode
+                ? isEn ? 'Card URL & Classification' : '고유 주소 및 분류'
+                : isEn ? 'Website & Vault Classification' : '웹사이트 및 보관함 분류'}
             </h4>
 
             {isMyCardMode ? (
               <>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--editor-label)] block">웹 주소</label>
+                  <label className="text-xs font-medium text-[var(--editor-label)] block">
+                    {isEn ? 'Web Address' : '웹 주소'}
+                  </label>
                   <div className="flex items-center rounded-lg bg-[var(--editor-input-bg)] border border-[var(--editor-input-border)] hover:border-[var(--editor-input-border-hover)] focus-within:border-[var(--app-accent)] focus-within:bg-[var(--editor-input-bg-focus)] overflow-hidden transition-colors">
                     <span className="px-3 py-2 sm:px-3.5 sm:py-2.5 text-[var(--editor-muted)] font-mono select-none text-xs shrink-0 border-r border-[var(--editor-input-border)]">
                       {APP_BASE_DOMAIN}/card/
@@ -515,7 +538,9 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-[var(--editor-label)] block">커스텀 도메인</label>
+                    <label className="text-xs font-medium text-[var(--editor-label)] block">
+                      {isEn ? 'Custom Domain' : '커스텀 도메인'}
+                    </label>
                     <input
                       type="text"
                       value={customDomain}
@@ -538,14 +563,18 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                       onChange={(e) => onChangeIsDefault(e.target.checked)}
                       className="w-4 h-4 rounded-[4px] accent-[var(--app-accent)] ring-1 ring-[var(--editor-checkbox-border)] cursor-pointer"
                     />
-                    <span className="text-xs font-medium text-[var(--editor-label)]">대표 명함으로 설정</span>
+                    <span className="text-xs font-medium text-[var(--editor-label)]">
+                      {isEn ? 'Set as primary card' : '대표 명함으로 설정'}
+                    </span>
                   </label>
                 </div>
               </>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--editor-label)] block">웹사이트</label>
+                  <label className="text-xs font-medium text-[var(--editor-label)] block">
+                    {isEn ? 'Website' : '웹사이트'}
+                  </label>
                   <input
                     type="url"
                     value={formData.website}
@@ -559,7 +588,9 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                   onChangeCategory={onChangeCategory}
                 />
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--editor-label)] block">만난 날짜</label>
+                  <label className="text-xs font-medium text-[var(--editor-label)] block">
+                    {isEn ? 'Meeting Date' : '만난 날짜'}
+                  </label>
                   <input
                     type="date"
                     value={metAt || ''}
@@ -568,26 +599,34 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--editor-label)] block">만난 장소 / 행사</label>
+                  <label className="text-xs font-medium text-[var(--editor-label)] block">
+                    {isEn ? 'Meeting Place / Event' : '만난 장소 / 행사'}
+                  </label>
                   <input
                     type="text"
                     value={metLocation || ''}
                     onChange={(e) => onChangeMetLocation?.(e.target.value)}
-                    placeholder="예: COEX 컨퍼런스, 삼성역"
+                    placeholder={isEn ? 'e.g., COEX Conference, Seoul' : '예: COEX 컨퍼런스, 삼성역'}
                     className={EDITOR_INPUT_CLASS}
                   />
                 </div>
                 <div className="sm:col-span-2 space-y-1.5 pt-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-[var(--editor-label)] block">개인 메모 (비공개)</label>
+                    <label className="text-xs font-medium text-[var(--editor-label)] block">
+                      {isEn ? 'Private Memo' : '개인 메모 (비공개)'}
+                    </label>
                     <span className="text-[10px] text-[var(--editor-muted)] font-mono">
-                      {(notes || '').length}자
+                      {isEn ? `${(notes || '').length} chars` : `${(notes || '').length}자`}
                     </span>
                   </div>
                   <textarea
                     value={notes || ''}
                     onChange={(e) => onChangeNotes?.(e.target.value)}
-                    placeholder="대화 내용, 연락처 특징, 후속 미팅 계획 등을 기록하세요 (보관함 검색 시 활용됨)"
+                    placeholder={
+                      isEn
+                        ? 'Record conversation highlights, context, or follow-up plans (searchable in Vault)'
+                        : '대화 내용, 연락처 특징, 후속 미팅 계획 등을 기록하세요 (보관함 검색 시 활용됨)'
+                    }
                     rows={2}
                     className={`${EDITOR_INPUT_CLASS} resize-y text-xs`}
                   />

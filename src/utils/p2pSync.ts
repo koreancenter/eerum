@@ -12,6 +12,7 @@ import {
 import { type CardThemeMap, loadCardThemeMap } from './cardThemeStorage';
 import { loadVaultCategories } from './categories';
 import { type VaultBackupPayloadV1, validateBackupPayload } from './vaultBackup';
+import { getCurrentLocale } from '../hooks/useLocale';
 
 export const P2P_DATA_CHANNEL_NAME = 'eerum-vault-sync';
 export const P2P_CHUNK_SIZE_BYTES = 16 * 1024; // 16KB chunks for DataChannel safety with base64 images
@@ -220,10 +221,15 @@ async function waitForDataChannelDrain(dc: RTCDataChannel, isAborted: () => bool
   dc.bufferedAmountLowThreshold = Math.floor(P2P_MAX_BUFFERED_AMOUNT / 2);
 
   await new Promise<void>((resolve, reject) => {
+    const isEn = getCurrentLocale() === 'en';
     const checkTimer = window.setInterval(() => {
       if (isAborted() || dc.readyState !== 'open') {
         cleanup();
-        reject(new Error('P2P 연결이 전송 도중 종료되었습니다.'));
+        reject(
+          new Error(
+            isEn ? 'P2P connection closed during transfer.' : 'P2P 연결이 전송 도중 종료되었습니다.'
+          )
+        );
       } else if (dc.bufferedAmount <= P2P_MAX_BUFFERED_AMOUNT) {
         cleanup();
         resolve();
@@ -236,7 +242,7 @@ async function waitForDataChannelDrain(dc: RTCDataChannel, isAborted: () => bool
     };
     const onClose = () => {
       cleanup();
-      reject(new Error('P2P 데이터 채널이 닫혔습니다.'));
+      reject(new Error(isEn ? 'P2P data channel closed.' : 'P2P 데이터 채널이 닫혔습니다.'));
     };
 
     const cleanup = () => {
@@ -288,12 +294,17 @@ async function serializeVaultForP2P(
 }
 
 export function startP2PSender(options: StartP2PSenderOptions): P2PTransferSession {
+  const isEn = getCurrentLocale() === 'en';
   const roomId = generateP2PRoomId();
   const pairingUrl = buildP2PPairingUrl(roomId);
 
   if (!isWebRTCP2PSupported()) {
     options.onStatusChange?.('error');
-    options.onError?.('이 브라우저는 WebRTC P2P 직접 전송을 지원하지 않습니다.');
+    options.onError?.(
+      isEn
+        ? 'This browser does not support direct WebRTC P2P transfer.'
+        : '이 브라우저는 WebRTC P2P 직접 전송을 지원하지 않습니다.'
+    );
     return { roomId, pairingUrl, close: () => {} };
   }
 
@@ -386,7 +397,11 @@ export function startP2PSender(options: StartP2PSenderOptions): P2PTransferSessi
       let offset = 0;
       while (offset < totalBytes) {
         if (closed || dc.readyState !== 'open') {
-          throw new Error('상대 기기와의 P2P 연결이 중단되었습니다.');
+          throw new Error(
+            isEn
+              ? 'P2P connection to the peer device was interrupted.'
+              : '상대 기기와의 P2P 연결이 중단되었습니다.'
+          );
         }
         await waitForDataChannelDrain(dc, () => closed);
 
@@ -436,7 +451,12 @@ export function startP2PSender(options: StartP2PSenderOptions): P2PTransferSessi
                 integrityHash: serialized.integrityHash,
               });
             } else {
-              fail(msg.error || '수신 기기에서 무결성 검증에 실패했습니다.');
+              fail(
+                msg.error ||
+                  (isEn
+                    ? 'Integrity check failed on the receiving device.'
+                    : '수신 기기에서 무결성 검증에 실패했습니다.')
+              );
             }
           }
         } catch {
@@ -444,7 +464,13 @@ export function startP2PSender(options: StartP2PSenderOptions): P2PTransferSessi
         }
       };
     } catch (err) {
-      fail(err instanceof Error ? err.message : 'P2P 데이터 전송 중 오류가 발생했습니다.');
+      fail(
+        err instanceof Error
+          ? err.message
+          : isEn
+            ? 'An error occurred during P2P data transfer.'
+            : 'P2P 데이터 전송 중 오류가 발생했습니다.'
+      );
     }
   };
 
@@ -460,12 +486,18 @@ export function startP2PSender(options: StartP2PSenderOptions): P2PTransferSessi
       };
       dc.onerror = () => {
         if (!transferCompleted) {
-          fail('P2P 데이터 채널 연결에 실패했습니다.');
+          fail(
+            isEn ? 'P2P data channel connection failed.' : 'P2P 데이터 채널 연결에 실패했습니다.'
+          );
         }
       };
       dc.onclose = () => {
         if (!closed && !transferCompleted && transferStarted) {
-          fail('전송 완료 전 P2P 연결이 닫혔습니다.');
+          fail(
+            isEn
+              ? 'P2P connection closed before transfer completed.'
+              : '전송 완료 전 P2P 연결이 닫혔습니다.'
+          );
         }
       };
 
@@ -492,7 +524,11 @@ export function startP2PSender(options: StartP2PSenderOptions): P2PTransferSessi
       pc.onconnectionstatechange = () => {
         if (closed || !pc) return;
         if (pc.connectionState === 'failed') {
-          fail('방화벽 또는 네트워크 환경으로 P2P 직접 연결에 실패했습니다.');
+          fail(
+            isEn
+              ? 'Direct P2P connection failed due to firewall or network restrictions.'
+              : '방화벽 또는 네트워크 환경으로 P2P 직접 연결에 실패했습니다.'
+          );
         }
       };
 
@@ -529,7 +565,9 @@ export function startP2PSender(options: StartP2PSenderOptions): P2PTransferSessi
             if (status === 404 || !data || !data.success) {
               if (!transferStarted) {
                 fail(
-                  '연결 코드 유효 시간(60초)이 만료되었습니다. 새 코드를 생성해 주세요.',
+                  isEn
+                    ? 'Pairing code expired (60s). Please generate a new code.'
+                    : '연결 코드 유효 시간(60초)이 만료되었습니다. 새 코드를 생성해 주세요.',
                   'expired'
                 );
               }
@@ -560,7 +598,13 @@ export function startP2PSender(options: StartP2PSenderOptions): P2PTransferSessi
       }, P2P_POLL_INTERVAL_MS);
     } catch (err) {
       if (!closed) {
-        fail(err instanceof Error ? err.message : 'P2P 연결을 초기화할 수 없습니다.');
+        fail(
+          err instanceof Error
+            ? err.message
+            : isEn
+              ? 'Unable to initialize P2P connection.'
+              : 'P2P 연결을 초기화할 수 없습니다.'
+        );
       }
     }
   })();
@@ -569,18 +613,25 @@ export function startP2PSender(options: StartP2PSenderOptions): P2PTransferSessi
 }
 
 export function joinP2PReceiver(options: JoinP2PReceiverOptions): P2PTransferSession {
+  const isEn = getCurrentLocale() === 'en';
   const roomId = options.roomId.trim();
   const pairingUrl = buildP2PPairingUrl(roomId);
 
   if (!isValidP2PRoomId(roomId)) {
     options.onStatusChange?.('error');
-    options.onError?.('올바른 P2P 연결 코드 형식이 아닙니다.');
+    options.onError?.(
+      isEn ? 'Invalid P2P pairing code format.' : '올바른 P2P 연결 코드 형식이 아닙니다.'
+    );
     return { roomId, pairingUrl, close: () => {} };
   }
 
   if (!isWebRTCP2PSupported()) {
     options.onStatusChange?.('error');
-    options.onError?.('이 브라우저는 WebRTC P2P 직접 수신을 지원하지 않습니다.');
+    options.onError?.(
+      isEn
+        ? 'This browser does not support direct WebRTC P2P receiving.'
+        : '이 브라우저는 WebRTC P2P 직접 수신을 지원하지 않습니다.'
+    );
     return { roomId, pairingUrl, close: () => {} };
   }
 
@@ -671,7 +722,9 @@ export function joinP2PReceiver(options: JoinP2PReceiverOptions): P2PTransferSes
               }
 
               if (frame.totalBytes !== merged.byteLength) {
-                const errMsg = '전송된 바이트 크기가 일치하지 않습니다.';
+                const errMsg = isEn
+                  ? 'Transferred byte size mismatch.'
+                  : '전송된 바이트 크기가 일치하지 않습니다.';
                 try {
                   dc.send(JSON.stringify({ kind: 'eerum-p2p-ack', verified: false, error: errMsg }));
                 } catch {
@@ -683,7 +736,9 @@ export function joinP2PReceiver(options: JoinP2PReceiverOptions): P2PTransferSes
 
               const actualHash = await computeSha256Hex(merged);
               if (targetHash && actualHash !== targetHash.toLowerCase()) {
-                const errMsg = 'SHA-256 무결성 검증에 실패했습니다.';
+                const errMsg = isEn
+                  ? 'SHA-256 integrity verification failed.'
+                  : 'SHA-256 무결성 검증에 실패했습니다.';
                 try {
                   dc.send(JSON.stringify({ kind: 'eerum-p2p-ack', verified: false, error: errMsg }));
                 } catch {
@@ -721,7 +776,9 @@ export function joinP2PReceiver(options: JoinP2PReceiverOptions): P2PTransferSes
             fail(
               err instanceof Error
                 ? err.message
-                : '수신한 P2P 보관함 데이터를 검증하지 못했습니다.'
+                : isEn
+                  ? 'Failed to verify received P2P vault data.'
+                  : '수신한 P2P 보관함 데이터를 검증하지 못했습니다.'
             );
           }
         })();
@@ -742,7 +799,7 @@ export function joinP2PReceiver(options: JoinP2PReceiverOptions): P2PTransferSes
 
     dc.onerror = () => {
       if (!transferCompleted) {
-        fail('P2P 수신 채널 오류가 발생했습니다.');
+        fail(isEn ? 'P2P receive channel error.' : 'P2P 수신 채널 오류가 발생했습니다.');
       }
     };
   };
@@ -779,7 +836,11 @@ export function joinP2PReceiver(options: JoinP2PReceiverOptions): P2PTransferSes
       pc.onconnectionstatechange = () => {
         if (closed || !pc) return;
         if (pc.connectionState === 'failed') {
-          fail('방화벽 또는 네트워크 환경으로 P2P 직접 연결에 실패했습니다.');
+          fail(
+            isEn
+              ? 'Direct P2P connection failed due to firewall or network restrictions.'
+              : '방화벽 또는 네트워크 환경으로 P2P 직접 연결에 실패했습니다.'
+          );
         }
       };
 
@@ -787,7 +848,12 @@ export function joinP2PReceiver(options: JoinP2PReceiverOptions): P2PTransferSes
       if (closed) return;
 
       if (status === 404 || !data || !data.success || !data.offer) {
-        fail('P2P 연결 코드가 만료되었거나 송신 기기가 대기 중이 아닙니다.', 'expired');
+        fail(
+          isEn
+            ? 'Pairing code expired or sender is no longer waiting.'
+            : 'P2P 연결 코드가 만료되었거나 송신 기기가 대기 중이 아닙니다.',
+          'expired'
+        );
         return;
       }
 
@@ -825,7 +891,12 @@ export function joinP2PReceiver(options: JoinP2PReceiverOptions): P2PTransferSes
             if (closed) return;
             if (pollRes.status === 404 || !pollRes.data || !pollRes.data.success) {
               if (!activeChannel) {
-                fail('연결 시간이 만료되었습니다. 송신 기기에서 새 QR 코드를 생성해 주세요.', 'expired');
+                fail(
+                  isEn
+                    ? 'Connection timed out. Please generate a new QR code on the sender.'
+                    : '연결 시간이 만료되었습니다. 송신 기기에서 새 QR 코드를 생성해 주세요.',
+                  'expired'
+                );
               }
               return;
             }
@@ -844,7 +915,13 @@ export function joinP2PReceiver(options: JoinP2PReceiverOptions): P2PTransferSes
       }, P2P_POLL_INTERVAL_MS);
     } catch (err) {
       if (!closed) {
-        fail(err instanceof Error ? err.message : '송신 기기와 P2P 연결을 맺지 못했습니다.');
+        fail(
+          err instanceof Error
+            ? err.message
+            : isEn
+              ? 'Could not establish P2P connection with the sender.'
+              : '송신 기기와 P2P 연결을 맺지 못했습니다.'
+        );
       }
     }
   })();

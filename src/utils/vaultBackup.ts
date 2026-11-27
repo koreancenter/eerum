@@ -15,6 +15,7 @@ import {
   getAccountLocalSnapshotsKey,
   resolveAccountId,
 } from './accountStorage';
+import { getCurrentLocale } from '../hooks/useLocale';
 
 export const BACKUP_UPDATED_EVENT = 'eerum-backup-updated';
 export const BACKUP_REMINDER_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -265,7 +266,11 @@ export async function createEncryptedBackupContent(
   encryptedWithPin: boolean
 ): Promise<string> {
   if (!secret || secret.trim().length < 4) {
-    throw new Error('백업 암호화는 최소 4자 이상의 PIN 또는 암호가 필요합니다.');
+    throw new Error(
+      getCurrentLocale() === 'en'
+        ? 'Encrypted backup requires a PIN or passphrase of at least 4 characters.'
+        : '백업 암호화는 최소 4자 이상의 PIN 또는 암호가 필요합니다.'
+    );
   }
 
   const payload = await buildSignedVaultBackupPayload(cards, categories, encryptedWithPin);
@@ -376,9 +381,17 @@ export async function shareVaultBackupFile(
   }
 
   try {
+    const isEn = getCurrentLocale() === 'en';
     await navigator.share({
       files: [backupFile],
-      title: extension === 'eerum' ? 'eerum 암호화 백업' : 'eerum JSON 백업',
+      title:
+        extension === 'eerum'
+          ? isEn
+            ? 'eerum Encrypted Backup'
+            : 'eerum 암호화 백업'
+          : isEn
+            ? 'eerum JSON Backup'
+            : 'eerum JSON 백업',
     });
     return { outcome: 'shared', filename: backupFile.name };
   } catch (err) {
@@ -420,23 +433,32 @@ function isValidStoredCardCandidate(raw: unknown): raw is StoredCard {
 }
 
 export function validateBackupPayload(raw: unknown): VaultBackupPayloadV1 {
+  const isEn = getCurrentLocale() === 'en';
   if (!raw || typeof raw !== 'object') {
-    throw new Error('올바른 백업 데이터 형식이 아닙니다.');
+    throw new Error(isEn ? 'Invalid backup data format.' : '올바른 백업 데이터 형식이 아닙니다.');
   }
 
   const obj = raw as Record<string, unknown>;
   if (obj.version !== 1) {
-    throw new Error('지원하지 않는 백업 파일 버전입니다.');
+    throw new Error(isEn ? 'Unsupported backup file version.' : '지원하지 않는 백업 파일 버전입니다.');
   }
 
   if (!Array.isArray(obj.cards)) {
-    throw new Error('백업 파일에 유효한 명함 목록(cards)이 포함되어 있지 않습니다.');
+    throw new Error(
+      isEn
+        ? 'Backup file does not contain a valid cards list.'
+        : '백업 파일에 유효한 명함 목록(cards)이 포함되어 있지 않습니다.'
+    );
   }
 
   const validCards: StoredCard[] = [];
   for (const entry of obj.cards) {
     if (!isValidStoredCardCandidate(entry)) {
-      throw new Error('백업 파일 내 명함 데이터 구조가 손상되었거나 올바르지 않습니다.');
+      throw new Error(
+        isEn
+          ? 'Card data inside the backup file is damaged or invalid.'
+          : '백업 파일 내 명함 데이터 구조가 손상되었거나 올바르지 않습니다.'
+      );
     }
     validCards.push({
       ...entry,
@@ -499,11 +521,16 @@ export function validateBackupPayload(raw: unknown): VaultBackupPayloadV1 {
 }
 
 export function parseBackupFileText(rawText: string): ParsedBackupFile {
+  const isEn = getCurrentLocale() === 'en';
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawText);
   } catch {
-    throw new Error('백업 파일을 읽을 수 없습니다. 올바른 .eerum 또는 .json 파일인지 확인해 주세요.');
+    throw new Error(
+      isEn
+        ? 'Could not read backup file. Please verify it is a valid .eerum or .json file.'
+        : '백업 파일을 읽을 수 없습니다. 올바른 .eerum 또는 .json 파일인지 확인해 주세요.'
+    );
   }
 
   if (isEncryptedEnvelope(parsed)) {
@@ -527,22 +554,31 @@ export async function decryptBackupEnvelope(
   envelope: EncryptedEnvelope,
   secret: string
 ): Promise<VaultBackupPayloadV1> {
+  const isEn = getCurrentLocale() === 'en';
   if (!secret || !secret.trim()) {
-    throw new Error('복호화할 PIN 또는 백업 암호를 입력해 주세요.');
+    throw new Error(
+      isEn ? 'Please enter your PIN or backup passphrase.' : '복호화할 PIN 또는 백업 암호를 입력해 주세요.'
+    );
   }
 
   let decryptedJson: string;
   try {
     decryptedJson = await decryptTextWithPin(envelope, secret);
   } catch {
-    throw new Error('PIN 또는 백업 암호가 일치하지 않아 복호화할 수 없습니다.');
+    throw new Error(
+      isEn
+        ? 'Incorrect PIN or backup passphrase. Unable to decrypt.'
+        : 'PIN 또는 백업 암호가 일치하지 않아 복호화할 수 없습니다.'
+    );
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(decryptedJson);
   } catch {
-    throw new Error('복호화된 백업 데이터가 손상되었습니다.');
+    throw new Error(
+      isEn ? 'Decrypted backup data is corrupted.' : '복호화된 백업 데이터가 손상되었습니다.'
+    );
   }
 
   return validateBackupPayload(parsed);
@@ -840,13 +876,20 @@ export async function saveLocalRecoverySnapshot(
 
   const myCardCount = cards.filter((c) => Boolean(c.isMyCard)).length;
   const vaultCardCount = cards.length - myCardCount;
+  const isEn = getCurrentLocale() === 'en';
   const snapshot: LocalRecoverySnapshot = {
     id: `snap_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     createdAt: new Date().toISOString(),
     reason: options.reason,
     label:
       options.label ||
-      (options.reason === 'pre_restore' ? '전체 교체 전 자동 스냅샷' : '수동 안전 스냅샷'),
+      (options.reason === 'pre_restore'
+        ? isEn
+          ? 'Auto-snapshot before replace'
+          : '전체 교체 전 자동 스냅샷'
+        : isEn
+          ? 'Manual safety snapshot'
+          : '수동 안전 스냅샷'),
     cardCount: cards.length,
     myCardCount,
     vaultCardCount,

@@ -7,6 +7,7 @@ import {
   getAppThemeDefinition,
   loadStoredAppTheme,
 } from '../constants/appThemes';
+import { useLocale } from '../hooks/useLocale';
 
 interface DuotoneSwatchProps {
   accent: string;
@@ -32,6 +33,7 @@ export interface AppThemeSelectorProps {
 }
 
 export const AppThemeSelector: React.FC<AppThemeSelectorProps> = ({ onThemeChange }) => {
+  const { isEn } = useLocale();
   const [currentTheme, setCurrentTheme] = useState<AppThemeId>(() => loadStoredAppTheme());
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -88,7 +90,7 @@ export const AppThemeSelector: React.FC<AppThemeSelectorProps> = ({ onThemeChang
         onClick={() => setIsOpen((prev) => !prev)}
         aria-expanded={isOpen}
         aria-haspopup="menu"
-        aria-label={`앱 화면 테마: ${activeTheme.labelKr} (${activeTheme.labelEn})`}
+        aria-label={isEn ? `App theme: ${activeTheme.labelEn}` : `앱 화면 테마: ${activeTheme.labelKr} (${activeTheme.labelEn})`}
         className="group relative p-2 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] inline-flex items-center justify-center cursor-pointer active:scale-95 shrink-0 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
       >
         <DuotoneSwatch accent={activeTheme.accent} highlight={activeTheme.highlight} size="sm" />
@@ -97,7 +99,7 @@ export const AppThemeSelector: React.FC<AppThemeSelectorProps> = ({ onThemeChang
             role="tooltip"
             className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 px-2.5 py-1 rounded-lg bg-[var(--app-text)] text-[var(--app-bg)] text-[11px] font-medium whitespace-nowrap shadow-md opacity-0 translate-y-0.5 group-hover:opacity-100 group-hover:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:translate-y-0 transition-all duration-150"
           >
-            {activeTheme.labelKr}
+            {isEn ? activeTheme.labelEn : activeTheme.labelKr}
           </span>
         )}
       </button>
@@ -105,11 +107,12 @@ export const AppThemeSelector: React.FC<AppThemeSelectorProps> = ({ onThemeChang
       {isOpen && (
         <div
           role="menu"
-          aria-label="앱 화면 테마 컬러셋"
+          aria-label={isEn ? 'App theme presets' : '앱 화면 테마 컬러셋'}
           className="absolute right-0 top-full mt-2 rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 flex items-center gap-1.5"
         >
           {APP_THEMES.map((theme, index) => {
             const isSelected = theme.id === currentTheme;
+            const label = isEn ? theme.labelEn : theme.labelKr;
             const tooltipAlignClass =
               index === 0
                 ? 'left-0'
@@ -123,7 +126,7 @@ export const AppThemeSelector: React.FC<AppThemeSelectorProps> = ({ onThemeChang
                 type="button"
                 role="menuitemradio"
                 aria-checked={isSelected}
-                aria-label={`${theme.labelKr} (${theme.labelEn})`}
+                aria-label={label}
                 onClick={() => handleSelect(theme.id)}
                 className={`group relative w-8 h-8 rounded-xl flex items-center justify-center cursor-pointer transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
                   isSelected
@@ -136,7 +139,7 @@ export const AppThemeSelector: React.FC<AppThemeSelectorProps> = ({ onThemeChang
                   role="tooltip"
                   className={`pointer-events-none absolute top-full ${tooltipAlignClass} mt-2 z-50 px-2.5 py-1 rounded-lg bg-[var(--app-text)] text-[var(--app-bg)] text-[11px] font-medium whitespace-nowrap shadow-md opacity-0 translate-y-0.5 group-hover:opacity-100 group-hover:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:translate-y-0 transition-all duration-150`}
                 >
-                  {theme.labelKr}
+                  {label}
                 </span>
               </button>
             );

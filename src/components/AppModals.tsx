@@ -16,6 +16,7 @@ import type {
   LocalAccountActionResult,
 } from '../utils/localAccount';
 import { lazyWithRetry, LazyErrorBoundary } from '../utils/lazyWithRetry';
+import { useLocale } from '../hooks/useLocale';
 
 const ShareModal = lazyWithRetry(() =>
   import('./ShareModal').then((m) => ({ default: m.ShareModal }))
@@ -142,6 +143,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
   onRestoreBackup,
   onApplyP2PPayload,
 }) => {
+  const { t } = useLocale();
   const isLockScreenActive = isLocked && isPinConfigured && Boolean(activeAccountName);
 
   const handleImport = (importedCards: StoredCard[]) => {
@@ -155,7 +157,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
   const handlePinUnlock = () => {
     unlockApp();
     setCards(loadUserCards());
-    showToast('보안 잠금이 해제되었습니다.');
+    showToast(t.toasts.unlocked);
   };
 
   const handlePinConfigSuccess = () => {
@@ -166,15 +168,15 @@ export const AppModals: React.FC<AppModalsProps> = ({
     }
     showToast(
       modals.pinModalMode === 'setup'
-        ? '4자리 PIN 잠금이 설정되었습니다.'
-        : 'PIN 번호가 성공적으로 변경되었습니다.'
+        ? t.toasts.pinSetup
+        : t.toasts.pinChanged
     );
   };
 
   const handleDismissLazyPin = () => {
     markLazyPinDismissed();
     modals.closeLazyPin();
-    showToast('설정 메뉴에서 언제든 4자리 PIN을 설정할 수 있습니다.');
+    showToast(t.toasts.lazyPinDismissed);
   };
 
   const handleProceedLazyPinSetup = () => {
