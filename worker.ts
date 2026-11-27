@@ -53,6 +53,9 @@ const MAX_BODY_BYTES = 3 * 1024 * 1024; // 3MB
 const MAX_SYNC_CARDS = 500;
 const MAX_P2P_SIGNAL_ROOMS = 1000;
 const MAX_ICE_CANDIDATES_PER_SIDE = 64;
+const P2P_RATE_LIMIT_WINDOW_MS = 60_000;
+const P2P_RATE_LIMIT_MAX_REQUESTS = 60;
+const MAX_P2P_RATE_LIMIT_IPS = 2000;
 
 interface EphemeralSignalRoom {
   offer: P2PSessionDescriptionSignal | null;
@@ -63,6 +66,77 @@ interface EphemeralSignalRoom {
 }
 
 const ephemeralSignalRooms = new Map<string, EphemeralSignalRoom>();
+const p2pIpRateWindows = new Map<string, number[]>();
+
+function extractEdgeClientIp(request: Request): string {
+  const cfIp = request.headers.get('cf-connecting-ip');
+  if (cfIp && cfIp.trim()) {
+    return cfIp.trim().slice(0, 128);
+  }
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded && forwarded.trim()) {
+    const first = forwarded.split(',')[0]?.trim();
+    if (first) return first.slice(0, 128);
+  }
+  return 'unknown';
+}
+
+function checkEdgeP2PRateLimit(
+  request: Request,
+  now = Date.now()
+): {
+  allowed: boolean;
+  headers: Record<string, string>;
+} {
+  const ip = extractEdgeClientIp(request);
+  const cutoff = now - P2P_RATE_LIMIT_WINDOW_MS;
+
+  if (!p2pIpRateWindows.has(ip) && p2pIpRateWindows.size >= MAX_P2P_RATE_LIMIT_IPS) {
+    for (const [key, timestamps] of p2pIpRateWindows.entries()) {
+      const latest = timestamps[timestamps.length - 1] ?? 0;
+      if (latest <= cutoff) {
+        p2pIpRateWindows.delete(key);
+      }
+    }
+    if (p2pIpRateWindows.size >= MAX_P2P_RATE_LIMIT_IPS) {
+      const oldestKey = p2pIpRateWindows.keys().next().value;
+      if (oldestKey !== undefined) p2pIpRateWindows.delete(oldestKey);
+    }
+  }
+
+  const existing = p2pIpRateWindows.get(ip) || [];
+  const activeTimestamps = existing.filter((ts) => ts > cutoff);
+
+  if (activeTimestamps.length >= P2P_RATE_LIMIT_MAX_REQUESTS) {
+    p2pIpRateWindows.set(ip, activeTimestamps);
+    const oldestInWindow = activeTimestamps[0] ?? now;
+    const resetMs = Math.max(1000, oldestInWindow + P2P_RATE_LIMIT_WINDOW_MS - now);
+    const retryAfterSec = Math.max(1, Math.ceil(resetMs / 1000));
+    return {
+      allowed: false,
+      headers: {
+        'X-RateLimit-Limit': String(P2P_RATE_LIMIT_MAX_REQUESTS),
+        'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset': String(Math.ceil((now + resetMs) / 1000)),
+        'Retry-After': String(retryAfterSec),
+      },
+    };
+  }
+
+  activeTimestamps.push(now);
+  p2pIpRateWindows.set(ip, activeTimestamps);
+  const remaining = Math.max(0, P2P_RATE_LIMIT_MAX_REQUESTS - activeTimestamps.length);
+  const oldestInWindow = activeTimestamps[0] ?? now;
+
+  return {
+    allowed: true,
+    headers: {
+      'X-RateLimit-Limit': String(P2P_RATE_LIMIT_MAX_REQUESTS),
+      'X-RateLimit-Remaining': String(remaining),
+      'X-RateLimit-Reset': String(Math.ceil((oldestInWindow + P2P_RATE_LIMIT_WINDOW_MS) / 1000)),
+    },
+  };
+}
 
 function purgeExpiredEdgeSignalRooms(now = Date.now()) {
   for (const [id, room] of ephemeralSignalRooms.entries()) {
@@ -144,23 +218,30 @@ async function readJsonWithLimit(
   request: Request,
   maxBytes = MAX_BODY_BYTES
 ): Promise<{ ok: true; data: unknown } | { ok: false; status: number; error: string }> {
-  const contentLength = request.headers.get('content-length');
-  if (contentLength && Number(contentLength) >= maxBytes && maxBytes === P2P_SIGNAL_MAX_BYTES) {
-    return {
-      ok: false,
-      status: 413,
-      error: 'P2P signaling payload must be smaller than 32KB',
-    };
-  }
-  if (contentLength && Number(contentLength) > maxBytes) {
-    return {
-      ok: false,
-      status: 413,
-      error: 'Request payload too large (3MB limit exceeded)',
-    };
+  const rawContentLength = request.headers.get('content-length');
+  if (rawContentLength !== null) {
+    const contentLength = Number(rawContentLength);
+    if (Number.isFinite(contentLength) && contentLength >= maxBytes && maxBytes === P2P_SIGNAL_MAX_BYTES) {
+      return {
+        ok: false,
+        status: 413,
+        error: 'P2P signaling payload must be smaller than 32KB',
+      };
+    }
+    if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+      return {
+        ok: false,
+        status: 413,
+        error: 'Request payload too large (3MB limit exceeded)',
+      };
+    }
   }
 
   const rawText = await request.text();
+  if (!rawText || !rawText.trim()) {
+    return { ok: false, status: 400, error: 'Malformed JSON payload' };
+  }
+
   const byteLen = new TextEncoder().encode(rawText).byteLength;
   if (maxBytes === P2P_SIGNAL_MAX_BYTES && byteLen >= maxBytes) {
     return {
@@ -565,9 +646,23 @@ export default {
       }
     }
 
-    // 6b. Ephemeral WebRTC Signaling Endpoint (/api/p2p/signal) — 60s TTL, <32KB, never persists cards
+    // 6b. Ephemeral WebRTC Signaling Endpoint (/api/p2p/signal) — 60s TTL, <32KB, 60 req/60s/IP, never persists cards
     if (url.pathname === '/api/p2p/signal' && request.method === 'GET') {
-      const noStoreHeaders = { ...corsHeaders, 'Cache-Control': 'no-store' };
+      const now = Date.now();
+      const rateCheck = checkEdgeP2PRateLimit(request, now);
+      const noStoreHeaders = {
+        ...corsHeaders,
+        'Cache-Control': 'no-store',
+        ...rateCheck.headers,
+      };
+      if (!rateCheck.allowed) {
+        return jsonResponse<GetP2PSignalResponse>(
+          createApiError('Too many requests. Please try again later.'),
+          noStoreHeaders,
+          429
+        );
+      }
+
       const rawRoom = (url.searchParams.get('room') || '').trim();
       const rawRole = (url.searchParams.get('role') || '').trim();
 
@@ -579,7 +674,6 @@ export default {
         );
       }
 
-      const now = Date.now();
       const room = await loadEdgeSignalRoom(rawRoom, env, now);
       if (!room) {
         return jsonResponse<GetP2PSignalResponse>(
@@ -604,7 +698,21 @@ export default {
     }
 
     if (url.pathname === '/api/p2p/signal' && request.method === 'POST') {
-      const noStoreHeaders = { ...corsHeaders, 'Cache-Control': 'no-store' };
+      const now = Date.now();
+      const rateCheck = checkEdgeP2PRateLimit(request, now);
+      const noStoreHeaders = {
+        ...corsHeaders,
+        'Cache-Control': 'no-store',
+        ...rateCheck.headers,
+      };
+      if (!rateCheck.allowed) {
+        return jsonResponse<PostP2PSignalResponse>(
+          createApiError('Too many requests. Please try again later.'),
+          noStoreHeaders,
+          429
+        );
+      }
+
       const parsed = await readJsonWithLimit(request, P2P_SIGNAL_MAX_BYTES);
       if (!parsed.ok) {
         return jsonResponse<PostP2PSignalResponse>(
@@ -639,7 +747,6 @@ export default {
         );
       }
 
-      const now = Date.now();
       let room = await loadEdgeSignalRoom(rawRoom, env, now);
 
       if (rawType === 'offer') {

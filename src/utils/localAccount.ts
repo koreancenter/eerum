@@ -1,7 +1,6 @@
 import type { StoredCard } from '../types/card';
 import {
   ACCOUNT_CHANGED_EVENT,
-  LEGACY_MIGRATED_FLAG_KEY,
   type StoredAccountRecord,
   readStoredAccountsList,
   writeStoredAccountsList,
@@ -15,18 +14,23 @@ import {
   clearAllAccountScopedStorage,
 } from './accountStorage';
 import {
-  LEGACY_CARDS_STORAGE_KEYS,
   clearMemoryDecryptedCards,
   decryptStoredCards,
   loadUserCards,
   normalizeStoredCards,
   saveUserCards,
 } from './initialCards';
-import { isEncryptedEnvelope, decryptCardsVault, verifyPinWithToken } from './cryptoVault';
-import { hashPin, isPinSet, setAppPin, verifyPin, setSessionLocked } from './pinLock';
+import { generateOwnerKey } from './ownerKey';
+import { sanitizeCardForVault } from '@/utils/cardSerializer';
+import { isPinSet, setAppPin, verifyPin, setSessionLocked } from './pinLock';
 import { isBiometricRegistered, registerBiometric, verifyBiometric } from './biometrics';
 import { removeDirectoryHandleForAccount } from './localFolderBackup';
 import { resolveCardsWithStoredThemes, syncCardThemeMapFromCards } from './cardThemeStorage';
+import {
+  cleanupLegacySingleVaultStorage,
+  extractLegacyVaultData,
+  hasLegacySingleVaultData,
+} from './legacyMigration';
 
 export { ACCOUNT_CHANGED_EVENT, getActiveAccountId };
 export type LocalAccountMeta = StoredAccountRecord;
@@ -37,6 +41,7 @@ export interface CreateLocalAccountParams {
   enableBiometrics?: boolean;
   importLegacyData?: boolean;
   legacyPin?: string;
+  initialCards?: StoredCard[];
 }
 
 export interface LocalAccountActionResult {
@@ -55,195 +60,6 @@ function generateAccountId(): string {
   return `acct_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function findLegacyCardsRaw(): string | null {
-  if (typeof window === 'undefined') return null;
-  for (const key of LEGACY_CARDS_STORAGE_KEYS) {
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw && raw.trim()) return raw;
-    } catch {
-      // Ignore malformed storage
-    }
-  }
-  return null;
-}
-
-export function isLegacyVaultPinProtected(): boolean {
-  if (typeof window === 'undefined') return false;
-  if (localStorage.getItem('app_pin_vault_token') || localStorage.getItem('app_pin_hash')) {
-    return true;
-  }
-  const raw = findLegacyCardsRaw();
-  if (!raw) return false;
-  try {
-    return isEncryptedEnvelope(JSON.parse(raw));
-  } catch {
-    return false;
-  }
-}
-
-export function hasLegacySingleVaultData(): boolean {
-  if (typeof window === 'undefined') return false;
-  try {
-    if (localStorage.getItem(LEGACY_MIGRATED_FLAG_KEY) === 'true') {
-      return false;
-    }
-    if (localStorage.getItem('app_pin_vault_token') || localStorage.getItem('app_pin_hash')) {
-      return true;
-    }
-    const raw = findLegacyCardsRaw();
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
-    if (isEncryptedEnvelope(parsed)) return true;
-    return Array.isArray(parsed) && parsed.length > 0;
-  } catch {
-    return false;
-  }
-}
-
-function cleanupLegacySingleVaultStorage(): void {
-  if (typeof window === 'undefined') return;
-  const legacyKeys = [
-    ...LEGACY_CARDS_STORAGE_KEYS,
-    'vault_categories_v1',
-    'eerum_card_theme_map_v1',
-    'eerum_last_used_card_theme_v1',
-    'app_pin_hash',
-    'app_pin_vault_token',
-    'app_pin_last_verified_at',
-    'app_biometric_credential_id',
-    'app_biometric_vault_token',
-    'biometric_credential_id',
-    'wallet_sync_id',
-    'card_sync_id',
-    'lazy_pin_dismissed',
-    'eerum_last_backup_at',
-    'eerum_last_folder_backup_at',
-    'eerum_backup_nudge_dismissed_at',
-    'eerum_local_snapshots_v1',
-    'eerum_vault_sort_by',
-  ];
-  for (const key of legacyKeys) {
-    try {
-      localStorage.removeItem(key);
-    } catch {
-      // Ignore
-    }
-  }
-  try {
-    localStorage.setItem(LEGACY_MIGRATED_FLAG_KEY, 'true');
-  } catch {
-    // Ignore
-  }
-}
-
-async function extractLegacyVaultData(legacyPin?: string): Promise<{
-  ok: boolean;
-  cards: StoredCard[];
-  categories: string[] | null;
-  themeMapRaw: string | null;
-  lastThemeRaw: string | null;
-  error?: string;
-}> {
-  if (typeof window === 'undefined') {
-    return { ok: false, cards: [], categories: null, themeMapRaw: null, lastThemeRaw: null };
-  }
-
-  const rawCards = findLegacyCardsRaw();
-  const legacyToken = localStorage.getItem('app_pin_vault_token');
-  const legacyHash = localStorage.getItem('app_pin_hash');
-  const hasLegacyPin = Boolean(legacyToken || legacyHash);
-
-  let parsedCardsPayload: unknown = null;
-  if (rawCards) {
-    try {
-      parsedCardsPayload = JSON.parse(rawCards);
-    } catch {
-      parsedCardsPayload = null;
-    }
-  }
-
-  const cardsEncrypted = Boolean(parsedCardsPayload && isEncryptedEnvelope(parsedCardsPayload));
-
-  if (hasLegacyPin || cardsEncrypted) {
-    const cleanPin = (legacyPin || '').trim();
-    if (!/^\d{4}$/.test(cleanPin)) {
-      return {
-        ok: false,
-        cards: [],
-        categories: null,
-        themeMapRaw: null,
-        lastThemeRaw: null,
-        error: '기존 보관함을 가져오려면 기존 4자리 PIN을 입력해 주세요.',
-      };
-    }
-
-    if (legacyToken) {
-      const verified = await verifyPinWithToken(cleanPin, legacyToken, { activateSession: false });
-      if (!verified.valid) {
-        return {
-          ok: false,
-          cards: [],
-          categories: null,
-          themeMapRaw: null,
-          lastThemeRaw: null,
-          error: '기존 4자리 PIN이 일치하지 않습니다.',
-        };
-      }
-    } else if (legacyHash) {
-      const hashed = await hashPin(cleanPin);
-      if (hashed !== legacyHash) {
-        return {
-          ok: false,
-          cards: [],
-          categories: null,
-          themeMapRaw: null,
-          lastThemeRaw: null,
-          error: '기존 4자리 PIN이 일치하지 않습니다.',
-        };
-      }
-    }
-  }
-
-  let extractedCards: StoredCard[] = [];
-  if (cardsEncrypted && parsedCardsPayload && isEncryptedEnvelope(parsedCardsPayload)) {
-    try {
-      extractedCards = await decryptCardsVault(parsedCardsPayload, (legacyPin || '').trim());
-    } catch {
-      return {
-        ok: false,
-        cards: [],
-        categories: null,
-        themeMapRaw: null,
-        lastThemeRaw: null,
-        error: '기존 암호화 보관함을 복호화하지 못했습니다. PIN을 다시 확인해 주세요.',
-      };
-    }
-  } else if (Array.isArray(parsedCardsPayload)) {
-    extractedCards = parsedCardsPayload as StoredCard[];
-  }
-
-  let categories: string[] | null = null;
-  try {
-    const rawCats = localStorage.getItem('vault_categories_v1');
-    if (rawCats) {
-      const parsedCats = JSON.parse(rawCats);
-      if (Array.isArray(parsedCats)) {
-        categories = parsedCats.filter((c): c is string => typeof c === 'string' && c.trim().length > 0);
-      }
-    }
-  } catch {
-    categories = null;
-  }
-
-  return {
-    ok: true,
-    cards: normalizeStoredCards(extractedCards),
-    categories,
-    themeMapRaw: localStorage.getItem('eerum_card_theme_map_v1'),
-    lastThemeRaw: localStorage.getItem('eerum_last_used_card_theme_v1'),
-  };
-}
 
 export function listLocalAccounts(): LocalAccountMeta[] {
   const accounts = readStoredAccountsList();
@@ -287,6 +103,7 @@ export async function createLocalAccount({
   enableBiometrics,
   importLegacyData,
   legacyPin,
+  initialCards,
 }: CreateLocalAccountParams): Promise<LocalAccountActionResult> {
   if (typeof window === 'undefined') {
     return { ok: false, error: '브라우저 환경에서만 로컬 계정을 만들 수 있습니다.' };
@@ -377,6 +194,50 @@ export async function createLocalAccount({
     cleanupLegacySingleVaultStorage();
   }
 
+  const hasMigratedMyCard = migratedCards.some((c) => c.isMyCard);
+  const transferredCards: StoredCard[] = [];
+  if (Array.isArray(initialCards) && initialCards.length > 0) {
+    let assignedDefaultMyCard = hasMigratedMyCard;
+    initialCards.forEach((rawCard, index) => {
+      if (!rawCard || !rawCard.data) return;
+      if (rawCard.isMyCard) {
+        const shouldBeDefault =
+          !hasMigratedMyCard && (Boolean(rawCard.isDefault) || !assignedDefaultMyCard);
+        if (shouldBeDefault) assignedDefaultMyCard = true;
+        const freshId = `my-card-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`;
+        const freshOwnerKey = generateOwnerKey();
+        transferredCards.push({
+          ...rawCard,
+          id: freshId,
+          isMyCard: true,
+          isDefault: shouldBeDefault,
+          ownerKey: freshOwnerKey,
+          owner_key: freshOwnerKey,
+          data: { ...rawCard.data },
+        });
+      } else {
+        const freshId = `vault-card-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`;
+        transferredCards.push(
+          sanitizeCardForVault(rawCard, {
+            id: freshId,
+            category: rawCard.category,
+            notes: rawCard.notes,
+            memo: rawCard.memo,
+            metAt: rawCard.metAt,
+            metLocation: rawCard.metLocation,
+          })
+        );
+      }
+    });
+  }
+
+  let finalCards = migratedCards;
+  if (transferredCards.length > 0) {
+    finalCards = normalizeStoredCards([...transferredCards, ...migratedCards]);
+    syncCardThemeMapFromCards(finalCards, { overwriteExisting: false, accountId });
+    saveUserCards(finalCards, accountId);
+  }
+
   let biometricError: string | undefined;
   if (cleanPin && enableBiometrics) {
     const bioRes = await registerBiometric(accountId);
@@ -392,7 +253,7 @@ export async function createLocalAccount({
   return {
     ok: true,
     account: finalAccount,
-    cards: migratedCards,
+    cards: finalCards,
     biometricError,
   };
 }

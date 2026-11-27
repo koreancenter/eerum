@@ -3,21 +3,29 @@ import { X, AlertCircle, Loader2 } from 'lucide-react';
 import {
   hasLegacySingleVaultData,
   isLegacyVaultPinProtected,
-  type CreateLocalAccountParams,
-  type LocalAccountActionResult,
+} from '../utils/legacyMigration';
+import type {
+  CreateLocalAccountParams,
+  LocalAccountActionResult,
 } from '../utils/localAccount';
 import { isBiometricSupported } from '../utils/biometrics';
+
+export interface CreateLocalAccountSubmitParams extends CreateLocalAccountParams {
+  includeSampleDrafts?: boolean;
+}
 
 interface CreateLocalAccountModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateAccount: (params: CreateLocalAccountParams) => Promise<LocalAccountActionResult>;
+  onCreateAccount: (params: CreateLocalAccountSubmitParams) => Promise<LocalAccountActionResult>;
+  sampleDraftCount?: number;
 }
 
 export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = ({
   isOpen,
   onClose,
   onCreateAccount,
+  sampleDraftCount = 0,
 }) => {
   const [displayName, setDisplayName] = useState('');
   const [usePin, setUsePin] = useState(true);
@@ -31,6 +39,9 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
   const [importLegacyData, setImportLegacyData] = useState(true);
   const [legacyPin, setLegacyPin] = useState('');
 
+  const hasSampleDrafts = sampleDraftCount > 0;
+  const [importSampleDrafts, setImportSampleDrafts] = useState(hasSampleDrafts);
+
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -43,6 +54,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
     setPin('');
     setConfirmPin('');
     setEnableBiometrics(false);
+    setImportSampleDrafts(sampleDraftCount > 0);
     setError(null);
     setIsSubmitting(false);
 
@@ -59,7 +71,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
       nameInputRef.current?.focus();
     }, 60);
     return () => window.clearTimeout(timer);
-  }, [isOpen]);
+  }, [isOpen, sampleDraftCount]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -116,6 +128,7 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
         enableBiometrics: Boolean(usePin && enableBiometrics),
         importLegacyData: hasLegacyData ? importLegacyData : false,
         legacyPin: hasLegacyData && importLegacyData && legacyPinProtected ? legacyPin : undefined,
+        includeSampleDrafts: hasSampleDrafts ? importSampleDrafts : false,
       });
 
       if (!result.ok) {
@@ -318,6 +331,29 @@ export const CreateLocalAccountModal: React.FC<CreateLocalAccountModalProps> = (
                   />
                 </div>
               )}
+            </div>
+          )}
+
+          {/* 4. Optional Sample Drafts Transfer */}
+          {hasSampleDrafts && (
+            <div className="rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] p-4">
+              <label className="flex items-center justify-between gap-3 cursor-pointer select-none">
+                <span className="text-xs font-medium text-[var(--app-text)]">
+                  체험 중 만든 명함 새 계정에 바로 저장하기
+                  <span className="ml-1.5 text-[11px] font-normal text-[var(--app-text-muted)] tabular-nums">
+                    {sampleDraftCount}장
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={importSampleDrafts}
+                  onChange={(e) => {
+                    setImportSampleDrafts(e.target.checked);
+                    if (error) setError(null);
+                  }}
+                  className="w-4 h-4 accent-[var(--app-accent)] rounded cursor-pointer shrink-0"
+                />
+              </label>
             </div>
           )}
 

@@ -166,6 +166,8 @@ export function isValidP2PSignalType(value: unknown): value is P2PSignalType {
   return value === 'offer' || value === 'answer' || value === 'ice';
 }
 
+const utf8ByteLength = (value: string): number => new TextEncoder().encode(value).byteLength;
+
 export function sanitizeP2PSdpPayload(
   raw: unknown,
   expectedType: 'offer' | 'answer'
@@ -174,23 +176,53 @@ export function sanitizeP2PSdpPayload(
   const obj = raw as Record<string, unknown>;
   if (obj.type !== expectedType || typeof obj.sdp !== 'string') return null;
   const sdp = obj.sdp;
-  if (!sdp || sdp.length > 28 * 1024) return null;
+  if (!sdp.trim() || sdp.includes('\0')) return null;
+  if (utf8ByteLength(sdp) > 28 * 1024) return null;
+  if (!/^v=\d+/m.test(sdp)) return null;
   return { type: expectedType, sdp };
 }
 
 export function sanitizeP2PIcePayload(raw: unknown): P2PIceCandidateSignal | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const obj = raw as Record<string, unknown>;
-  if (typeof obj.candidate !== 'string' || obj.candidate.length > 4096) return null;
-  return {
+  if (typeof obj.candidate !== 'string' || obj.candidate.includes('\0')) return null;
+  if (utf8ByteLength(obj.candidate) > 4096) return null;
+  if (obj.candidate.length > 0 && !obj.candidate.startsWith('candidate:')) return null;
+
+  const result: P2PIceCandidateSignal = {
     candidate: obj.candidate,
-    ...(typeof obj.sdpMid === 'string' || obj.sdpMid === null ? { sdpMid: obj.sdpMid } : {}),
-    ...(typeof obj.sdpMLineIndex === 'number' || obj.sdpMLineIndex === null
-      ? { sdpMLineIndex: obj.sdpMLineIndex }
-      : {}),
-    ...(typeof obj.usernameFragment === 'string' || obj.usernameFragment === null
-      ? { usernameFragment: obj.usernameFragment }
-      : {}),
   };
+
+  if (obj.sdpMid !== undefined) {
+    if (obj.sdpMid !== null && (typeof obj.sdpMid !== 'string' || obj.sdpMid.length > 128)) {
+      return null;
+    }
+    result.sdpMid = obj.sdpMid;
+  }
+
+  if (obj.sdpMLineIndex !== undefined) {
+    if (
+      obj.sdpMLineIndex !== null &&
+      (typeof obj.sdpMLineIndex !== 'number' ||
+        !Number.isInteger(obj.sdpMLineIndex) ||
+        obj.sdpMLineIndex < 0 ||
+        obj.sdpMLineIndex > 65535)
+    ) {
+      return null;
+    }
+    result.sdpMLineIndex = obj.sdpMLineIndex;
+  }
+
+  if (obj.usernameFragment !== undefined) {
+    if (
+      obj.usernameFragment !== null &&
+      (typeof obj.usernameFragment !== 'string' || obj.usernameFragment.length > 256)
+    ) {
+      return null;
+    }
+    result.usernameFragment = obj.usernameFragment;
+  }
+
+  return result;
 }
 

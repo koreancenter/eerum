@@ -4,7 +4,6 @@ import { StoredCard } from '../types/card';
 import {
   Phone,
   Mail,
-  Globe,
   UserPlus,
   Edit3,
   Trash2,
@@ -18,6 +17,7 @@ import {
 import { resolveThemeStyles, normalizeHexColor } from '../constants/templates';
 import { deriveCardThemeHarmony } from '../utils/cardThemeHarmony';
 import { downloadVCard, downloadBatchVCard } from '@/utils/cardExporter';
+import { matchesKoreanQuery } from '../utils/koreanSearch';
 
 export const extractCleanPhoneNumber = (phoneRaw?: string, phone?: string): string => {
   const raw = (phoneRaw || phone || '').trim();
@@ -292,6 +292,7 @@ const VaultCardKebabMenu: React.FC<VaultCardKebabMenuProps> = ({
 
 export interface VaultCardItemProps {
   card: StoredCard;
+  searchQuery?: string;
   onSelectCard: (card: StoredCard) => void;
   onEditCard: (card: StoredCard) => void;
   onDeleteCard: (cardId: string) => void;
@@ -302,6 +303,7 @@ export interface VaultCardItemProps {
 
 const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
   card,
+  searchQuery = '',
   onSelectCard,
   onEditCard,
   onDeleteCard,
@@ -310,7 +312,6 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
   onRecordInteraction,
 }) => {
   const hasPhoto = Boolean(card.scannedImage);
-  const photoPreviewUrl = card.scannedImage || card.front_image_url;
 
   const effectiveTheme =
     card.creation_mode === 'custom_html' && !card.theme ? 'obsidian' : card.theme;
@@ -325,55 +326,51 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
     [themeStyles]
   );
 
-  // Normalized & deduplicated identity fields
-  const {
-    displayName,
-    subName,
-    orgDisplay,
-    titleDisplay,
-    contactPrimary,
-    contactSecondary,
-    customLogo,
-  } = useMemo(() => {
+  // Clean 3-line single-language identity fields (Company, Name, Title)
+  const { displayName, orgDisplay, titleDisplay } = useMemo(() => {
     const d = card.data;
     const primaryName = (d.name || d.nameKr || '').trim();
-    const showEnName =
-      card.card_features?.show_en_name ?? d.details?.show_en_name ?? true;
-    const resolvedSubName = showEnName
-      ? [d.nameEn, d.details?.en_name, d.name ? d.nameKr : '']
-          .map((s) => (s || '').trim())
-          .find((s) => s.length > 0 && s.toLowerCase() !== primaryName.toLowerCase()) || ''
-      : '';
-
     const primaryOrg = (d.organizationKr || d.organization || '').trim();
-    const showSubOrg = card.card_features?.show_sub_org ?? true;
-    const rawExtraSubOrg = showSubOrg ? (d.subOrg || d.details?.sub_org || '').trim() : '';
-    const extraSubOrg =
-      rawExtraSubOrg && rawExtraSubOrg.toLowerCase() !== primaryOrg.toLowerCase()
-        ? rawExtraSubOrg
-        : '';
-    const resolvedOrg = [primaryOrg, extraSubOrg].filter(Boolean).join(' · ');
-
     const primaryTitle = (d.titleKr || d.title || '').trim();
-    const altTitle = (d.titleKr && d.title ? d.title : '').trim();
-    const resolvedTitle =
-      altTitle && altTitle.toLowerCase() !== primaryTitle.toLowerCase()
-        ? `${primaryTitle} · ${altTitle}`
-        : primaryTitle;
-
-    const cPrimary = (d.phone || '').trim();
-    const cSecondary = (d.email || d.websiteDisplay || '').trim();
 
     return {
       displayName: primaryName || '이름 없음',
-      subName: resolvedSubName,
-      orgDisplay: resolvedOrg,
-      titleDisplay: resolvedTitle,
-      contactPrimary: cPrimary,
-      contactSecondary: cSecondary,
-      customLogo: (card.card_features?.custom_logo || '').trim(),
+      orgDisplay: primaryOrg,
+      titleDisplay: primaryTitle,
     };
-  }, [card.data, card.card_features]);
+  }, [card.data]);
+
+  // Exception: Show compact meeting/memo chip ONLY when an active search query matches meeting/memo fields
+  const matchedContextSnippet = useMemo(() => {
+    const q = searchQuery.trim();
+    if (!q || card.isMyCard) return null;
+
+    const metAt = (card.metAt || '').trim();
+    const metLocation = (card.metLocation || '').trim();
+    const memoText = (card.memo || card.notes || '').trim();
+
+    const matchesMetAt = Boolean(metAt && matchesKoreanQuery(metAt, q));
+    const matchesMetLocation = Boolean(metLocation && matchesKoreanQuery(metLocation, q));
+    const matchesMemo = Boolean(memoText && matchesKoreanQuery(memoText, q));
+
+    if (matchesMetAt || matchesMetLocation) {
+      return {
+        type: 'meeting' as const,
+        label: [metAt, metLocation].filter(Boolean).join(' · '),
+        hasDate: Boolean(metAt),
+      };
+    }
+
+    if (matchesMemo) {
+      return {
+        type: 'memo' as const,
+        label: memoText,
+        hasDate: false,
+      };
+    }
+
+    return null;
+  }, [searchQuery, card.isMyCard, card.metAt, card.metLocation, card.memo, card.notes]);
 
   const rawPhone = card.data.phoneRaw || card.data.phone || '';
   const cleanPhoneNumber = useMemo(() => extractCleanPhoneNumber(card.data.phoneRaw, card.data.phone), [card.data.phoneRaw, card.data.phone]);
@@ -442,7 +439,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
         ...themeHarmony.fallbackCssVars,
         backgroundColor: customBgHex,
       }}
-      className={`group relative overflow-hidden rounded-xl border ${surfaceBorderClass} ${themeStyles.cardBg} p-2.5 sm:p-3.5 shadow-[var(--app-shadow)] transition-colors duration-150 flex flex-col justify-between gap-2 min-w-0`}
+      className={`group relative overflow-hidden rounded-xl border ${surfaceBorderClass} ${themeStyles.cardBg} p-4 sm:p-5 shadow-[var(--app-shadow)] transition-colors duration-150 flex flex-col justify-between gap-3.5 sm:gap-4 min-w-0`}
     >
       {customBgImage && (
         <>
@@ -463,7 +460,7 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
         </>
       )}
 
-      {/* Self-Contained Clickable Card Body (No outer or top category/date header) */}
+      {/* Self-Contained Clickable Card Body: Clean 3-Line Hierarchy */}
       <div
         role="button"
         tabIndex={0}
@@ -475,133 +472,60 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
           themeStyles.isLight ? 'focus-visible:ring-black/30' : 'focus-visible:ring-white/35'
         }`}
       >
-        {/* Top Row: Organization + Name on Left, Optional Thumbnail/Logo on Right */}
-        <div className="flex items-start justify-between gap-1.5 sm:gap-2.5 min-w-0">
-          <div className="min-w-0 flex-1 space-y-0.5 leading-tight">
-            {orgDisplay && (
-              <p
-                className={`text-[10.5px] sm:text-[11px] font-medium leading-tight truncate ${themeStyles.textSecondary}`}
-              >
-                {orgDisplay}
-              </p>
-            )}
+        {orgDisplay && (
+          <p
+            className={`text-[11px] font-medium leading-tight truncate ${themeStyles.textSecondary}`}
+          >
+            {orgDisplay}
+          </p>
+        )}
 
-            <div className="flex items-baseline gap-1 sm:gap-1.5 min-w-0">
-              <h3
-                className={`text-[13.5px] sm:text-[15px] font-semibold tracking-tight leading-snug truncate group-hover:underline underline-offset-2 ${themeStyles.textPrimary}`}
-              >
-                {displayName}
-              </h3>
-              {subName && (
-                <span
-                  className={`hidden sm:inline text-[11px] font-normal leading-tight truncate ${themeStyles.textSecondary}`}
-                >
-                  {subName}
-                </span>
-              )}
-              {card.isMyCard && (
-                <span
-                  className={`text-[10px] font-medium leading-none shrink-0 ${themeStyles.textSecondary}`}
-                >
-                  · 내 명함
-                </span>
-              )}
-            </div>
-          </div>
-
-          {(photoPreviewUrl || customLogo) && (
-            <div className="shrink-0 flex items-center">
-              {photoPreviewUrl ? (
-                <div
-                  className={`w-9 sm:w-16 aspect-[9/5] rounded sm:rounded-md overflow-hidden border ${themeStyles.accentHairline} bg-black/10 shrink-0`}
-                >
-                  <img
-                    src={photoPreviewUrl}
-                    alt={`${displayName} 실물 명함`}
-                    referrerPolicy="no-referrer"
-                    loading="lazy"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ) : customLogo ? (
-                <img
-                  src={customLogo}
-                  alt=""
-                  aria-hidden="true"
-                  referrerPolicy="no-referrer"
-                  loading="lazy"
-                  className="h-4 sm:h-5 w-auto max-w-[36px] sm:max-w-[48px] object-contain opacity-90 shrink-0"
-                />
-              ) : null}
-            </div>
+        <div className="flex items-baseline gap-1.5 min-w-0">
+          <h3
+            className={`text-[15px] sm:text-base font-semibold tracking-tight leading-snug truncate group-hover:underline underline-offset-2 ${themeStyles.textPrimary}`}
+          >
+            {displayName}
+          </h3>
+          {card.isMyCard && (
+            <span
+              className={`text-[10px] font-medium leading-none shrink-0 ${themeStyles.textSecondary}`}
+            >
+              · 내 명함
+            </span>
           )}
         </div>
 
-        {/* Full-Width Role & Tabular Contact Details */}
-        {(titleDisplay || contactPrimary || contactSecondary) && (
-          <div className="min-w-0 space-y-0.5">
-            {titleDisplay && (
-              <p
-                className={`text-[11px] sm:text-[11.5px] leading-tight truncate ${themeStyles.textSecondary}`}
-              >
-                {titleDisplay}
-              </p>
-            )}
+        {titleDisplay && (
+          <p
+            className={`text-[11.5px] sm:text-xs leading-tight truncate ${themeStyles.textSecondary}`}
+          >
+            {titleDisplay}
+          </p>
+        )}
 
-            {(contactPrimary || contactSecondary) && (
-              <div
-                className={`pt-0.5 flex items-center gap-1.5 text-[10.5px] sm:text-[11px] font-mono tabular-nums leading-tight min-w-0 ${themeStyles.textMuted}`}
-              >
-                {contactPrimary && (
-                  <span className="truncate sm:shrink-0">{contactPrimary}</span>
-                )}
-                {contactPrimary && contactSecondary && (
-                  <span aria-hidden="true" className="hidden sm:inline">
-                    ·
-                  </span>
-                )}
-                {contactSecondary && (
-                  <span className={`truncate ${contactPrimary ? 'hidden sm:inline' : ''}`}>
-                    {contactSecondary}
-                  </span>
-                )}
-              </div>
-            )}
-
-            {!card.isMyCard && (card.metAt || card.metLocation) && (
-              <div
-                className={`pt-0.5 flex items-center gap-1 text-[10px] leading-tight min-w-0 ${themeStyles.textMuted}`}
-                title={[card.metAt, card.metLocation].filter(Boolean).join(' · ')}
-              >
-                {card.metAt && (
-                  <span className="inline-flex items-center gap-0.5 font-mono tabular-nums shrink-0">
-                    <Calendar className="w-2.5 h-2.5 shrink-0 opacity-80" />
-                    <span>{card.metAt}</span>
-                  </span>
-                )}
-                {card.metAt && card.metLocation && (
-                  <span aria-hidden="true" className="shrink-0">
-                    ·
-                  </span>
-                )}
-                {card.metLocation && (
-                  <span className="inline-flex items-center gap-0.5 truncate min-w-0">
-                    {!card.metAt && <MapPin className="w-2.5 h-2.5 shrink-0 opacity-80" />}
-                    <span className="truncate">{card.metLocation}</span>
-                  </span>
-                )}
-              </div>
-            )}
+        {matchedContextSnippet && (
+          <div className="pt-1.5 min-w-0">
+            <span
+              title={matchedContextSnippet.label}
+              className={`inline-flex items-center gap-1 max-w-full px-2 py-0.5 rounded-md border ${themeStyles.accentHairline} text-[10.5px] leading-tight ${themeStyles.textMuted}`}
+            >
+              {matchedContextSnippet.type === 'meeting' ? (
+                matchedContextSnippet.hasDate ? (
+                  <Calendar className="w-2.5 h-2.5 shrink-0 opacity-80" />
+                ) : (
+                  <MapPin className="w-2.5 h-2.5 shrink-0 opacity-80" />
+                )
+              ) : null}
+              <span className="truncate">{matchedContextSnippet.label}</span>
+            </span>
           </div>
         )}
       </div>
 
-      {/* Integrated Card Footer: Direct Contact & Grouped Kebab Management Actions */}
-      <footer
-        className={`relative z-10 mt-auto pt-2 border-t ${themeStyles.accentHairline} flex items-center justify-between gap-1 min-w-0`}
-      >
-        {/* Left: Primary Quick Actions (Call, SMS, optional Mail & Website) */}
-        <div className="flex items-center gap-1 min-w-0">
+      {/* Unified Card Footer: Essential Quick Actions + Kebab Menu (No Divider Line) */}
+      <footer className="relative z-10 mt-auto flex items-center justify-between gap-1 min-w-0">
+        {/* Left: Phone, Message, and Mail (Desktop) */}
+        <div className="flex items-center gap-1 min-w-0 -ml-1">
           {cleanPhoneNumber ? (
             <>
               <button
@@ -629,41 +553,29 @@ const VaultCardItemComponent: React.FC<VaultCardItemProps> = ({
             <a
               href={`mailto:${card.data.email}`}
               onClick={stopLinkPropagation}
-              className={card.data.phoneRaw ? desktopOnlyActionBtnClass : actionBtnClass}
+              className={cleanPhoneNumber ? desktopOnlyActionBtnClass : actionBtnClass}
               title={`이메일 작성 (${card.data.email})`}
               aria-label={`${displayName}에게 이메일 보내기`}
             >
               <Mail className="w-3.5 h-3.5 stroke-[1.5]" />
             </a>
           )}
-
-          {card.data.website && (
-            <a
-              href={card.data.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={stopLinkPropagation}
-              className={desktopOnlyActionBtnClass}
-              title="웹사이트 열기"
-              aria-label={`${displayName} 웹사이트 열기`}
-            >
-              <Globe className="w-3.5 h-3.5 stroke-[1.5]" />
-            </a>
-          )}
         </div>
 
-        {/* Right: Secondary Administrative Tools (Edit, Delete, Export vCard, HTML, Photo) in Sleek Kebab */}
-        <VaultCardKebabMenu
-          card={card}
-          hasPhoto={hasPhoto}
-          onEditCard={onEditCard}
-          onExportCard={onExportCard}
-          onDeleteCard={onDeleteCard}
-          onOpenPhotoArchive={onOpenPhotoArchive}
-          onRecordInteraction={onRecordInteraction}
-          buttonClassName={actionBtnClass}
-          menuDirection="up"
-        />
+        {/* Right: Kebab Menu */}
+        <div className="-mr-1">
+          <VaultCardKebabMenu
+            card={card}
+            hasPhoto={hasPhoto}
+            onEditCard={onEditCard}
+            onExportCard={onExportCard}
+            onDeleteCard={onDeleteCard}
+            onOpenPhotoArchive={onOpenPhotoArchive}
+            onRecordInteraction={onRecordInteraction}
+            buttonClassName={actionBtnClass}
+            menuDirection="up"
+          />
+        </div>
       </footer>
     </article>
   );

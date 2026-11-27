@@ -11,13 +11,19 @@ import { saveStoredCards } from './utils/initialCards';
 import { shareOrCopyLink } from './utils/share';
 import { WelcomeCard } from './components/WelcomeCard';
 import { lazyWithRetry, LazyErrorBoundary } from './utils/lazyWithRetry';
-import { getCardShareUrl } from '@/utils/cardSerializer';
+import {
+  APP_BASE_DOMAIN,
+  getCardShareUrl,
+  sanitizeCardForVault,
+} from '@/utils/cardSerializer';
+import { DEFAULT_VAULT_CATEGORIES } from './utils/categories';
 import { useModalState } from './hooks/useModalState';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { useCardVault, type ActiveTab } from './hooks/useCardVault';
 import { usePublicCardRoute } from './hooks/usePublicCardRoute';
 import { toBackupPayloadFromP2P, type P2PVaultTransferPayload } from './utils/p2pSync';
-import { AppThemeSelector } from './components/AppThemeSelector';
+import { AppHeader } from './components/AppHeader';
+import { LockedAccountView } from './components/LockedAccountView';
 import { applyAppTheme, loadStoredAppTheme } from './constants/appThemes';
 import { ACCOUNT_CHANGED_EVENT } from './utils/localAccount';
 import { getAccountCardThemeMapKey } from './utils/accountStorage';
@@ -30,24 +36,8 @@ import {
 } from './utils/cardThemeStorage';
 import {
   Check,
-  CreditCard,
-  FolderArchive,
   ArrowLeft,
-  Smartphone,
-  Lock,
-  Fingerprint,
-  Settings,
-  LogOut,
-  RotateCcw,
   BookmarkPlus,
-  KeyRound,
-  Download,
-  Upload,
-  HardDriveDownload,
-  Compass,
-  UserCheck,
-  UserPlus,
-  ChevronDown,
   X,
   Plus,
 } from 'lucide-react';
@@ -85,11 +75,10 @@ export default function App() {
   const [isSamplePreview, setIsSamplePreview] = useState<boolean>(false);
   const [sampleMyCards, setSampleMyCards] = useState<StoredCard[]>([]);
   const [sampleVaultCards, setSampleVaultCards] = useState<StoredCard[]>([]);
+  const [sampleDraftedIds, setSampleDraftedIds] = useState<string[]>([]);
   const [selectedSampleMyCardId, setSelectedSampleMyCardId] = useState<string>('');
   const [selectedSampleVaultCardId, setSelectedSampleVaultCardId] = useState<string | null>(null);
   const [sampleModalCardId, setSampleModalCardId] = useState<string | null>(null);
-  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState<boolean>(false);
-  const accountMenuRef = useRef<HTMLDivElement>(null);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [isMemoOpen, setIsMemoOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -164,37 +153,16 @@ export default function App() {
     setThemeMap(loadCardThemeMap(vault.activeAccountId));
   }, [vault.activeAccountId]);
 
-  // Close Account Profile dropdown on outside click or Escape
-  useEffect(() => {
-    if (!isAccountMenuOpen) return;
-    const handleOutside = (e: MouseEvent | TouchEvent) => {
-      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
-        setIsAccountMenuOpen(false);
-      }
-    };
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsAccountMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handleOutside);
-    document.addEventListener('touchstart', handleOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleOutside);
-      document.removeEventListener('touchstart', handleOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isAccountMenuOpen]);
-
   // Clear ephemeral sample state once signed into a real local account
   useEffect(() => {
     if (vault.activeAccount) {
       setIsSamplePreview(false);
       setSampleMyCards([]);
       setSampleVaultCards([]);
+      setSampleDraftedIds([]);
       setSelectedSampleMyCardId('');
       setSelectedSampleVaultCardId(null);
       setSampleModalCardId(null);
-      setIsAccountMenuOpen(false);
     }
   }, [vault.activeAccount]);
 
@@ -204,6 +172,7 @@ export default function App() {
     const clonedVault = SAMPLE_VAULT_CARDS.map((c) => ({ ...c, data: { ...c.data } }));
     setSampleMyCards(clonedMy);
     setSampleVaultCards(clonedVault);
+    setSampleDraftedIds([]);
     setSelectedSampleMyCardId(clonedMy[0]?.id || '');
     setSelectedSampleVaultCardId(null);
     setSampleModalCardId(null);
@@ -216,21 +185,261 @@ export default function App() {
 
   const exitSampleToCreateAccount = useCallback(
     (toastMsg?: string) => {
-      setIsSamplePreview(false);
-      setSampleMyCards([]);
-      setSampleVaultCards([]);
-      setSelectedSampleMyCardId('');
-      setSelectedSampleVaultCardId(null);
-      setSampleModalCardId(null);
-      setIsFlipped(false);
-      setIsMemoOpen(false);
-      setActiveTab('my-card');
       if (toastMsg) {
         showToast(toastMsg);
       }
       modals.openCreateAccount();
     },
     [modals.openCreateAccount, showToast]
+  );
+
+  const sampleDraftCards = React.useMemo(() => {
+    if (!isSamplePreview || sampleDraftedIds.length === 0) return [];
+    const draftedSet = new Set(sampleDraftedIds);
+    return [...sampleMyCards, ...sampleVaultCards].filter((c) => draftedSet.has(c.id));
+  }, [isSamplePreview, sampleDraftedIds, sampleMyCards, sampleVaultCards]);
+
+  const sampleCategories = React.useMemo(() => {
+    const merged = new Set<string>(DEFAULT_VAULT_CATEGORIES);
+    for (const c of sampleVaultCards) {
+      if (c.category && c.category.trim()) {
+        merged.add(c.category.trim());
+      }
+    }
+    return Array.from(merged);
+  }, [sampleVaultCards]);
+
+  const handleOpenSampleCreateMyCard = useCallback(() => {
+    const slugSuffix = String(Date.now()).slice(-4);
+    const defaultSlug = `card-${slugSuffix}`;
+    const template: StoredCard = {
+      id: `sample-my-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      isMyCard: true,
+      isDefault: sampleMyCards.length === 0,
+      slug: defaultSlug,
+      owner_key: '',
+      customDomain: '',
+      category: '글로벌 네트워크',
+      theme: activeSampleMyCard?.theme || 'pure_white',
+      layout_type: 'editorial_minimal',
+      card_features: {
+        show_en_name: true,
+        show_sub_org: true,
+        show_address: true,
+        monogram_text: '',
+      },
+      createdAt: new Date().toISOString().split('T')[0],
+      notes: '',
+      data: {
+        organization: '',
+        organizationKr: '',
+        subOrg: '',
+        name: '',
+        nameEn: '',
+        nameKr: '',
+        title: '',
+        titleKr: '',
+        phone: '',
+        phoneRaw: '',
+        whatsappUrl: '',
+        email: '',
+        website: `https://${APP_BASE_DOMAIN}/card/${defaultSlug}`,
+        websiteDisplay: `${APP_BASE_DOMAIN}/card/${defaultSlug}`,
+        addressLines: [],
+        addressKr: '',
+        address_en: '',
+        addressEn: '',
+        details: {
+          en_name: '',
+          sub_org: '',
+          address: '',
+          address_en: '',
+          slogan: '',
+          show_address: true,
+          show_en_name: true,
+        },
+        googleMapsUrl: '',
+        naverMapsUrl: '',
+        backTitle: '',
+        backSubtitle: '',
+        backTagline: '',
+        backHqAddress: '',
+      },
+    };
+    modals.openEditor(template, true);
+  }, [sampleMyCards.length, activeSampleMyCard?.theme, modals.openEditor]);
+
+  const handleOpenSampleCreateVaultCard = useCallback(() => {
+    const template: StoredCard = {
+      id: `sample-vault-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      isMyCard: false,
+      isDefault: false,
+      theme: 'pure_white',
+      layout_type: 'editorial_minimal',
+      card_features: {
+        show_en_name: true,
+        show_sub_org: true,
+        show_address: true,
+        monogram_text: '',
+      },
+      category: 'VIP 파트너',
+      createdAt: new Date().toISOString().split('T')[0],
+      notes: '',
+      data: {
+        organization: '',
+        organizationKr: '',
+        subOrg: '',
+        name: '',
+        nameEn: '',
+        nameKr: '',
+        title: '',
+        titleKr: '',
+        phone: '',
+        phoneRaw: '',
+        whatsappUrl: '',
+        email: '',
+        website: '',
+        websiteDisplay: '',
+        addressLines: [],
+        addressKr: '',
+        address_en: '',
+        addressEn: '',
+        details: {
+          en_name: '',
+          sub_org: '',
+          address: '',
+          address_en: '',
+          slogan: '',
+          show_address: true,
+          show_en_name: true,
+        },
+        googleMapsUrl: '',
+        naverMapsUrl: '',
+        backTitle: '',
+        backSubtitle: '',
+        backTagline: '',
+        backHqAddress: '',
+      },
+    };
+    modals.openEditor(template, true);
+  }, [modals.openEditor]);
+
+  const handleSaveSampleCard = useCallback(
+    (savedCard: StoredCard) => {
+      if (savedCard.isMyCard) {
+        const normalizedId =
+          savedCard.id || `sample-my-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        const hadNoMyCards = sampleMyCards.length === 0;
+        const shouldBeDefault = Boolean(savedCard.isDefault) || hadNoMyCards;
+        const nextMyCard: StoredCard = {
+          ...savedCard,
+          id: normalizedId,
+          isMyCard: true,
+          isDefault: shouldBeDefault,
+        };
+
+        setSampleMyCards((prev) => {
+          const base = shouldBeDefault
+            ? prev.map((c) => ({ ...c, isDefault: false }))
+            : prev;
+          const exists = base.some((c) => c.id === normalizedId);
+          return exists
+            ? base.map((c) => (c.id === normalizedId ? nextMyCard : c))
+            : [nextMyCard, ...base];
+        });
+        setSelectedSampleMyCardId(normalizedId);
+        setIsFlipped(false);
+        setSampleDraftedIds((prev) =>
+          prev.includes(normalizedId) ? prev : [...prev, normalizedId]
+        );
+      } else {
+        const collidesWithMyCard = sampleMyCards.some((c) => c.id === savedCard.id);
+        const safeVaultId =
+          savedCard.id && !collidesWithMyCard
+            ? savedCard.id
+            : `sample-vault-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        const nowIso = new Date().toISOString();
+        const resolvedMemo = (savedCard.memo ?? savedCard.notes ?? '').trim();
+        const sanitizedVaultCard = sanitizeCardForVault(savedCard, {
+          id: safeVaultId,
+          category: savedCard.category,
+          notes: resolvedMemo || undefined,
+          memo: resolvedMemo || undefined,
+          metAt: savedCard.metAt?.trim() || undefined,
+          metLocation: savedCard.metLocation?.trim() || undefined,
+          createdAt: savedCard.createdAt || nowIso.split('T')[0],
+          created_at: savedCard.created_at || nowIso,
+          updatedAt: nowIso,
+        });
+
+        setSampleVaultCards((prev) => {
+          const exists = prev.some((c) => c.id === sanitizedVaultCard.id);
+          return exists
+            ? prev.map((c) => (c.id === sanitizedVaultCard.id ? sanitizedVaultCard : c))
+            : [sanitizedVaultCard, ...prev];
+        });
+        setSelectedSampleVaultCardId(sanitizedVaultCard.id);
+        setActiveTab('vault');
+        setIsFlipped(false);
+        setSampleDraftedIds((prev) =>
+          prev.includes(sanitizedVaultCard.id) ? prev : [...prev, sanitizedVaultCard.id]
+        );
+      }
+
+      showToast('체험 모드에 임시 저장되었습니다. 영구 보관하려면 로컬 계정을 만들어 주세요.');
+    },
+    [sampleMyCards, showToast]
+  );
+
+  const handleDeleteSampleCard = useCallback(
+    (cardId: string) => {
+      const isSampleMy = sampleMyCards.some((c) => c.id === cardId);
+      if (isSampleMy) {
+        setSampleMyCards((prev) => {
+          const next = prev.filter((c) => c.id !== cardId);
+          if (selectedSampleMyCardId === cardId) {
+            setSelectedSampleMyCardId(next[0]?.id || '');
+          }
+          return next;
+        });
+      } else {
+        setSampleVaultCards((prev) => prev.filter((c) => c.id !== cardId));
+        if (selectedSampleVaultCardId === cardId) {
+          setSelectedSampleVaultCardId(null);
+        }
+      }
+      setSampleDraftedIds((prev) => prev.filter((id) => id !== cardId));
+      showToast('체험 모드에서 명함이 삭제되었습니다.');
+    },
+    [sampleMyCards, selectedSampleMyCardId, selectedSampleVaultCardId, showToast]
+  );
+
+  const handleImportSampleCards = useCallback(
+    (importedCards: StoredCard[]) => {
+      if (!importedCards || importedCards.length === 0) return;
+      const nowIso = new Date().toISOString();
+      const sanitizedBatch = importedCards.map((card, index) =>
+        sanitizeCardForVault(card, {
+          id:
+            card.id && !sampleMyCards.some((m) => m.id === card.id)
+              ? card.id
+              : `sample-vault-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`,
+          createdAt: card.createdAt || nowIso.split('T')[0],
+          created_at: card.created_at || nowIso,
+          updatedAt: nowIso,
+        })
+      );
+      setSampleVaultCards((prev) => [...sanitizedBatch, ...prev]);
+      setSampleDraftedIds((prev) => {
+        const next = new Set(prev);
+        sanitizedBatch.forEach((c) => next.add(c.id));
+        return Array.from(next);
+      });
+      setTimeout(() => {
+        showToast('체험 모드에 임시 저장되었습니다. 영구 보관하려면 로컬 계정을 만들어 주세요.');
+      }, 40);
+    },
+    [sampleMyCards, showToast]
   );
 
   const handleResolveOwnedMyCard = useCallback(
@@ -362,7 +571,6 @@ export default function App() {
    * - Switching to 'vault' requires unlock (when PIN is configured) and returns to the Vault list/grid.
    */
   const handleTabChange = (nextTab: ActiveTab, targetMyCardId?: string) => {
-    setIsAccountMenuOpen(false);
     if (isSamplePreview) {
       cleanPublicUrlToRoot();
       setIsFlipped(false);
@@ -547,475 +755,70 @@ export default function App() {
         className="min-h-[100dvh] overflow-x-clip w-full max-w-[100vw] bg-[var(--app-bg)] text-[var(--app-text)] flex flex-col justify-between selection:bg-[var(--app-accent)] selection:text-[var(--app-accent-fg)] font-sans pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]"
       >
         {/* Top Minimalist Header */}
-        <header className="shrink-0 sticky top-0 z-40 w-full border-b border-[var(--app-border)] bg-[var(--app-header-bg)] backdrop-blur-xl px-3 sm:px-8 py-2 sm:py-2.5 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] sm:pt-[calc(0.625rem+env(safe-area-inset-top,0px))] pl-[calc(0.75rem+env(safe-area-inset-left,0px))] pr-[calc(0.75rem+env(safe-area-inset-right,0px))] sm:pl-[calc(2rem+env(safe-area-inset-left,0px))] sm:pr-[calc(2rem+env(safe-area-inset-right,0px))] flex items-center justify-between gap-1.5 sm:gap-2 main-app-header">
-          {isUnauthenticatedExternalVisitor ? (
-            /* Public Unauthenticated Visitor Header: Muted Brand Watermark Only */
-            <>
-              <div className="w-full flex items-center justify-center py-0.5 header-brand-mark">
-                <span className="text-xs text-[var(--app-text-muted)] tracking-widest uppercase font-medium select-none font-sans">
-                  GOGUMA CARD STUDIO
-                </span>
-              </div>
-              <div className="hidden header-landscape-mini items-center bg-[var(--app-surface)] border border-[var(--app-border)] rounded-full px-3 py-1 shadow-[var(--app-shadow)]">
-                <span className="text-[10px] font-semibold text-[var(--app-text)] tracking-widest uppercase">
-                  GOGUMA
-                </span>
-              </div>
-            </>
-          ) : isLoggedOutLanding ? (
-            /* Minimal Unauthenticated Welcome Header: Theme Selector + About Only */
-            <>
-              <div className="flex items-center gap-2 header-full-nav">
-                <span className="text-sm font-black tracking-tight text-[var(--app-text)] select-none">
-                  eerum
-                </span>
-                <span className="hidden sm:inline text-[10px] font-mono uppercase tracking-[0.16em] text-[var(--app-text-muted)]">
-                  Local-First Vault
-                </span>
-              </div>
-
-              <div className="flex items-center justify-end gap-1.5 sm:gap-2 min-h-[32px] header-full-nav">
-                <AppThemeSelector />
-                <button
-                  type="button"
-                  onClick={() => modals.openAbout('philosophy')}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-xs font-medium text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-colors cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                  title="앱 소개 · Net to Dot 철학"
-                  aria-label="앱 소개"
-                >
-                  <Compass className="w-3.5 h-3.5 shrink-0" />
-                  <span className="hidden sm:inline">앱 소개</span>
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Left Spacer / Brand Indicator for Header Balance on sm+ */}
-              <div className="hidden sm:flex sm:flex-1 items-center justify-start header-full-nav">
-                <span className="text-xs font-black tracking-tight text-[var(--app-text-muted)] select-none">
-                  eerum
-                </span>
-              </div>
-
-              {/* Compressed Mini Icon in Landscape Mode */}
-              <div className="hidden header-landscape-mini items-center gap-1 bg-[var(--app-surface)] border border-[var(--app-border)] rounded-full p-1 shadow-[var(--app-shadow)]">
-                <button
-                  onClick={() => {
-                    if (isMyCardTabActive) {
-                      handleTabChange('vault');
-                    } else {
-                      handleTabChange('my-card');
-                    }
-                  }}
-                  className="p-1.5 rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
-                  title={isMyCardTabActive ? '보관함으로 전환' : '내 명함으로 전환'}
-                  aria-label="화면 전환"
-                >
-                  {isMyCardTabActive ? (
-                    <FolderArchive className="w-3.5 h-3.5" />
-                  ) : (
-                    <CreditCard className="w-3.5 h-3.5" />
-                  )}
-                </button>
-                {!isSamplePreview && vault.isPinConfigured && (
-                  <button
-                    onClick={() => {
-                      vault.lockApp();
-                      showToast('화면이 보안 잠금되었습니다.');
-                    }}
-                    className="p-1.5 rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
-                    title="즉시 화면 잠금"
-                    aria-label="화면 잠금"
-                  >
-                    <Lock className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                {!isSamplePreview && (
-                  <button
-                    onClick={modals.toggleSettings}
-                    className="p-1.5 rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
-                    title="설정"
-                    aria-label="설정"
-                  >
-                    <Settings className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* Center Navigation: Switcher (내 명함 vs 명함 보관함) */}
-              <nav aria-label="주요 메뉴" className="flex items-center gap-1 sm:gap-1.5 min-w-0 header-full-nav">
-                <button
-                  onClick={() => handleTabChange('my-card')}
-                  className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-semibold cursor-pointer whitespace-nowrap shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
-                    isMyCardTabActive
-                      ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] shadow-sm'
-                      : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)]'
-                  }`}
-                >
-                  <CreditCard className="w-3.5 h-3.5 shrink-0" />
-                  <span>내 명함</span>
-                </button>
-
-                <button
-                  onClick={() => handleTabChange('vault')}
-                  className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-semibold cursor-pointer whitespace-nowrap shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
-                    isVaultTabActive
-                      ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] shadow-sm'
-                      : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)]'
-                  }`}
-                >
-                  <FolderArchive className="w-3.5 h-3.5 shrink-0" />
-                  <span>명함 보관함</span>
-                  {!isSamplePreview && vault.isPinConfigured && vault.isLocked && (
-                    <Lock className="w-3 h-3 shrink-0" />
-                  )}
-                  <span
-                    className={`text-[10px] font-mono tabular-nums ${
-                      isVaultTabActive ? 'opacity-85' : 'text-[var(--app-text-muted)]'
-                    }`}
-                  >
-                    {headerVaultCount}
-                  </span>
-                </button>
-              </nav>
-
-              {/* Right Header: Sample CTA OR Logged-In Account Pill, Lock & Settings */}
-              <div className="sm:flex-1 flex items-center justify-end gap-1 sm:gap-2 min-h-[32px] relative shrink-0 header-full-nav">
-                <AppThemeSelector />
-
-                {isSamplePreview ? (
-                  <div className="inline-flex items-center rounded-full bg-[var(--app-surface)] border border-[var(--app-border)] shadow-sm shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => exitSampleToCreateAccount()}
-                      className="pl-2.5 sm:pl-3 pr-1.5 sm:pr-2 py-1.5 text-[11px] sm:text-xs font-semibold text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] rounded-l-full transition-colors cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                    >
-                      계정 만들기
-                    </button>
-                    <span className="h-3.5 w-px bg-[var(--app-border)] shrink-0" aria-hidden="true" />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsSamplePreview(false);
-                        setSampleMyCards([]);
-                        setSampleVaultCards([]);
-                        setSelectedSampleMyCardId('');
-                        setSelectedSampleVaultCardId(null);
-                        setSampleModalCardId(null);
-                        setIsFlipped(false);
-                        setIsMemoOpen(false);
-                        setActiveTab('my-card');
-                      }}
-                      title="샘플 종료"
-                      aria-label="샘플 종료"
-                      className="pl-1.5 pr-2 sm:pr-2.5 py-1.5 text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] rounded-r-full transition-colors cursor-pointer inline-flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    {/* Active Local Account Profile Pill & Dropdown */}
-                    {vault.activeAccount && (
-                      <div className="relative" ref={accountMenuRef}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            modals.closeSettings();
-                            setIsAccountMenuOpen((prev) => !prev);
-                          }}
-                          aria-expanded={isAccountMenuOpen}
-                          aria-haspopup="menu"
-                          className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                          title={`로컬 계정: ${vault.activeAccount.displayName}`}
-                        >
-                          <UserCheck className="w-3.5 h-3.5 text-[var(--app-accent)] shrink-0" />
-                          <span className="truncate max-w-[72px] sm:max-w-[110px]">
-                            {vault.activeAccount.displayName}
-                          </span>
-                          <ChevronDown
-                            className={`w-3 h-3 text-[var(--app-text-muted)] transition-transform duration-150 shrink-0 ${
-                              isAccountMenuOpen ? 'rotate-180' : ''
-                            }`}
-                          />
-                        </button>
-
-                        {isAccountMenuOpen && (
-                          <div
-                            role="menu"
-                            aria-label="로컬 계정 메뉴"
-                            className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] p-2 z-50 animate-in fade-in zoom-in-95 duration-150 text-xs text-[var(--app-text)]"
-                          >
-                            <div className="px-2.5 py-2 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] mb-1.5">
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="font-bold text-[var(--app-text)] truncate">
-                                  {vault.activeAccount.displayName}
-                                </span>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--app-surface)] border border-[var(--app-border)] text-[var(--app-text-muted)] shrink-0">
-                                  {vault.isPinConfigured ? 'PIN 잠금' : '잠금 없음'}
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-[var(--app-text-muted)] mt-1 tabular-nums">
-                                내 명함 {vault.myCards.length} · 보관함 {vault.vaultCards.length}
-                              </p>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsAccountMenuOpen(false);
-                                vault.handleLogoutAccount();
-                              }}
-                              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left font-medium"
-                            >
-                              <LogOut className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                              <span>계정 잠금 / 로그아웃</span>
-                            </button>
-
-                            {vault.accountsList.filter((a) => a.id !== vault.activeAccount?.id).length > 0 && (
-                              <>
-                                <div className="my-1.5 border-t border-[var(--app-border)]" />
-                                <p className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-text-muted)]">
-                                  로컬 계정 전환
-                                </p>
-                                <div className="max-h-36 overflow-y-auto space-y-0.5">
-                                  {vault.accountsList
-                                    .filter((a) => a.id !== vault.activeAccount?.id)
-                                    .map((acct) => (
-                                      <button
-                                        key={acct.id}
-                                        type="button"
-                                        onClick={async () => {
-                                          setIsAccountMenuOpen(false);
-                                          if (!acct.hasPin) {
-                                            await vault.handleLoginAccount(acct.id);
-                                          } else {
-                                            vault.handleLogoutAccount();
-                                            showToast(`'${acct.displayName}' 계정의 PIN을 입력해 주세요.`);
-                                          }
-                                        }}
-                                        className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
-                                      >
-                                        <span className="truncate">{acct.displayName}</span>
-                                        {acct.hasPin && (
-                                          <Lock className="w-3 h-3 text-[var(--app-text-muted)] shrink-0" />
-                                        )}
-                                      </button>
-                                    ))}
-                                </div>
-                              </>
-                            )}
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsAccountMenuOpen(false);
-                                modals.openCreateAccount();
-                              }}
-                              className="w-full flex items-center gap-2.5 px-2.5 py-2 mt-0.5 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
-                            >
-                              <UserPlus className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                              <span>새 로컬 계정 추가</span>
-                            </button>
-
-                            <div className="my-1.5 border-t border-[var(--app-border)]" />
-                            <p className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-text-muted)]">
-                              계정 보안 및 백업
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsAccountMenuOpen(false);
-                                modals.openPinConfig(vault.isPinConfigured ? 'change' : 'setup');
-                              }}
-                              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
-                            >
-                              <KeyRound className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                              <span>{vault.isPinConfigured ? 'PIN 번호 변경' : '4자리 PIN 설정'}</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsAccountMenuOpen(false);
-                                vault.requireUnlock(() => modals.openBackup('export'));
-                              }}
-                              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
-                            >
-                              <HardDriveDownload className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                              <span>암호화 백업 (.eerum)</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {vault.isPinConfigured && (
-                      <button
-                        onClick={() => {
-                          setIsAccountMenuOpen(false);
-                          vault.lockApp();
-                          showToast('화면이 보안 잠금되었습니다.');
-                        }}
-                        className="p-2 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-all cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                        title="즉시 화면 잠금 (Lock Screen)"
-                        aria-label="화면 잠금"
-                      >
-                        <Lock className="w-4 h-4" />
-                      </button>
-                    )}
-
-                    <div className="relative" ref={modals.settingsMenuRef}>
-                      <button
-                        onClick={() => {
-                          setIsAccountMenuOpen(false);
-                          modals.toggleSettings();
-                        }}
-                        aria-expanded={modals.isSettingsOpen}
-                        aria-haspopup="menu"
-                        className="p-2 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition-all cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                        title="보안 및 기기 설정"
-                        aria-label="설정 메뉴"
-                      >
-                        <Settings className="w-4 h-4" />
-                      </button>
-
-                      {modals.isSettingsOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 text-xs text-[var(--app-text)]">
-                          <button
-                            onClick={() => {
-                              modals.closeSettings();
-                              modals.openPinConfig(vault.isPinConfigured ? 'change' : 'setup');
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
-                          >
-                            <Lock className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                            <span>{vault.isPinConfigured ? 'PIN 번호 변경 / 관리' : '4자리 PIN 보안 설정'}</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              modals.closeSettings();
-                              modals.openBiometrics();
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
-                          >
-                            <Fingerprint className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                            <span>생체 인증 (Face ID / 지문)</span>
-                          </button>
-
-                          <div className="my-1 border-t border-[var(--app-border)]" />
-
-                          <button
-                            onClick={() => {
-                              modals.closeSettings();
-                              vault.requireUnlock(() => {
-                                modals.openBackup('export');
-                              });
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
-                          >
-                            <HardDriveDownload className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                            <span>보관함 백업 내보내기 (.eerum)</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              modals.closeSettings();
-                              vault.requireUnlock(() => {
-                                modals.openBackup('restore');
-                              });
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
-                          >
-                            <Upload className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                            <span>백업 파일에서 복원</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              modals.closeSettings();
-                              modals.openSync();
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
-                          >
-                            <Smartphone className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                            <span>기기 연결 및 동기화</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              modals.closeSettings();
-                              if (pwa.isInstalled) {
-                                showToast('이미 독립형 PWA 앱으로 설치되어 실행 중입니다.');
-                                setIsPWAInstallOpen(true);
-                              } else if (pwa.isInstallable) {
-                                pwa.install().then((installed) => {
-                                  if (installed) {
-                                    showToast('앱이 성공적으로 설치되었습니다.');
-                                  } else {
-                                    setIsPWAInstallOpen(true);
-                                  }
-                                });
-                              } else {
-                                setIsPWAInstallOpen(true);
-                              }
-                            }}
-                            className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <Download className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                              <span>홈 화면에 앱 설치 (PWA)</span>
-                            </div>
-                            {pwa.isInstalled && (
-                              <span className="text-[10px] text-emerald-600 bg-emerald-500/15 px-1.5 py-0.5 rounded font-medium border border-emerald-500/25">
-                                설치됨
-                              </span>
-                            )}
-                          </button>
-
-                          <div className="my-1 border-t border-[var(--app-border)]" />
-
-                          <button
-                            onClick={() => {
-                              modals.closeSettings();
-                              modals.openAbout('philosophy');
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
-                          >
-                            <Compass className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                            <span>앱 소개 · Net to Dot 철학</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              modals.closeSettings();
-                              vault.handleLogoutAccount();
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-[var(--app-text)] transition-colors cursor-pointer text-left"
-                          >
-                            <LogOut className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-                            <span>로그아웃 / 계정 전환</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              modals.closeSettings();
-                              modals.openReset();
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--app-surface-subtle)] text-rose-600 dark:text-rose-400 transition-colors cursor-pointer text-left"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5 shrink-0" />
-                            <span>로컬 데이터 초기화</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            </>
-          )}
-        </header>
+        <AppHeader
+          isUnauthenticatedExternalVisitor={isUnauthenticatedExternalVisitor}
+          isLoggedOutLanding={isLoggedOutLanding}
+          isSamplePreview={isSamplePreview}
+          isMyCardTabActive={isMyCardTabActive}
+          isVaultTabActive={isVaultTabActive}
+          headerVaultCount={headerVaultCount}
+          activeAccount={vault.activeAccount}
+          accountsList={vault.accountsList}
+          myCardsCount={vault.myCards.length}
+          vaultCardsCount={vault.vaultCards.length}
+          isPinConfigured={vault.isPinConfigured}
+          isLocked={vault.isLocked}
+          isSettingsOpen={modals.isSettingsOpen}
+          settingsMenuRef={modals.settingsMenuRef}
+          isPwaInstalled={pwa.isInstalled}
+          onTabChange={handleTabChange}
+          onExitSampleToCreateAccount={() => exitSampleToCreateAccount()}
+          onExitSample={() => {
+            setIsSamplePreview(false);
+            setSampleMyCards([]);
+            setSampleVaultCards([]);
+            setSampleDraftedIds([]);
+            setSelectedSampleMyCardId('');
+            setSelectedSampleVaultCardId(null);
+            setSampleModalCardId(null);
+            setIsFlipped(false);
+            setIsMemoOpen(false);
+            setActiveTab('my-card');
+          }}
+          onLoginAccount={vault.handleLoginAccount}
+          onLogoutAccount={vault.handleLogoutAccount}
+          onLockApp={vault.lockApp}
+          onOpenCreateAccount={modals.openCreateAccount}
+          onOpenPinConfig={modals.openPinConfig}
+          onOpenBackup={(tab) => {
+            vault.requireUnlock(() => {
+              modals.openBackup(tab);
+            });
+          }}
+          onToggleSettings={modals.toggleSettings}
+          onCloseSettings={modals.closeSettings}
+          onOpenBiometrics={modals.openBiometrics}
+          onOpenSync={modals.openSync}
+          onClickPwaInstall={() => {
+            if (pwa.isInstalled) {
+              showToast('이미 독립형 PWA 앱으로 설치되어 실행 중입니다.');
+              setIsPWAInstallOpen(true);
+            } else if (pwa.isInstallable) {
+              pwa.install().then((installed) => {
+                if (installed) {
+                  showToast('앱이 성공적으로 설치되었습니다.');
+                } else {
+                  setIsPWAInstallOpen(true);
+                }
+              });
+            } else {
+              setIsPWAInstallOpen(true);
+            }
+          }}
+          onOpenAbout={() => modals.openAbout('philosophy')}
+          onOpenReset={modals.openReset}
+          onShowToast={showToast}
+        />
 
         {/* Main Showcase Viewport */}
         <main
@@ -1110,7 +913,7 @@ export default function App() {
               onDeleteAccount={vault.handleDeleteLocalAccount}
             />
           ) : isSamplePreview ? (
-            /* ================= FULL READ-ONLY SAMPLE SANDBOX (MY CARD + VAULT) ================= */
+            /* ================= EPHEMERAL INTERACTIVE SAMPLE SANDBOX (MY CARD + VAULT) ================= */
             activeTab === 'vault' ? (
               activeSampleVaultCard ? (
                 <div className="w-full flex flex-col items-center space-y-2 sm:space-y-4 animate-in fade-in duration-200">
@@ -1150,11 +953,9 @@ export default function App() {
                             setSampleModalCardId(cardToShare.id);
                             modals.openShare();
                           }}
-                          onOpenEdit={() =>
-                            exitSampleToCreateAccount(
-                              '샘플 명함은 수정할 수 없습니다. 로컬 계정을 만들어 보세요.'
-                            )
-                          }
+                          onOpenEdit={(cardToEdit) => {
+                            modals.openEditor(cardToEdit, false);
+                          }}
                           getCardUrl={getCardShareUrl}
                           onShowToast={showToast}
                           mode="carousel"
@@ -1176,30 +977,17 @@ export default function App() {
                         setIsFlipped(false);
                         setSelectedSampleVaultCardId(selected.id);
                       }}
-                      onEditCard={() =>
-                        exitSampleToCreateAccount(
-                          '샘플 명함은 수정할 수 없습니다. 로컬 계정을 만들어 보세요.'
-                        )
-                      }
-                      onDeleteCard={() =>
-                        exitSampleToCreateAccount(
-                          '샘플 모드에서는 삭제할 수 없습니다. 로컬 계정을 만들어 보세요.'
-                        )
-                      }
+                      onEditCard={(cardToEdit) => {
+                        modals.openEditor(cardToEdit, false);
+                      }}
+                      onDeleteCard={handleDeleteSampleCard}
                       onExportCard={(cardToExport) => {
                         setSampleModalCardId(cardToExport.id);
                         modals.openExport();
                       }}
-                      onOpenScan={() =>
-                        exitSampleToCreateAccount(
-                          '새 명함을 등록하려면 로컬 계정을 먼저 만들어 주세요.'
-                        )
-                      }
-                      onOpenEditor={() =>
-                        exitSampleToCreateAccount(
-                          '새 명함을 등록하려면 로컬 계정을 먼저 만들어 주세요.'
-                        )
-                      }
+                      onOpenScan={modals.openScan}
+                      onOpenEditor={handleOpenSampleCreateVaultCard}
+                      onOpenImportContacts={modals.openImportContacts}
                       onShowToast={showToast}
                     />
                   </Suspense>
@@ -1208,71 +996,94 @@ export default function App() {
             ) : (
               /* Sample Sandbox: My Card View with Ephemeral ThemeSelector + CardNavigator */
               <div className="w-full min-h-0 flex flex-col items-center gap-3 sm:gap-4">
-                {activeSampleMyCard && (
-                  <Suspense fallback={null}>
-                    <ThemeSelector
-                      currentTheme={activeSampleMyCard.theme}
-                      onSelectTheme={(nextTheme) => {
-                        setSampleMyCards((prev) =>
-                          prev.map((c) =>
-                            c.id === activeSampleMyCard.id
-                              ? { ...c, theme: nextTheme, customBgColor: undefined }
-                              : c
-                          )
-                        );
-                      }}
-                    />
-                  </Suspense>
-                )}
-
-                {activeSampleMyCard && (
-                  <LazyErrorBoundary resetKey={activeSampleMyCard.id}>
-                    <Suspense
-                      fallback={
-                        <div
-                          className="w-full max-w-[540px] aspect-[9/5] rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)]"
-                          aria-hidden="true"
-                        />
-                      }
-                    >
-                      <CardNavigator
-                        cards={sampleMyCards}
-                        activeCardId={activeSampleMyCard.id}
-                        onSelectCard={(selectedId) => {
-                          setIsFlipped(false);
-                          setSelectedSampleMyCardId(selectedId);
+                {activeSampleMyCard ? (
+                  <>
+                    <Suspense fallback={null}>
+                      <ThemeSelector
+                        currentTheme={activeSampleMyCard.theme}
+                        onSelectTheme={(nextTheme) => {
+                          setSampleMyCards((prev) =>
+                            prev.map((c) =>
+                              c.id === activeSampleMyCard.id
+                                ? {
+                                    ...c,
+                                    theme: nextTheme,
+                                    card_features: c.card_features
+                                      ? { ...c.card_features, custom_bg_color: '' }
+                                      : undefined,
+                                  }
+                                : c
+                            )
+                          );
                         }}
-                        onCreateNewCard={() =>
-                          exitSampleToCreateAccount(
-                            '나만의 명함을 만들려면 로컬 계정을 먼저 만들어 주세요.'
-                          )
-                        }
-                        onOpenEdit={() =>
-                          exitSampleToCreateAccount(
-                            '샘플 명함은 편집할 수 없습니다. 로컬 계정을 만들어 나만의 명함을 제작해 보세요.'
-                          )
-                        }
-                        onOpenShare={(cardToShare) => {
-                          setSampleModalCardId(cardToShare.id);
-                          modals.openShare();
-                        }}
-                        onOpenQuickQr={(cardForQuickQr) => {
-                          setSampleModalCardId(cardForQuickQr.id);
-                          modals.openQuickQr();
-                        }}
-                        onOpenNfc={(cardForNfc) => {
-                          setSampleModalCardId(cardForNfc.id);
-                          modals.openNfc();
-                        }}
-                        onOpenPrint={(cardForPrint) => {
-                          setSampleModalCardId(cardForPrint.id);
-                          modals.openPrint();
-                        }}
-                        onShowToast={showToast}
-                        mode="carousel"
                       />
                     </Suspense>
-                  </LazyErrorBoundary>
+
+                    <LazyErrorBoundary resetKey={activeSampleMyCard.id}>
+                      <Suspense
+                        fallback={
+                          <div
+                            className="w-full max-w-[540px] aspect-[9/5] rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)]"
+                            aria-hidden="true"
+                          />
+                        }
+                      >
+                        <CardNavigator
+                          cards={sampleMyCards}
+                          activeCardId={activeSampleMyCard.id}
+                          onSelectCard={(selectedId) => {
+                            setIsFlipped(false);
+                            setSelectedSampleMyCardId(selectedId);
+                          }}
+                          onCreateNewCard={handleOpenSampleCreateMyCard}
+                          onOpenEdit={(cardToEdit) => {
+                            modals.openEditor(cardToEdit, false);
+                          }}
+                          onOpenShare={(cardToShare) => {
+                            setSampleModalCardId(cardToShare.id);
+                            modals.openShare();
+                          }}
+                          onOpenQuickQr={(cardForQuickQr) => {
+                            setSampleModalCardId(cardForQuickQr.id);
+                            modals.openQuickQr();
+                          }}
+                          onOpenNfc={(cardForNfc) => {
+                            setSampleModalCardId(cardForNfc.id);
+                            modals.openNfc();
+                          }}
+                          onOpenPrint={(cardForPrint) => {
+                            setSampleModalCardId(cardForPrint.id);
+                            modals.openPrint();
+                          }}
+                          onDeleteCard={(cardToDelete) => {
+                            handleDeleteSampleCard(cardToDelete.id);
+                          }}
+                          onShowToast={showToast}
+                          mode="carousel"
+                        />
+                      </Suspense>
+                    </LazyErrorBoundary>
+                  </>
+                ) : (
+                  <section
+                    aria-label="체험 모드 내 명함 만들기"
+                    className="w-full max-w-[460px] sm:max-w-[500px] md:max-w-[540px] mx-auto rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] px-6 py-12 sm:px-10 sm:py-16 flex flex-col items-center text-center animate-in fade-in duration-300"
+                  >
+                    <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[var(--app-text)]">
+                      체험 중인 내 명함이 없습니다
+                    </h2>
+                    <p className="text-xs text-[var(--app-text-muted)] mt-1.5 leading-relaxed max-w-xs">
+                      새 명함을 디자인해 보고 마음에 들면 로컬 계정으로 저장해 보세요.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleOpenSampleCreateMyCard}
+                      className="mt-6 h-11 px-6 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-sm font-semibold inline-flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+                    >
+                      <Plus className="w-4 h-4 stroke-[2.2]" aria-hidden="true" />
+                      <span>내 명함 만들기</span>
+                    </button>
+                  </section>
                 )}
               </div>
             )
@@ -1298,25 +1109,10 @@ export default function App() {
               )}
 
               {vault.isPinConfigured && vault.isLocked ? (
-                <div className="w-full max-w-lg mx-auto py-16 px-6 flex flex-col items-center justify-center text-center">
-                  <div className="w-16 h-16 rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text)] mb-5 shadow-[var(--app-shadow)]">
-                    <Lock className="w-7 h-7 stroke-[1.5]" />
-                  </div>
-                  <h3 className="text-xl font-bold text-[var(--app-text)] mb-2 tracking-tight">
-                    명함 보관함이 잠겨 있습니다
-                  </h3>
-                  <p className="text-xs text-[var(--app-text-muted)] max-w-sm mb-6 leading-relaxed">
-                    공용 기기 및 타인의 무단 열람을 방지하기 위해 보관함이 4자리 보안 PIN으로 보호되고 있습니다.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={vault.lockApp}
-                    className="px-6 py-3 rounded-2xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] font-semibold text-xs transition-all cursor-pointer shadow-[var(--app-shadow)] active:scale-95 flex items-center gap-2"
-                  >
-                    <KeyRound className="w-4 h-4 stroke-[1.75]" />
-                    <span>보안 PIN 입력하여 잠금 해제</span>
-                  </button>
-                </div>
+                <LockedAccountView
+                  accountName={vault.activeAccount?.displayName}
+                  onUnlock={vault.lockApp}
+                />
               ) : resolvedSelectedVaultCard && !resolvedSelectedVaultCard.isMyCard ? (
                 <div className="w-full flex flex-col items-center gap-3 sm:gap-4 pb-6">
                   <LazyErrorBoundary resetKey={resolvedSelectedVaultCard.id}>
@@ -1670,23 +1466,29 @@ export default function App() {
               modals={modals}
               activeCard={modalTargetCard}
               existingCards={isSamplePreview ? sampleVaultCards : vault.cards}
+              categories={isSamplePreview ? sampleCategories : undefined}
               isSamplePreview={isSamplePreview}
+              sampleDraftCards={isSamplePreview ? sampleDraftCards : undefined}
               activeAccountName={vault.activeAccount?.displayName}
               onLogoutAccount={vault.handleLogoutAccount}
               onCreateLocalAccount={vault.handleCreateLocalAccount}
-              onImportCards={vault.handleImportCards}
+              onImportCards={isSamplePreview ? handleImportSampleCards : vault.handleImportCards}
               onRestoreBackup={vault.handleRestoreVaultBackup}
               onApplyP2PPayload={handleApplyP2PTransfer}
               isOwner={!isPublicExternalView}
               printConfig={printConfig}
               setPrintConfig={setPrintConfig}
-              onSaveCard={vault.handleSaveCard}
-              onDeleteCard={(cardId) => {
-                const c = vault.cards.find((x) => x.id === cardId);
-                if (c) {
-                  vault.handleRequestDeleteCard(c);
-                }
-              }}
+              onSaveCard={isSamplePreview ? handleSaveSampleCard : vault.handleSaveCard}
+              onDeleteCard={
+                isSamplePreview
+                  ? handleDeleteSampleCard
+                  : (cardId) => {
+                      const c = vault.cards.find((x) => x.id === cardId);
+                      if (c) {
+                        vault.handleRequestDeleteCard(c);
+                      }
+                    }
+              }
               onConfirmReset={vault.handleConfirmReset}
               isLocked={vault.isLocked}
               isPinConfigured={vault.isPinConfigured}

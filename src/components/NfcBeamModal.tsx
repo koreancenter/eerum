@@ -9,9 +9,14 @@ import {
   Copy,
   Check,
   Loader2,
+  UserPlus,
+  Share2,
+  Sparkles,
 } from 'lucide-react';
 import { StoredCard } from '@/types/card';
 import { getCardShareUrl, getCardDisplayUrl } from '@/utils/cardSerializer';
+import { downloadVCard } from '@/utils/cardExporter';
+import { shareOrCopyLink } from '@/utils/share';
 import {
   beamCardOverNfc,
   buildCardNdefRecords,
@@ -22,6 +27,13 @@ import {
 } from '@/utils/webNfc';
 
 type NfcBeamStatus = 'idle' | 'writing' | 'success' | 'error';
+
+interface WakeLockSentinelLike {
+  released: boolean;
+  release: () => Promise<void>;
+  addEventListener?: (type: 'release', listener: () => void) => void;
+  removeEventListener?: (type: 'release', listener: () => void) => void;
+}
 
 export interface NfcBeamModalProps {
   isOpen: boolean;
@@ -41,27 +53,84 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
   const [payloadMode, setPayloadMode] = useState<NfcPayloadMode>('url');
   const [status, setStatus] = useState<NfcBeamStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [sharedLink, setSharedLink] = useState(false);
+  const [isWakeLockActive, setIsWakeLockActive] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const wakeLockRef = useRef<WakeLockSentinelLike | null>(null);
 
   const support = useMemo(() => (isOpen ? getWebNfcSupport() : { supported: false }), [isOpen]);
   const cardUrl = getCardShareUrl(card);
   const displayUrl = getCardDisplayUrl(card) || cardUrl.replace(/^https?:\/\//i, '');
-  const primaryName = (card.data.name || card.data.nameKr || '디지털 명함').trim();
-  const subtitle = [
-    card.data.titleKr || card.data.title,
-    card.data.organizationKr || card.data.organization,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const data = card.data;
+  const primaryName = (data.name || data.nameKr || '디지털 명함').trim();
+  const primaryTitle = (data.titleKr || data.title || '').trim();
+  const primaryOrg = (data.organizationKr || data.organization || '').trim();
 
   const estimatedBytes = useMemo(() => {
     if (!isOpen) return 0;
     return estimateNdefPayloadBytes(buildCardNdefRecords(card, payloadMode));
   }, [isOpen, card, payloadMode]);
 
-  // Cancel any active NFC write on unmount or close
+  // Screen Wake Lock API: prevent screen dimming during in-person NFC tap
+  useEffect(() => {
+    if (!isOpen) return;
+    let isDisposed = false;
+
+    const requestWakeLock = async () => {
+      if (typeof navigator === 'undefined') return;
+      const navWithWakeLock = navigator as Navigator & {
+        wakeLock?: { request: (type: 'screen') => Promise<WakeLockSentinelLike> };
+      };
+      if (!navWithWakeLock.wakeLock || typeof navWithWakeLock.wakeLock.request !== 'function') {
+        return;
+      }
+
+      try {
+        if (wakeLockRef.current && !wakeLockRef.current.released) {
+          return;
+        }
+        const sentinel = await navWithWakeLock.wakeLock.request('screen');
+        if (isDisposed) {
+          sentinel.release().catch(() => {});
+          return;
+        }
+        wakeLockRef.current = sentinel;
+        setIsWakeLockActive(true);
+        sentinel.addEventListener?.('release', () => {
+          if (!isDisposed) {
+            setIsWakeLockActive(false);
+          }
+        });
+      } catch {
+        if (!isDisposed) {
+          setIsWakeLockActive(false);
+        }
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !isDisposed) {
+        requestWakeLock();
+      }
+    };
+
+    requestWakeLock();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      isDisposed = true;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (wakeLockRef.current && !wakeLockRef.current.released) {
+        wakeLockRef.current.release().catch(() => {});
+      }
+      wakeLockRef.current = null;
+      setIsWakeLockActive(false);
+    };
+  }, [isOpen]);
+
+  // Cancel any active NFC write on unmount or close and handle Escape
   useEffect(() => {
     if (!isOpen) {
       abortControllerRef.current?.abort();
@@ -87,6 +156,15 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  const handleSelectMode = (nextMode: NfcPayloadMode) => {
+    if (status === 'writing') return;
+    setPayloadMode(nextMode);
+    if (status === 'success' || status === 'error') {
+      setStatus('idle');
+      setErrorMessage('');
+    }
+  };
 
   const handleCancelBeam = () => {
     abortControllerRef.current?.abort();
@@ -132,12 +210,31 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
     }
   };
 
-  const handleCopyFallback = async () => {
+  const handleSaveVCard = () => {
+    downloadVCard(data);
+    onShowToast?.(`${primaryName}님의 연락처(.vcf)가 저장되었습니다.`);
+  };
+
+  const handleWebShare = async () => {
+    await shareOrCopyLink({
+      title: primaryOrg ? `${primaryName} — ${primaryOrg}` : primaryName,
+      text: [primaryOrg, primaryTitle, primaryName, '디지털 명함'].filter(Boolean).join(' '),
+      url: cardUrl,
+      onCopied: () => {
+        setSharedLink(true);
+        setTimeout(() => setSharedLink(false), 2000);
+        onShowToast?.('명함 링크가 클립보드에 복사되었습니다.');
+      },
+      onCopyError: () => onShowToast?.('명함 링크 복사에 실패했습니다.'),
+    });
+  };
+
+  const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(cardUrl);
-      setCopied(true);
+      setCopiedLink(true);
       onShowToast?.('명함 링크가 클립보드에 복사되었습니다.');
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopiedLink(false), 2000);
     } catch {
       onShowToast?.('링크 복사에 실패했습니다.');
     }
@@ -149,272 +246,283 @@ export const NfcBeamModal: React.FC<NfcBeamModalProps> = ({
     onClose();
   };
 
+  const handleSwitchToQuickQr = () => {
+    handleCloseSafely();
+    onOpenQuickQr?.();
+  };
+
+  const captionText =
+    payloadMode === 'vcard'
+      ? `${data.phone || data.email || displayUrl} · ${estimatedBytes} B`
+      : `${displayUrl} · ${estimatedBytes} B`;
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--app-overlay)] backdrop-blur-xl overflow-y-auto animate-in fade-in duration-200"
-      onClick={handleCloseSafely}
+      role="dialog"
+      aria-modal="true"
+      aria-label="NFC 명함 패스"
+      className="fixed inset-0 z-50 bg-[var(--app-bg)] text-[var(--app-text)] flex flex-col justify-between overflow-y-auto pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] animate-in fade-in duration-150"
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Web NFC 명함 전송"
-        className="relative w-full max-w-[400px] max-h-[92dvh] overflow-y-auto bg-[var(--app-surface)] border border-[var(--app-border)] rounded-3xl px-5 py-6 sm:px-7 sm:py-7 shadow-2xl flex flex-col items-center my-auto text-[var(--app-text)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          type="button"
-          onClick={handleCloseSafely}
-          className="absolute top-3.5 right-3.5 min-w-[40px] min-h-[40px] flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] rounded-full hover:bg-[var(--app-surface-subtle)] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-          title="닫기"
-          aria-label="닫기"
-        >
-          <X className="w-4 h-4 stroke-[1.75]" />
-        </button>
-
-        {/* Header */}
-        <div className="w-full text-center px-8 mb-5">
-          <div className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.22em] text-[var(--app-text-muted)] mb-1">
-            <Nfc className="w-3.5 h-3.5 text-[var(--app-accent)]" />
-            <span>WEB NFC BEAM</span>
-          </div>
-          <h3 className="text-base sm:text-lg font-semibold text-[var(--app-text)] tracking-tight truncate">
-            {primaryName}
-          </h3>
-          {subtitle && (
-            <p className="text-xs text-[var(--app-text-muted)] mt-0.5 truncate">{subtitle}</p>
+      {/* Top Pass Header (Identical Spec to Quick QR Pass) */}
+      <div className="w-full max-w-md mx-auto px-5 pt-3 pb-1 flex items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          {isWakeLockActive && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-[10px] text-emerald-700 dark:text-emerald-300 font-medium whitespace-nowrap">
+              <Sparkles className="w-2.5 h-2.5 shrink-0" />
+              <span>화면 켜짐 유지</span>
+            </span>
           )}
         </div>
 
-        {/* NDEF Payload Format Selector */}
-        <div className="w-full space-y-2 mb-5">
-          <div
-            role="tablist"
-            aria-label="NFC 전송 데이터 형식"
-            className="w-full grid grid-cols-3 p-1 rounded-xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)]"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={payloadMode === 'url'}
-              disabled={status === 'writing'}
-              onClick={() => {
-                setPayloadMode('url');
-                if (status === 'success' || status === 'error') {
-                  setStatus('idle');
-                  setErrorMessage('');
-                }
-              }}
-              className={`py-2 px-2 rounded-lg text-[11px] cursor-pointer whitespace-nowrap disabled:opacity-50 ${
-                payloadMode === 'url'
-                  ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] font-semibold shadow-sm'
-                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
-              }`}
-            >
-              명함 링크
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={payloadMode === 'vcard'}
-              disabled={status === 'writing'}
-              onClick={() => {
-                setPayloadMode('vcard');
-                if (status === 'success' || status === 'error') {
-                  setStatus('idle');
-                  setErrorMessage('');
-                }
-              }}
-              className={`py-2 px-2 rounded-lg text-[11px] cursor-pointer whitespace-nowrap disabled:opacity-50 ${
-                payloadMode === 'vcard'
-                  ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] font-semibold shadow-sm'
-                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
-              }`}
-            >
-              연락처 vCard
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={payloadMode === 'both'}
-              disabled={status === 'writing'}
-              onClick={() => {
-                setPayloadMode('both');
-                if (status === 'success' || status === 'error') {
-                  setStatus('idle');
-                  setErrorMessage('');
-                }
-              }}
-              className={`py-2 px-2 rounded-lg text-[11px] cursor-pointer whitespace-nowrap disabled:opacity-50 ${
-                payloadMode === 'both'
-                  ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] font-semibold shadow-sm'
-                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
-              }`}
-            >
-              링크 + 연락처
-            </button>
-          </div>
+        <button
+          type="button"
+          onClick={handleCloseSafely}
+          className="min-w-[44px] min-h-[44px] -mr-2 rounded-xl flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+          title="NFC 공유 닫기"
+          aria-label="NFC 공유 닫기"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
-          <p className="text-[11px] text-[var(--app-text-muted)] text-center">
-            {payloadMode === 'url'
-              ? `태핑 즉시 ${displayUrl} 명함 페이지가 열립니다`
-              : payloadMode === 'vcard'
-                ? '오프라인에서도 연락처(.vcf) 정보가 바로 전달됩니다'
-                : '웹 명함 링크와 연락처 데이터를 함께 전송합니다'}
-            <span className="ml-1.5 font-mono opacity-80">({estimatedBytes} B)</span>
-          </p>
+      {/* Main Pass Body (Exact 290px Geometry & Vertical Rhythm of Quick QR) */}
+      <div className="w-full max-w-md mx-auto px-5 py-2 pb-6 flex-1 flex flex-col items-center justify-center gap-3.5 sm:gap-4">
+        {/* Minimal Border-Bottom Payload Type Switcher */}
+        <div
+          role="tablist"
+          aria-label="NFC 전송 데이터 형식"
+          className="w-full max-w-[290px] flex items-center justify-center gap-5 border-b border-[var(--app-border)]"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={payloadMode === 'url'}
+            disabled={status === 'writing'}
+            onClick={() => handleSelectMode('url')}
+            className={`relative pb-2.5 text-xs tracking-wide cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-50 focus-visible:outline-none ${
+              payloadMode === 'url'
+                ? 'text-[var(--app-text)] font-semibold'
+                : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
+            }`}
+          >
+            명함 링크
+            {payloadMode === 'url' && (
+              <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={payloadMode === 'vcard'}
+            disabled={status === 'writing'}
+            onClick={() => handleSelectMode('vcard')}
+            className={`relative pb-2.5 text-xs tracking-wide cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-50 focus-visible:outline-none ${
+              payloadMode === 'vcard'
+                ? 'text-[var(--app-text)] font-semibold'
+                : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
+            }`}
+          >
+            연락처(.vcf)
+            {payloadMode === 'vcard' && (
+              <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={payloadMode === 'both'}
+            disabled={status === 'writing'}
+            onClick={() => handleSelectMode('both')}
+            className={`relative pb-2.5 text-xs tracking-wide cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-50 focus-visible:outline-none ${
+              payloadMode === 'both'
+                ? 'text-[var(--app-text)] font-semibold'
+                : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-medium'
+            }`}
+          >
+            링크 + 연락처
+            {payloadMode === 'both' && (
+              <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--app-accent)]" />
+            )}
+          </button>
         </div>
 
-        {/* NFC Stage */}
-        {!support.supported ? (
-          <div className="w-full rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] p-5 text-center space-y-4">
-            <div className="w-12 h-12 mx-auto rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text)]">
-              <Nfc className="w-6 h-6 stroke-[1.5]" />
-            </div>
+        {/* 290x290 Square NFC Plate (Matches Quick QR Plate Proportions) */}
+        <div className="w-full max-w-[290px] aspect-square bg-[var(--app-surface)] rounded-xl p-6 shadow-[var(--app-shadow)] ring-1 ring-black/5 border border-[var(--app-border)] flex flex-col items-center justify-center text-center">
+          {!support.supported ? (
+            <div className="w-full flex flex-col items-center justify-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text-muted)]">
+                <Nfc className="w-6 h-6 stroke-[1.5]" />
+              </div>
 
-            <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-[var(--app-text)]">
-                {support.reason === 'insecure-context'
-                  ? 'HTTPS 보안 연결이 필요합니다'
-                  : '현재 브라우저에서 Web NFC를 지원하지 않습니다'}
-              </p>
-              <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
-                Web NFC 직접 전송은 Android용 Chrome (HTTPS) 및 설치된 PWA 앱에서 지원됩니다.
-                아래 Quick QR 패스나 링크 복사로 즉시 명함을 공유할 수 있습니다.
-              </p>
-            </div>
+              <div className="space-y-1.5">
+                <p className="text-sm font-semibold text-[var(--app-text)] tracking-tight">
+                  {support.reason === 'insecure-context'
+                    ? 'HTTPS 연결 필요'
+                    : 'Web NFC 미지원'}
+                </p>
+                <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed max-w-[210px] mx-auto">
+                  Android Chrome 또는 설치된 PWA에서 직접 NFC 전송이 가능합니다.
+                </p>
+              </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-1">
               {onOpenQuickQr && (
                 <button
                   type="button"
-                  onClick={() => {
-                    handleCloseSafely();
-                    onOpenQuickQr();
-                  }}
-                  className="min-h-[42px] px-3 py-2 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                  onClick={handleSwitchToQuickQr}
+                  className="h-9 px-4 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-xs font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                 >
                   <QrCode className="w-3.5 h-3.5 shrink-0" />
                   <span>Quick QR 열기</span>
                 </button>
               )}
-
-              <button
-                type="button"
-                onClick={handleCopyFallback}
-                className={`min-h-[42px] px-3 py-2 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-border)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer ${
-                  onOpenQuickQr ? '' : 'col-span-2'
-                }`}
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span>복사됨</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5 shrink-0" />
-                    <span>링크 복사</span>
-                  </>
-                )}
-              </button>
             </div>
-          </div>
-        ) : (
-          <div className="w-full rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] p-5 text-center space-y-4">
-            <div className="relative w-16 h-16 mx-auto flex items-center justify-center">
-              {status === 'writing' && (
-                <span
-                  aria-hidden="true"
-                  className="absolute inset-0 rounded-full border border-[var(--app-accent)]/40 animate-ping"
-                />
-              )}
-              <div
-                className={`relative w-14 h-14 rounded-2xl border flex items-center justify-center ${
-                  status === 'success'
-                    ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300'
-                    : status === 'error'
-                      ? 'bg-amber-500/15 border-amber-500/35 text-amber-700 dark:text-amber-300'
-                      : status === 'writing'
-                        ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] border-[var(--app-accent)]'
-                        : 'bg-[var(--app-surface)] border-[var(--app-border)] text-[var(--app-text)]'
-                }`}
-              >
-                {status === 'writing' ? (
-                  <SmartphoneNfc className="w-6 h-6 stroke-[1.75]" />
-                ) : status === 'success' ? (
-                  <CheckCircle2 className="w-6 h-6 stroke-[1.75]" />
-                ) : status === 'error' ? (
-                  <AlertCircle className="w-6 h-6 stroke-[1.75]" />
-                ) : (
-                  <Nfc className="w-6 h-6 stroke-[1.75]" />
+          ) : (
+            <div className="w-full flex flex-col items-center justify-center gap-4">
+              <div className="relative w-16 h-16 flex items-center justify-center">
+                {status === 'writing' && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 rounded-full border border-[var(--app-accent)]/40 animate-ping"
+                  />
                 )}
+                <div
+                  className={`relative w-14 h-14 rounded-2xl border flex items-center justify-center transition-colors ${
+                    status === 'success'
+                      ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300'
+                      : status === 'error'
+                        ? 'bg-amber-500/15 border-amber-500/35 text-amber-700 dark:text-amber-300'
+                        : status === 'writing'
+                          ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] border-[var(--app-accent)]'
+                          : 'bg-[var(--app-surface-subtle)] border-[var(--app-border)] text-[var(--app-text)]'
+                  }`}
+                >
+                  {status === 'writing' ? (
+                    <SmartphoneNfc className="w-6 h-6 stroke-[1.75]" />
+                  ) : status === 'success' ? (
+                    <CheckCircle2 className="w-6 h-6 stroke-[1.75]" />
+                  ) : status === 'error' ? (
+                    <AlertCircle className="w-6 h-6 stroke-[1.75]" />
+                  ) : (
+                    <Nfc className="w-6 h-6 stroke-[1.5]" />
+                  )}
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-[var(--app-text)]">
-                {status === 'writing'
-                  ? 'NFC 기기 또는 태그를 대기 중입니다...'
-                  : status === 'success'
-                    ? '명함 데이터 전송 완료'
-                    : status === 'error'
-                      ? 'NFC 전송에 실패했습니다'
-                      : 'NFC로 내 명함 바로 보내기'}
-              </p>
-              <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed">
-                {status === 'writing'
-                  ? '상대방 스마트폰 뒷면 상단 또는 NFC 태그에 기기를 1~2초간 가까이 대세요.'
-                  : status === 'success'
-                    ? '상대방 기기에서 바로 명함 링크 또는 연락처를 확인할 수 있습니다.'
-                    : status === 'error'
-                      ? errorMessage
-                      : '전송 시작을 누른 뒤 상대방 NFC 지원 스마트폰이나 명함 태그에 가까이 대세요.'}
-              </p>
-            </div>
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-[var(--app-text)] tracking-tight">
+                  {status === 'writing'
+                    ? 'NFC 대기 중...'
+                    : status === 'success'
+                      ? '전송 완료'
+                      : status === 'error'
+                        ? 'NFC 전송 실패'
+                        : 'NFC 전송 준비'}
+                </p>
+                <p className="text-[11px] text-[var(--app-text-muted)] leading-relaxed max-w-[215px] mx-auto line-clamp-2">
+                  {status === 'writing'
+                    ? '상대방 기기 뒷면이나 태그에 1~2초간 가까이 대세요.'
+                    : status === 'success'
+                      ? '상대방 기기에서 바로 명함을 확인할 수 있습니다.'
+                      : status === 'error'
+                        ? errorMessage
+                        : '시작 버튼을 누른 뒤 기기를 가까이 대세요.'}
+                </p>
+              </div>
 
-            {status === 'writing' ? (
-              <button
-                type="button"
-                onClick={handleCancelBeam}
-                className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-border)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
-                <span>NFC 대기 취소</span>
-              </button>
-            ) : (
-              <div className="space-y-2">
+              {status === 'writing' ? (
+                <button
+                  type="button"
+                  onClick={handleCancelBeam}
+                  className="h-9 px-4 rounded-xl bg-[var(--app-surface-subtle)] hover:bg-[var(--app-border)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+                >
+                  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                  <span>대기 취소</span>
+                </button>
+              ) : (
                 <button
                   type="button"
                   onClick={handleStartBeam}
-                  className="w-full min-h-[46px] px-4 py-2.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-[0.99]"
+                  className="h-9 px-4 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] text-xs font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
                 >
-                  <SmartphoneNfc className="w-4 h-4 stroke-[2] shrink-0" />
+                  <SmartphoneNfc className="w-3.5 h-3.5 stroke-[2] shrink-0" />
                   <span>
                     {status === 'success'
-                      ? '다시 NFC 전송하기'
+                      ? '다시 전송'
                       : status === 'error'
-                        ? 'NFC 전송 다시 시도'
+                        ? '다시 시도'
                         : 'NFC 전송 시작'}
                   </span>
                 </button>
+              )}
+            </div>
+          )}
+        </div>
 
-                {status === 'error' && onOpenQuickQr && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleCloseSafely();
-                      onOpenQuickQr();
-                    }}
-                    className="w-full min-h-[38px] px-3 py-2 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-border)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <QrCode className="w-3.5 h-3.5 shrink-0" />
-                    <span>Quick QR 패스로 전환</span>
-                  </button>
-                )}
-              </div>
+        {/* Monospace URL / Payload Caption */}
+        <p className="text-xs text-[var(--app-text-muted)] font-mono truncate max-w-full px-2">
+          {captionText}
+        </p>
+
+        {/* Centered Icon-Only Bottom Toolbar (Matches Quick QR Pass Toolbar) */}
+        <div
+          role="toolbar"
+          aria-label="NFC 공유 빠른 작업"
+          className="w-full flex items-center justify-center gap-1.5 sm:gap-2.5 pt-1"
+        >
+          <button
+            type="button"
+            onClick={handleSaveVCard}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+            title="연락처 저장 (.vcf)"
+            aria-label="연락처 저장 (.vcf)"
+          >
+            <UserPlus className="w-4 h-4 stroke-[1.75]" />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleWebShare}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+            title={sharedLink ? '링크 복사됨' : '공유하기'}
+            aria-label={sharedLink ? '링크 복사됨' : '공유하기'}
+          >
+            {sharedLink ? (
+              <Check className="w-4 h-4 stroke-[2] text-emerald-500" />
+            ) : (
+              <Share2 className="w-4 h-4 stroke-[1.75]" />
             )}
-          </div>
-        )}
+          </button>
+
+          <span className="border-r border-[var(--app-border)] h-3.5 mx-0.5 self-center" aria-hidden="true" />
+
+          <button
+            type="button"
+            onClick={handleCopyLink}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+            title={copiedLink ? '링크 복사됨' : '링크 복사'}
+            aria-label={copiedLink ? '링크 복사됨' : '링크 복사'}
+          >
+            {copiedLink ? (
+              <Check className="w-4 h-4 stroke-[2] text-emerald-500" />
+            ) : (
+              <Copy className="w-4 h-4 stroke-[1.75]" />
+            )}
+          </button>
+
+          {onOpenQuickQr && (
+            <button
+              type="button"
+              onClick={handleSwitchToQuickQr}
+              className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+              title="Quick QR 패스로 전환"
+              aria-label="Quick QR 패스로 전환"
+            >
+              <QrCode className="w-4 h-4 stroke-[1.75]" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

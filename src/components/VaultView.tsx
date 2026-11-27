@@ -1,23 +1,10 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { StoredCard } from '../types/card';
 import {
-  Search,
-  LayoutGrid,
-  List,
-  Lock,
-  KeyRound,
   X,
-  Plus,
-  Check,
-  SlidersHorizontal,
-  Mic,
   ArrowUpDown,
-  ChevronDown,
-  GitMerge,
   ShieldAlert,
   Download,
-  UserPlus,
-  Camera,
 } from 'lucide-react';
 
 import { PhotoArchiveModal } from './PhotoArchiveModal';
@@ -28,6 +15,9 @@ import {
 } from './VaultCardItem';
 import { CategoryManagementPanel } from './CategoryManagementPanel';
 import { DuplicateMergeModal } from './DuplicateMergeModal';
+import { LockedAccountView } from './LockedAccountView';
+import { VaultToolbar } from './vault/VaultToolbar';
+import { VaultEmptyState } from './vault/VaultEmptyState';
 import {
   CATEGORIES_UPDATED_EVENT,
   DEFAULT_VAULT_CATEGORIES,
@@ -38,7 +28,7 @@ import {
   deleteVaultCategory,
   resetVaultCategories,
 } from '../utils/categories';
-import { getAccountVaultSortKey } from '../utils/accountStorage';
+import { getAccountScopedKey, getAccountVaultSortKey } from '../utils/accountStorage';
 import { matchesAnySearchField } from '../utils/koreanSearch';
 import { detectDuplicateVaultGroups } from '../utils/duplicateDetector';
 import {
@@ -47,14 +37,30 @@ import {
   shouldShowBackupNudge,
   dismissBackupNudge,
 } from '../utils/vaultBackup';
-import { downloadBatchVCard } from '../utils/cardExporter';
 import {
   type VaultSortOption,
-  SORT_OPTIONS,
   sortVaultCards,
 } from '../utils/cardSorting';
 
 export type { VaultSortOption };
+export type VaultViewMode = 'grid' | 'list';
+
+const VAULT_VIEW_MODE_SESSION_KEY = 'eerum_vault_view_mode';
+const VAULT_CATEGORY_SESSION_PREFIX = 'eerum_vault_selected_category';
+const VAULT_SORT_SESSION_PREFIX = 'eerum_vault_sort_by';
+
+const isValidVaultSortOption = (val: string | null): val is VaultSortOption =>
+  val === 'smart' ||
+  val === 'frequency' ||
+  val === 'newest' ||
+  val === 'oldest' ||
+  val === 'name' ||
+  val === 'company';
+
+const getVaultSessionKey = (prefix: string, isSampleMode: boolean): string => {
+  if (isSampleMode) return `${prefix}_sample`;
+  return getAccountScopedKey(prefix) || prefix;
+};
 
 interface IWindowSpeechRecognition extends Window {
   SpeechRecognition?: any;
@@ -162,66 +168,96 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const [categories, setCategories] = useState<string[]>(() =>
     isSampleMode ? buildSampleCategories(cards) : loadVaultCategories(cards)
   );
-  const [selectedCategory, setSelectedCategory] = useState<string>('전체');
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+    if (typeof window === 'undefined') return '전체';
+    try {
+      const saved = sessionStorage.getItem(
+        getVaultSessionKey(VAULT_CATEGORY_SESSION_PREFIX, isSampleMode)
+      );
+      if (saved && (saved === '전체' || categories.includes(saved))) {
+        return saved;
+      }
+    } catch {
+      // Ignore sessionStorage errors
+    }
+    return '전체';
+  });
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+  const [viewMode, setViewMode] = useState<VaultViewMode>(() => {
+    if (typeof window === 'undefined') return 'grid';
+    try {
+      const saved = sessionStorage.getItem(VAULT_VIEW_MODE_SESSION_KEY);
+      if (saved === 'list') return 'list';
+      if (saved === 'grid' || saved === 'cards') return 'grid';
+    } catch {
+      // Ignore sessionStorage errors
+    }
+    return 'grid';
+  });
   const [photoArchiveCardId, setPhotoArchiveCardId] = useState<string | null>(null);
 
-  // Sorting state persisted per account (defaults to automated 'smart' ranking; ephemeral in sample mode)
+  // Sorting state persisted in sessionStorage (and localStorage per account when not in sample mode)
   const [sortBy, setSortBy] = useState<VaultSortOption>(() => {
-    if (typeof window !== 'undefined' && !isSampleMode) {
-      const sortKey = getAccountVaultSortKey();
-      const saved = sortKey ? localStorage.getItem(sortKey) : null;
-      if (
-        saved === 'smart' ||
-        saved === 'frequency' ||
-        saved === 'newest' ||
-        saved === 'oldest' ||
-        saved === 'name' ||
-        saved === 'company'
-      ) {
-        return saved;
+    if (typeof window !== 'undefined') {
+      try {
+        const sessionSaved = sessionStorage.getItem(
+          getVaultSessionKey(VAULT_SORT_SESSION_PREFIX, isSampleMode)
+        );
+        if (isValidVaultSortOption(sessionSaved)) {
+          return sessionSaved;
+        }
+      } catch {
+        // Ignore sessionStorage errors
+      }
+      if (!isSampleMode) {
+        const sortKey = getAccountVaultSortKey();
+        const saved = sortKey ? localStorage.getItem(sortKey) : null;
+        if (isValidVaultSortOption(saved)) {
+          return saved;
+        }
       }
     }
     return 'smart';
   });
-  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState<boolean>(false);
-  const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && !isSampleMode) {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(VAULT_VIEW_MODE_SESSION_KEY, viewMode);
+    } catch {
+      // Ignore sessionStorage errors
+    }
+  }, [viewMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(
+        getVaultSessionKey(VAULT_CATEGORY_SESSION_PREFIX, isSampleMode),
+        selectedCategory
+      );
+    } catch {
+      // Ignore sessionStorage errors
+    }
+  }, [selectedCategory, isSampleMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(
+        getVaultSessionKey(VAULT_SORT_SESSION_PREFIX, isSampleMode),
+        sortBy
+      );
+    } catch {
+      // Ignore sessionStorage errors
+    }
+    if (!isSampleMode) {
       const sortKey = getAccountVaultSortKey();
       if (sortKey) {
         localStorage.setItem(sortKey, sortBy);
       }
     }
   }, [sortBy, isSampleMode]);
-
-  // Outside click and Escape handler for Sort Dropdown
-  useEffect(() => {
-    if (!isSortDropdownOpen) return;
-    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
-      if (
-        sortDropdownRef.current &&
-        !sortDropdownRef.current.contains(e.target as Node)
-      ) {
-        setIsSortDropdownOpen(false);
-      }
-    };
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setIsSortDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    document.addEventListener('touchstart', handleOutsideClick);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-      document.removeEventListener('touchstart', handleOutsideClick);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isSortDropdownOpen]);
 
   // Web Speech API Voice Search States
   const [isListening, setIsListening] = useState<boolean>(false);
@@ -516,11 +552,6 @@ export const VaultView: React.FC<VaultViewProps> = ({
     [filteredCards, sortBy]
   );
 
-  const currentSortOption = useMemo(
-    () => SORT_OPTIONS.find((opt) => opt.id === sortBy) || SORT_OPTIONS[0],
-    [sortBy]
-  );
-
   // Inline `+` Pill Add Category Handlers
   const handleStartInlineAdd = useCallback(() => {
     if (isSampleMode) {
@@ -691,542 +722,56 @@ export const VaultView: React.FC<VaultViewProps> = ({
   }, [isSampleMode]);
 
   if (isLocked) {
-    return (
-      <div className="w-full max-w-lg mx-auto py-16 px-6 flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-200">
-        <div className="w-16 h-16 rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text)] mb-5 shadow-[var(--app-shadow)]">
-          <Lock className="w-7 h-7 stroke-[1.5]" />
-        </div>
-        <h3 className="text-xl font-bold text-[var(--app-text)] mb-2 tracking-tight">명함 보관함이 잠겨 있습니다</h3>
-        <p className="text-xs text-[var(--app-text-muted)] max-w-sm mb-6 leading-relaxed">
-          공용 기기 및 타인의 무단 열람을 방지하기 위해 보관함이 4자리 보안 PIN으로 보호되고 있습니다.
-        </p>
-        <button
-          type="button"
-          onClick={onUnlockRequest}
-          className="px-6 py-3 rounded-2xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] font-semibold text-xs transition-all cursor-pointer shadow-[var(--app-shadow)] active:scale-95 flex items-center gap-2"
-        >
-          <KeyRound className="w-4 h-4 stroke-[1.75]" />
-          <span>보안 PIN 입력하여 잠금 해제</span>
-        </button>
-      </div>
-    );
+    return <LockedAccountView onUnlock={onUnlockRequest} />;
   }
 
-  if (cards.length === 0 && !isSampleMode) {
+  if (cards.length === 0) {
     return (
-      <section
-        aria-label="명함 보관함 시작하기"
-        className="w-full max-w-4xl mx-auto py-8 sm:py-14 px-1 flex flex-col items-center animate-in fade-in duration-300"
-      >
-        <div className="text-center max-w-md px-2">
-          <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[var(--app-text)]">
-            명함 보관함 채우기
-          </h2>
-          <p className="text-xs text-[var(--app-text-muted)] mt-1.5 leading-relaxed">
-            기존 연락처나 실물 명함을 추가해 나만의 보관함을 시작해 보세요.
-          </p>
-        </div>
-
-        <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-6 sm:mt-8">
-          <button
-            type="button"
-            onClick={() => onOpenImportContacts?.()}
-            className="group text-left p-5 sm:p-6 rounded-2xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] hover:border-[var(--app-text-muted)]/35 shadow-[var(--app-shadow)] transition-all duration-200 cursor-pointer active:scale-[0.99] flex flex-col items-start gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-          >
-            <span className="w-10 h-10 rounded-xl bg-[var(--app-accent)] text-[var(--app-accent-fg)] flex items-center justify-center shrink-0">
-              <UserPlus className="w-4.5 h-4.5 stroke-[1.75]" />
-            </span>
-            <div>
-              <h3 className="text-sm font-semibold text-[var(--app-text)] tracking-tight">
-                주소록에서 가져오기
-              </h3>
-              <p className="text-xs text-[var(--app-text-muted)] mt-1 leading-relaxed">
-                휴대폰 연락처 또는 .vcf 파일 일괄 등록
-              </p>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenScan}
-            className="group text-left p-5 sm:p-6 rounded-2xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] hover:border-[var(--app-text-muted)]/35 shadow-[var(--app-shadow)] transition-all duration-200 cursor-pointer active:scale-[0.99] flex flex-col items-start gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-          >
-            <span className="w-10 h-10 rounded-xl bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] flex items-center justify-center shrink-0">
-              <Camera className="w-4.5 h-4.5 stroke-[1.75]" />
-            </span>
-            <div>
-              <h3 className="text-sm font-semibold text-[var(--app-text)] tracking-tight">
-                실물 명함 촬영·스캔
-              </h3>
-              <p className="text-xs text-[var(--app-text-muted)] mt-1 leading-relaxed">
-                종이 명함 사진에서 이름·연락처 자동 추출
-              </p>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenEditor}
-            className="group text-left p-5 sm:p-6 rounded-2xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] hover:border-[var(--app-text-muted)]/35 shadow-[var(--app-shadow)] transition-all duration-200 cursor-pointer active:scale-[0.99] flex flex-col items-start gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-          >
-            <span className="w-10 h-10 rounded-xl bg-[var(--app-surface-subtle)] group-hover:bg-[var(--app-highlight)] text-[var(--app-text)] group-hover:text-[var(--app-highlight-fg)] border border-[var(--app-border)] group-hover:border-transparent flex items-center justify-center shrink-0 transition-colors">
-              <Plus className="w-4.5 h-4.5 stroke-[1.75]" />
-            </span>
-            <div>
-              <h3 className="text-sm font-semibold text-[var(--app-text)] tracking-tight">
-                직접 명함 입력
-              </h3>
-              <p className="text-xs text-[var(--app-text-muted)] mt-1 leading-relaxed">
-                새로운 비즈니스 연락처 직접 작성
-              </p>
-            </div>
-          </button>
-        </div>
-      </section>
+      <VaultEmptyState
+        variant="onboarding"
+        onOpenImportContacts={onOpenImportContacts}
+        onOpenScan={onOpenScan}
+        onOpenEditor={onOpenEditor}
+      />
     );
   }
 
   return (
     <div className="w-full max-w-full min-w-0 flex flex-col gap-3 sm:gap-3.5 animate-in fade-in duration-300">
       {/* 2-Row Header Layout (Row 1: Section Title & Combined Action Bar with Search, Row 2: Category Filter Chips) */}
-      <header
-        aria-label="명함 보관함 검색 및 필터 도구 모음"
-        className="w-full max-w-full min-w-0 flex flex-col gap-2.5 sm:gap-3 pb-3 border-b border-[var(--app-border)]"
-      >
-        {/* Row 1: Action Toolbar (Desktop: Search+Sort on Left, Actions on Right; Mobile: Actions on Top, Search+Sort Below) */}
-        <div className="w-full max-w-full min-w-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3">
-          {/* Mobile-Only Top Row: Action Cluster on Right (< sm) */}
-          <div className="flex sm:hidden items-center justify-end gap-1.5 shrink-0 w-full">
-            <div className="flex items-center justify-end gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => openCategoryPanel(false)}
-                aria-expanded={isCategoryPanelOpen}
-                aria-label="카테고리 관리"
-                title="카테고리 관리"
-                className={`w-8.5 h-8.5 rounded-xl border text-xs font-medium shrink-0 inline-flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
-                  isCategoryPanelOpen
-                    ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] border-transparent font-semibold'
-                    : 'bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
-                }`}
-              >
-                <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
-              </button>
-
-            <div
-              role="group"
-              aria-label="보관함 보기 방식"
-              className="grid grid-cols-2 p-0.5 h-8.5 bg-[var(--app-surface)] rounded-xl border border-[var(--app-border)] shrink-0"
-            >
-              <button
-                type="button"
-                onClick={() => setViewMode('cards')}
-                aria-pressed={viewMode === 'cards'}
-                aria-label="카드 뷰"
-                title="카드 뷰"
-                className={`w-7.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
-                  viewMode === 'cards'
-                    ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)]'
-                    : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
-                }`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5 stroke-[1.5]" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('list')}
-                aria-pressed={viewMode === 'list'}
-                aria-label="리스트 뷰"
-                title="리스트 뷰"
-                className={`w-7.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
-                  viewMode === 'list'
-                    ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)]'
-                    : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
-                }`}
-              >
-                <List className="w-3.5 h-3.5 stroke-[1.5]" />
-              </button>
-            </div>
-
-            {cards.length > 0 && (
-              <button
-                type="button"
-                disabled={sortedCards.length === 0}
-                onClick={() => {
-                  const count = downloadBatchVCard(sortedCards);
-                  if (count > 0) {
-                    triggerToast(`${count}명의 연락처를 .vcf 파일로 내보냈습니다.`);
-                  }
-                }}
-                aria-label={
-                  selectedCategory !== '전체' || searchQuery.trim()
-                    ? `필터 연락처 저장 (.vcf · ${sortedCards.length}명)`
-                    : `전체 연락처 저장 (.vcf · ${sortedCards.length}명)`
-                }
-                title={
-                  selectedCategory !== '전체' || searchQuery.trim()
-                    ? `필터 연락처 저장 (.vcf · ${sortedCards.length}명)`
-                    : `전체 연락처 저장 (.vcf · ${sortedCards.length}명)`
-                }
-                className="w-8.5 h-8.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] inline-flex items-center justify-center cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-              >
-                <UserPlus className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={onOpenScan}
-              aria-label="실물 명함 사진 등록"
-              title="실물 명함 사진 등록"
-              className="h-8.5 px-2.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] inline-flex items-center justify-center gap-1 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
-              <span className="whitespace-nowrap">추가</span>
-            </button>
-            </div>
-          </div>
-
-          {/* Search Bar + Sort Dropdown + (Desktop Action Controls) */}
-          <div className="flex items-center justify-between gap-2 sm:gap-2.5 md:gap-3 w-full sm:flex-1 sm:min-w-0">
-            {/* 1. Search Bar + Sort Dropdown Cluster */}
-            <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto sm:flex-1 sm:justify-start min-w-0">
-              <div className="relative flex-1 sm:w-52 md:w-64 lg:w-72 sm:max-w-[320px] min-w-0">
-                <Search
-                  className={`w-3.5 h-3.5 stroke-[1.75] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-200 ${
-                    isListening ? 'text-rose-500' : 'text-[var(--app-text-muted)]'
-                  }`}
-                />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={
-                    isListening
-                      ? (voiceFeedback || '말씀하세요... (음성 듣는 중)')
-                      : '이름·초성, 회사, 만남 장소, 메모 검색'
-                  }
-                  aria-label="명함 보관함 검색"
-                  className={`w-full h-9 sm:h-9.5 pl-8.5 pr-20 rounded-xl bg-[var(--app-surface)] border text-xs text-[var(--app-text)] placeholder:text-[var(--app-text-muted)] focus:outline-none transition-all duration-200 ${
-                    isListening
-                      ? 'border-rose-500/50 ring-2 ring-rose-500/20 placeholder:text-rose-500 shadow-[0_0_16px_rgba(244,63,94,0.18)]'
-                      : 'border-[var(--app-border)] focus:ring-2 focus:ring-[var(--app-accent)]/30 focus:border-[var(--app-accent)]'
-                  }`}
-                />
-
-                {/* Right Controls: Clear Query + Web Speech Voice Search Button */}
-                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={handleClearSearch}
-                      className="w-5 h-5 flex items-center justify-center rounded-md text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] cursor-pointer transition-colors"
-                      aria-label="검색어 지우기"
-                      title="검색어 지우기"
-                    >
-                      <X className="w-3.5 h-3.5 stroke-[1.5]" />
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={toggleVoiceSearch}
-                    aria-label={isListening ? '음성 검색 중지' : '음성으로 검색'}
-                    title={
-                      isListening
-                        ? '음성 인식 중 (클릭하여 중지)'
-                        : '음성 검색 (클릭하여 한국어 음성으로 검색)'
-                    }
-                    className={`h-6.5 ${isListening ? 'px-2' : 'w-6.5'} rounded-lg inline-flex items-center justify-center gap-1 text-[11px] cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
-                      isListening
-                        ? 'bg-rose-500/15 text-rose-500 border border-rose-500/40 ring-2 ring-rose-500/25 animate-pulse font-medium'
-                        : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] active:scale-95'
-                    }`}
-                  >
-                    <Mic
-                      className={`w-3.5 h-3.5 stroke-[1.75] ${
-                        isListening ? 'text-rose-500 animate-bounce' : ''
-                      }`}
-                    />
-                    {isListening && (
-                      <span className="text-[9px] font-semibold text-rose-500 pl-0.5 animate-pulse hidden sm:inline">
-                        듣는 중
-                      </span>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Sort Dropdown Menu */}
-              <div className="relative shrink-0" ref={sortDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsSortDropdownOpen((prev) => !prev)}
-                  aria-expanded={isSortDropdownOpen}
-                  aria-haspopup="listbox"
-                  aria-label={`명함 정렬: ${currentSortOption.label}`}
-                  title="명함 정렬 기준 변경"
-                  className="h-9 sm:h-9.5 px-2.5 sm:px-3 rounded-xl bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)] text-[var(--app-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] transition-colors text-xs font-medium cursor-pointer inline-flex items-center gap-1.5 active:scale-95 whitespace-nowrap"
-                >
-                  <ArrowUpDown className="w-3.5 h-3.5 stroke-[1.75] text-[var(--app-text-muted)] shrink-0" />
-                  <span>{currentSortOption.label}</span>
-                  <ChevronDown
-                    className={`w-3 h-3 stroke-[2] text-[var(--app-text-muted)] transition-transform duration-200 shrink-0 ${
-                      isSortDropdownOpen ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
-
-                {isSortDropdownOpen && (
-                  <div
-                    role="listbox"
-                    aria-label="정렬 옵션"
-                    className="absolute right-0 mt-1.5 w-40 py-1.5 rounded-2xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)] z-50 animate-in fade-in zoom-in-95 duration-150"
-                  >
-                    {SORT_OPTIONS.map((opt) => {
-                      const isSelected = sortBy === opt.id;
-                      return (
-                        <button
-                          key={opt.id}
-                          role="option"
-                          aria-selected={isSelected}
-                          type="button"
-                          onClick={() => {
-                            setSortBy(opt.id);
-                            setIsSortDropdownOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-xs transition-colors cursor-pointer text-left ${
-                            isSelected
-                              ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] font-semibold'
-                              : 'text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)]'
-                          }`}
-                        >
-                          <span className="leading-snug truncate">{opt.label}</span>
-                          {isSelected && <Check className="w-3.5 h-3.5 stroke-[2] shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Desktop Action Controls (Category Manage, View Switcher, Add Card) */}
-            <div className="hidden sm:flex items-center justify-end gap-2 md:gap-2.5 shrink-0">
-              {/* 2. Category Management Button */}
-              <button
-                type="button"
-                onClick={() => openCategoryPanel(false)}
-                aria-expanded={isCategoryPanelOpen}
-                aria-label="카테고리 관리"
-                title="카테고리 관리"
-                className={`w-9 sm:w-9.5 h-9 sm:h-9.5 rounded-xl border text-xs font-medium shrink-0 inline-flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
-                  isCategoryPanelOpen
-                    ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] border-transparent font-semibold'
-                    : 'bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
-                }`}
-              >
-                <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
-              </button>
-
-              {/* 3. Grid/List View Switcher Button */}
-              <div
-                role="group"
-                aria-label="보관함 보기 방식"
-                className="grid grid-cols-2 p-0.5 h-9 sm:h-9.5 bg-[var(--app-surface)] rounded-xl border border-[var(--app-border)] shrink-0"
-              >
-                <button
-                  type="button"
-                  onClick={() => setViewMode('cards')}
-                  aria-pressed={viewMode === 'cards'}
-                  aria-label="카드 뷰"
-                  title="카드 뷰"
-                  className={`w-8 sm:w-8.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
-                    viewMode === 'cards'
-                      ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)]'
-                      : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
-                  }`}
-                >
-                  <LayoutGrid className="w-3.5 h-3.5 stroke-[1.5]" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('list')}
-                  aria-pressed={viewMode === 'list'}
-                  aria-label="리스트 뷰"
-                  title="리스트 뷰"
-                  className={`w-8 sm:w-8.5 h-full rounded-lg flex items-center justify-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
-                    viewMode === 'list'
-                      ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)]'
-                      : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)]'
-                  }`}
-                >
-                  <List className="w-3.5 h-3.5 stroke-[1.5]" />
-                </button>
-              </div>
-
-              {/* 4. Icon-only Batch .vcf Export Button */}
-              {cards.length > 0 && (
-                <button
-                  type="button"
-                  disabled={sortedCards.length === 0}
-                  onClick={() => {
-                    const count = downloadBatchVCard(sortedCards);
-                    if (count > 0) {
-                      triggerToast(`${count}명의 연락처를 .vcf 파일로 내보냈습니다.`);
-                    }
-                  }}
-                  aria-label={
-                    selectedCategory !== '전체' || searchQuery.trim()
-                      ? `필터 연락처 저장 (.vcf · ${sortedCards.length}명)`
-                      : `전체 연락처 저장 (.vcf · ${sortedCards.length}명)`
-                  }
-                  title={
-                    selectedCategory !== '전체' || searchQuery.trim()
-                      ? `필터 연락처 저장 (.vcf · ${sortedCards.length}명)`
-                      : `전체 연락처 저장 (.vcf · ${sortedCards.length}명)`
-                  }
-                  className="w-9 sm:w-9.5 h-9 sm:h-9.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] inline-flex items-center justify-center cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-                >
-                  <UserPlus className="w-3.5 h-3.5 stroke-[1.5] shrink-0" />
-                </button>
-              )}
-
-              {/* 5. "+ Add Card" Primary CTA Button */}
-              <button
-                type="button"
-                onClick={onOpenScan}
-                aria-label="실물 명함 사진 등록"
-                title="실물 명함 사진 등록"
-                className="h-9 sm:h-9.5 px-3 sm:px-3.5 rounded-xl bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-accent-fg)] inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 shrink-0 font-semibold text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-              >
-                <Plus className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
-                <span className="whitespace-nowrap">명함 추가</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Duplicate Contact Cleanup Bar (only shown when duplicates exist) */}
-        {duplicateGroups.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => setIsDuplicateModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--app-highlight)] hover:opacity-90 border border-[var(--app-border)] text-[var(--app-highlight-fg)] text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-            >
-              <GitMerge className="w-3.5 h-3.5 stroke-[1.8] shrink-0" />
-              <span className="tabular-nums">
-                중복 연락처 {duplicateGroups.length}건 정리
-              </span>
-            </button>
-          </div>
-        )}
-
-        {/* Row 3: Dedicated Full-Width Horizontal Scrolling Track for Category Filter Chips */}
-        <div className="w-full max-w-full min-w-0">
-          <div
-            ref={categoryScrollRef}
-            role="tablist"
-            aria-label="보관함 카테고리 필터"
-            className="w-full max-w-full min-w-0 overflow-x-auto overflow-y-hidden whitespace-nowrap scrollbar-hide overscroll-x-contain touch-pan-x touch-pinch-zoom flex items-center gap-2 py-1.5 px-0.5"
-          >
-            {filterCategories.map((cat) => {
-              const isSelected = selectedCategory === cat;
-
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  role="tab"
-                  aria-selected={isSelected}
-                  onClick={(e) => {
-                    setSelectedCategory(cat);
-                    e.currentTarget.scrollIntoView({
-                      behavior: 'smooth',
-                      inline: 'nearest',
-                      block: 'nearest',
-                    });
-                  }}
-                  className={`min-h-[36px] px-3.5 py-1.5 rounded-full whitespace-nowrap shrink-0 text-xs transition-colors cursor-pointer font-medium touch-pan-x touch-pinch-zoom focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] ${
-                    isSelected
-                      ? 'bg-[var(--app-highlight)] text-[var(--app-highlight-fg)] font-semibold shadow-xs border border-transparent'
-                      : 'bg-[var(--app-surface)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] border border-[var(--app-border)]'
-                  }`}
-                >
-                  <span>{cat}</span>
-                </button>
-              );
-            })}
-
-            {/* Append `+` Add Category Pill Button OR Inline Category Input at the end of the scroll container */}
-            {isInlineAdding ? (
-              <form
-                onSubmit={handleCommitInlineAdd}
-                className="min-h-[36px] pl-3 pr-1.5 py-1 rounded-full bg-[var(--app-surface)] border border-[var(--app-accent)] inline-flex items-center gap-1 shrink-0 touch-pan-x touch-pinch-zoom"
-              >
-                <input
-                  ref={inlineInputRef}
-                  type="text"
-                  maxLength={20}
-                  value={inlineCategoryName}
-                  onChange={(e) => {
-                    setInlineCategoryName(e.target.value);
-                    if (inlineAddError) setInlineAddError(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      e.preventDefault();
-                      handleCancelInlineAdd();
-                    }
-                  }}
-                  placeholder="새 카테고리명"
-                  aria-label="새 카테고리 이름 입력"
-                  className="w-28 sm:w-32 bg-transparent text-xs text-[var(--app-text)] placeholder:text-[var(--app-text-muted)] focus:outline-none touch-pan-x touch-pinch-zoom"
-                />
-                <button
-                  type="submit"
-                  disabled={!inlineCategoryName.trim()}
-                  aria-label="카테고리 저장"
-                  title="저장"
-                  className="w-6 h-6 rounded-full bg-[var(--app-accent)] hover:opacity-90 disabled:opacity-35 text-[var(--app-accent-fg)] flex items-center justify-center cursor-pointer shrink-0 touch-pan-x touch-pinch-zoom"
-                >
-                  <Check className="w-3.5 h-3.5 stroke-[2.2]" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCancelInlineAdd}
-                  aria-label="추가 취소"
-                  title="취소"
-                  className="w-6 h-6 rounded-full text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] flex items-center justify-center cursor-pointer shrink-0 touch-pan-x touch-pinch-zoom"
-                >
-                  <X className="w-3.5 h-3.5 stroke-[1.75]" />
-                </button>
-              </form>
-            ) : (
-              <button
-                type="button"
-                onClick={handleStartInlineAdd}
-                aria-label="새 카테고리 추가"
-                title="새 카테고리 추가"
-                className="min-h-[36px] px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 text-xs text-[var(--app-text-muted)] hover:text-[var(--app-text)] bg-[var(--app-surface)] hover:bg-[var(--app-surface-subtle)] border border-dashed border-[var(--app-border)] transition-colors cursor-pointer inline-flex items-center gap-1 touch-pan-x touch-pinch-zoom focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
-              >
-                <Plus className="w-3.5 h-3.5 stroke-[2]" />
-                <span>추가</span>
-              </button>
-            )}
-
-            {/* Trailing flex spacer prevents right-edge clipping on mobile WebKit/Blink */}
-            <span className="w-2 shrink-0" aria-hidden="true" />
-          </div>
-
-          {inlineAddError && (
-            <p role="alert" className="mt-1 text-[11px] text-rose-500 pl-1">
-              {inlineAddError}
-            </p>
-          )}
-        </div>
-      </header>
+      <VaultToolbar
+        cardsCount={cards.length}
+        sortedCards={sortedCards}
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+        filterCategories={filterCategories}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        onClearSearch={handleClearSearch}
+        isListening={isListening}
+        voiceFeedback={voiceFeedback}
+        onToggleVoiceSearch={toggleVoiceSearch}
+        sortBy={sortBy}
+        onSortByChange={setSortBy}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        isCategoryPanelOpen={isCategoryPanelOpen}
+        onOpenCategoryPanel={openCategoryPanel}
+        onOpenScan={onOpenScan}
+        duplicateGroupsCount={duplicateGroups.length}
+        onOpenDuplicateModal={() => setIsDuplicateModalOpen(true)}
+        categoryScrollRef={categoryScrollRef}
+        isInlineAdding={isInlineAdding}
+        inlineInputRef={inlineInputRef}
+        inlineCategoryName={inlineCategoryName}
+        inlineAddError={inlineAddError}
+        onInlineCategoryNameChange={setInlineCategoryName}
+        onClearInlineAddError={() => setInlineAddError(null)}
+        onStartInlineAdd={handleStartInlineAdd}
+        onCancelInlineAdd={handleCancelInlineAdd}
+        onCommitInlineAdd={handleCommitInlineAdd}
+        onTriggerToast={triggerToast}
+      />
 
       {/* Non-Intrusive Local-First Backup Safety Nudge */}
       {showBackupNudge && onOpenBackup && (
@@ -1277,29 +822,20 @@ export const VaultView: React.FC<VaultViewProps> = ({
 
       {/* Content Rendering: Cards Grid or List Table */}
       {sortedCards.length === 0 ? (
-        <div className="py-20 text-center space-y-3 p-8 rounded-3xl bg-[var(--app-surface)] border border-[var(--app-border)] shadow-[var(--app-shadow)]">
-          <p className="text-sm font-semibold text-[var(--app-text)]">
-            {selectedCategory !== '전체' && !searchQuery.trim()
-              ? `'${selectedCategory}' 카테고리에 등록된 명함이 없습니다.`
-              : '검색 조건에 일치하는 명함이 없습니다.'}
-          </p>
-          <p className="text-xs text-[var(--app-text-muted)]">실물 명함 사진을 촬영하거나 새 명함을 등록해 보세요.</p>
-          <button
-            type="button"
-            onClick={onOpenScan}
-            className="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[var(--app-accent)] text-[var(--app-accent-fg)] text-xs font-semibold hover:opacity-90 cursor-pointer"
-          >
-            <Plus className="w-4 h-4 stroke-[2]" />
-            <span>실물 명함 등록</span>
-          </button>
-        </div>
-      ) : viewMode === 'cards' ? (
+        <VaultEmptyState
+          variant="filtered"
+          selectedCategory={selectedCategory}
+          searchQuery={searchQuery}
+          onOpenScan={onOpenScan}
+        />
+      ) : viewMode === 'grid' ? (
         /* ================= CARDS GALLERY VIEW (2-Column Mobile Grid, 3-Column Desktop) ================= */
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3.5 min-w-0">
           {sortedCards.map((card) => (
             <VaultCardItem
               key={card.id}
               card={card}
+              searchQuery={searchQuery}
               onSelectCard={handleSelectCard}
               onEditCard={handleEditCard}
               onDeleteCard={handleDeleteCard}
@@ -1333,9 +869,39 @@ export const VaultView: React.FC<VaultViewProps> = ({
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-[var(--app-border)] bg-[var(--app-surface-subtle)] text-[var(--app-text-muted)] font-mono text-[10px] uppercase tracking-wider">
-                  <th className="py-2.5 px-3.5">성명</th>
+                  <th
+                    className="py-2.5 px-3.5"
+                    aria-sort={sortBy === 'name' ? 'ascending' : 'none'}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSortBy((prev) => (prev === 'name' ? 'smart' : 'name'))}
+                      className={`inline-flex items-center gap-1 cursor-pointer transition-colors hover:text-[var(--app-text)] ${
+                        sortBy === 'name' ? 'text-[var(--app-text)] font-semibold' : ''
+                      }`}
+                      title="성명순 정렬"
+                    >
+                      <span>성명</span>
+                      <ArrowUpDown className="w-3 h-3 stroke-[1.75]" />
+                    </button>
+                  </th>
                   <th className="py-2.5 px-3.5">직함</th>
-                  <th className="py-2.5 px-3.5">소속 회사/기관</th>
+                  <th
+                    className="py-2.5 px-3.5"
+                    aria-sort={sortBy === 'company' ? 'ascending' : 'none'}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSortBy((prev) => (prev === 'company' ? 'smart' : 'company'))}
+                      className={`inline-flex items-center gap-1 cursor-pointer transition-colors hover:text-[var(--app-text)] ${
+                        sortBy === 'company' ? 'text-[var(--app-text)] font-semibold' : ''
+                      }`}
+                      title="회사명순 정렬"
+                    >
+                      <span>소속 회사/기관</span>
+                      <ArrowUpDown className="w-3 h-3 stroke-[1.75]" />
+                    </button>
+                  </th>
                   <th className="py-2.5 px-3.5">카테고리</th>
                   <th className="py-2.5 px-3.5">실물 보관</th>
                   <th className="py-2.5 px-3.5">연락처</th>

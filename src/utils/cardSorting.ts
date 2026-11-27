@@ -97,6 +97,8 @@ export const getSmartSortScore = (card: StoredCard): number => {
 const compareByKoreanName = (a: StoredCard, b: StoredCard): number => {
   const nameA = (a.data.name || a.data.nameKr || '').trim();
   const nameB = (b.data.name || b.data.nameKr || '').trim();
+  if (!nameA && nameB) return 1;
+  if (nameA && !nameB) return -1;
   const cmp = nameA.localeCompare(nameB, 'ko', { numeric: true, sensitivity: 'base' });
   if (cmp !== 0) return cmp;
   const orgA = (a.data.organizationKr || a.data.organization || '').trim();
@@ -177,6 +179,8 @@ export const sortVaultCards = (
     if (scoreDiff !== 0) return scoreDiff;
     const countDiff = getCardInteractionCount(b) - getCardInteractionCount(a);
     if (countDiff !== 0) return countDiff;
-    return getCardCreationTimestamp(b) - getCardCreationTimestamp(a);
+    const createdDiff = getCardCreationTimestamp(b) - getCardCreationTimestamp(a);
+    if (createdDiff !== 0) return createdDiff;
+    return compareByKoreanName(a, b);
   });
 };
