@@ -36,6 +36,97 @@ const CORE_FEATURES_KO = [
   },
 ];
 
+interface DirectoryLink {
+  titleKo: string;
+  titleEn: string;
+  url: string;
+  domain: string;
+}
+
+const DEVELOPED_APPS: DirectoryLink[] = [
+  {
+    titleKo: 'K-Design.md',
+    titleEn: 'K-Design.md',
+    url: 'https://kdesign.koreancenter.net',
+    domain: 'kdesign.koreancenter.net',
+  },
+  {
+    titleKo: 'AI Podium',
+    titleEn: 'AI Podium',
+    url: 'https://aipodium.net',
+    domain: 'aipodium.net',
+  },
+  {
+    titleKo: 'AI 앱 기획',
+    titleEn: 'AI App Studio',
+    url: 'https://goguma.app',
+    domain: 'goguma.app',
+  },
+  {
+    titleKo: 'AI 슬라이드',
+    titleEn: 'AI Slide',
+    url: 'https://vibeslide.goguma.app',
+    domain: 'vibeslide.goguma.app',
+  },
+  {
+    titleKo: 'AI 자산관리',
+    titleEn: 'AI Vault',
+    url: 'https://vibevault.goguma.app',
+    domain: 'vibevault.goguma.app',
+  },
+  {
+    titleKo: 'AI 일정관리',
+    titleEn: 'AI Calendar',
+    url: 'https://vibecalendar.goguma.app',
+    domain: 'vibecalendar.goguma.app',
+  },
+];
+
+const RELATED_NETWORK_SITES: DirectoryLink[] = [
+  {
+    titleKo: 'Net-to-Dot Movement',
+    titleEn: 'Net-to-Dot Movement',
+    url: 'https://nettodot.org',
+    domain: 'nettodot.org',
+  },
+  {
+    titleKo: '한국센터글로벌네트워크',
+    titleEn: 'Korean Center Global Network',
+    url: 'https://koreancenter.net',
+    domain: 'koreancenter.net',
+  },
+  {
+    titleKo: 'Global K-Edu Community',
+    titleEn: 'Global K-Edu Community',
+    url: 'https://kedu.koreancenter.net',
+    domain: 'kedu.koreancenter.net',
+  },
+  {
+    titleKo: '인도네시아센터',
+    titleEn: 'Indonesia Center',
+    url: 'https://indonesiacenter.net',
+    domain: 'indonesiacenter.net',
+  },
+  {
+    titleKo: '인도네시아 창업지원센터',
+    titleEn: 'Indonesia Startup & Visa Center',
+    url: 'https://visas.indonesiacenter.net',
+    domain: 'visas.indonesiacenter.net',
+  },
+  {
+    titleKo: '인도네시아 언어 연수',
+    titleEn: 'Indonesia BIPA Language Program',
+    url: 'https://bipa.indonesiacenter.net',
+    domain: 'bipa.indonesiacenter.net',
+  },
+  {
+    titleKo: '인도네시아 기업 연수',
+    titleEn: 'Indonesia Corporate Retreat',
+    url: 'https://retreat.indonesiacenter.net',
+    domain: 'retreat.indonesiacenter.net',
+  },
+];
+
 const CORE_FEATURES_EN = [
   {
     lead: 'Instant Creation, No Sign-Up',
@@ -201,7 +292,68 @@ export const AboutModal: React.FC<AboutModalProps> = ({
               </div>
             </section>
 
-            {/* Section 2: 주요 기능 안내 */}
+            {/* Ecosystem & Network Directory: Developed Apps & Related Sites */}
+            <section
+              aria-labelledby="about-section-ecosystem"
+              className="pt-7 space-y-6"
+            >
+              <div className="space-y-3">
+                <h3
+                  id="about-section-ecosystem"
+                  className="text-[10.5px] font-mono uppercase tracking-[0.18em] text-[var(--app-text-muted)]"
+                >
+                  {isEn ? '02 · Developed Apps' : '02 · 개발 앱'}
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 border-t border-[var(--app-border)]">
+                  {DEVELOPED_APPS.map((item) => (
+                    <a
+                      key={item.url}
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-center justify-between gap-3 py-2.5 border-b border-[var(--app-border)] text-left transition-colors hover:text-[var(--app-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+                    >
+                      <span className="text-[13px] font-medium text-[var(--app-text)] truncate">
+                        {isEn ? item.titleEn : item.titleKo}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-[var(--app-text-muted)] group-hover:text-[var(--app-text)] shrink-0 transition-colors">
+                        <span className="truncate max-w-[140px]">{item.domain}</span>
+                        <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 shrink-0" />
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-[10.5px] font-mono uppercase tracking-[0.18em] text-[var(--app-text-muted)]">
+                  {isEn ? 'Related Network Sites' : '관련 사이트'}
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 border-t border-[var(--app-border)]">
+                  {RELATED_NETWORK_SITES.map((item) => (
+                    <a
+                      key={item.url}
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-center justify-between gap-3 py-2.5 border-b border-[var(--app-border)] text-left transition-colors hover:text-[var(--app-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+                    >
+                      <span className="text-[13px] font-medium text-[var(--app-text)] truncate">
+                        {isEn ? item.titleEn : item.titleKo}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-[var(--app-text-muted)] group-hover:text-[var(--app-text)] shrink-0 transition-colors">
+                        <span className="truncate max-w-[140px]">{item.domain}</span>
+                        <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 shrink-0" />
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* Section 3: 주요 기능 안내 */}
             <section
               ref={(el) => {
                 sectionRefs.current.features = el;
@@ -213,7 +365,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                 id="about-section-features"
                 className="text-[10.5px] font-mono uppercase tracking-[0.18em] text-[var(--app-text-muted)]"
               >
-                {isEn ? '02 · Key Features' : '02 · 주요 기능 안내'}
+                {isEn ? '03 · Key Features' : '03 · 주요 기능 안내'}
               </h3>
 
               <ul className="space-y-3 text-[13px] sm:text-[13.5px] leading-[1.75] text-[var(--app-text-muted)]">
@@ -233,7 +385,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
               </ul>
             </section>
 
-            {/* Section 3: 개발자 노트 */}
+            {/* Section 4: 개발자 노트 */}
             <section
               ref={(el) => {
                 sectionRefs.current.notes = el;
@@ -245,7 +397,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                 id="about-section-notes"
                 className="text-[10.5px] font-mono uppercase tracking-[0.18em] text-[var(--app-text-muted)]"
               >
-                {isEn ? '03 · Developer Note' : '03 · 개발자 노트'}
+                {isEn ? '04 · Developer Note' : '04 · 개발자 노트'}
               </h3>
 
               <p className="text-[13.5px] sm:text-sm text-[var(--app-text-muted)] leading-[1.85] tracking-[-0.01em] break-keep">
@@ -259,7 +411,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
               </p>
             </section>
 
-            {/* Section 4: 연락처 및 프라이버시 원칙 */}
+            {/* Section 5: 연락처 및 프라이버시 원칙 */}
             <section
               ref={(el) => {
                 sectionRefs.current.contact = el;
@@ -271,7 +423,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                 id="about-section-contact"
                 className="text-[10.5px] font-mono uppercase tracking-[0.18em] text-[var(--app-text-muted)]"
               >
-                {isEn ? '04 · Contact & Privacy Principles' : '04 · 연락처 및 프라이버시 원칙'}
+                {isEn ? '05 · Contact & Privacy Principles' : '05 · 연락처 및 프라이버시 원칙'}
               </h3>
 
               <div className="divide-y divide-[var(--app-border)] rounded-2xl bg-[var(--app-surface-subtle)] border border-[var(--app-border)] overflow-hidden">
@@ -382,6 +534,17 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                   className="px-1.5 py-0.5 rounded hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
                 >
                   {t.footer.licenses}
+                </button>
+                <span aria-hidden="true" className="opacity-40 select-none">·</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenLegal('business');
+                  }}
+                  className="px-1.5 py-0.5 rounded hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer"
+                >
+                  {t.footer.business}
                 </button>
               </div>
             )}

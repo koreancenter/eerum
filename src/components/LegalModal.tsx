@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Code2, ShieldCheck, FileText } from 'lucide-react';
+import { X, Code2, ShieldCheck, FileText, Building2 } from 'lucide-react';
 import { useLocale } from '../hooks/useLocale';
 
-export type LegalDocType = 'privacy' | 'terms' | 'licenses';
+export type LegalDocType = 'privacy' | 'terms' | 'licenses' | 'business';
 
 interface LegalModalProps {
   isOpen: boolean;
@@ -158,6 +158,23 @@ export const LegalModal: React.FC<LegalModalProps> = ({
             >
               <Code2 className="w-4 h-4 stroke-[1.8] shrink-0" />
               <span className="hidden sm:inline">{isEn ? 'Licenses' : '라이선스 정책'}</span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeDoc === 'business'}
+              onClick={() => handleSelectDoc('business')}
+              title={t.footer.business}
+              aria-label={t.footer.business}
+              className={`h-8 sm:h-auto px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer whitespace-nowrap shrink-0 border transition-colors inline-flex items-center justify-center gap-1.5 ${
+                activeDoc === 'business'
+                  ? 'bg-[var(--app-accent)] text-[var(--app-accent-fg)] border-transparent shadow-sm'
+                  : 'text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] border-transparent'
+              }`}
+            >
+              <Building2 className="w-4 h-4 stroke-[1.8] shrink-0" />
+              <span className="hidden sm:inline">{t.footer.business}</span>
             </button>
           </div>
 
@@ -375,7 +392,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({
                 </div>
               </article>
             )
-          ) : (
+          ) : activeDoc === 'licenses' ? (
             <article className="space-y-6">
               {/* EERUM App Custom License Section */}
               <div className="space-y-3 pb-5 border-b border-[var(--app-border)]">
@@ -504,6 +521,64 @@ export const LegalModal: React.FC<LegalModalProps> = ({
                   ))}
                 </div>
               </div>
+            </article>
+          ) : (
+            <article className="space-y-5">
+              <div>
+                <h3 id="legal-modal-title" className="text-base sm:text-lg font-bold text-[var(--app-text)] tracking-tight">
+                  {isEn ? 'Business Information' : '사업자 정보'}
+                </h3>
+                <p className="text-[var(--app-text-muted)] text-[11px] sm:text-xs mt-0.5">
+                  {isEn
+                    ? 'Statutory Operator & E-Commerce Disclosure'
+                    : '운영 주체 및 전자상거래법상 사업자 고지 사항'}
+                </p>
+              </div>
+
+              <dl className="divide-y divide-[var(--app-border)] rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-subtle)] overflow-hidden">
+                <div className="px-4 py-3.5 sm:grid sm:grid-cols-[180px_1fr] sm:gap-4 items-baseline space-y-1 sm:space-y-0">
+                  <dt className="text-[11px] font-medium text-[var(--app-text-muted)]">
+                    {isEn ? 'Entity' : '운영사'}
+                  </dt>
+                  <dd className="text-xs sm:text-[13px] font-semibold text-[var(--app-text)]">
+                    {isEn
+                      ? 'Korea Center Global Network · Knowledge Management Office'
+                      : '한국센터글로벌네트워크 지식관리실'}
+                  </dd>
+                </div>
+
+                <div className="px-4 py-3.5 sm:grid sm:grid-cols-[180px_1fr] sm:gap-4 items-baseline space-y-1 sm:space-y-0">
+                  <dt className="text-[11px] font-medium text-[var(--app-text-muted)]">
+                    {isEn ? 'Business Registration No.' : '사업자등록번호'}
+                  </dt>
+                  <dd className="text-xs sm:text-[13px] font-mono tabular-nums text-[var(--app-text)]">
+                    141-82-83410
+                  </dd>
+                </div>
+
+                <div className="px-4 py-3.5 sm:grid sm:grid-cols-[180px_1fr] sm:gap-4 items-baseline space-y-1 sm:space-y-0">
+                  <dt className="text-[11px] font-medium text-[var(--app-text-muted)]">
+                    {isEn ? 'E-Commerce Registration No.' : '통신판매업신고번호'}
+                  </dt>
+                  <dd className="text-xs sm:text-[13px] font-mono text-[var(--app-text)]">
+                    제2025-부천원미-1090호
+                  </dd>
+                </div>
+
+                <div className="px-4 py-3.5 sm:grid sm:grid-cols-[180px_1fr] sm:gap-4 items-baseline space-y-1 sm:space-y-0">
+                  <dt className="text-[11px] font-medium text-[var(--app-text-muted)]">
+                    {isEn ? 'Contact Email' : '문의'}
+                  </dt>
+                  <dd className="text-xs sm:text-[13px] font-mono">
+                    <a
+                      href="mailto:master@goguma.app"
+                      className="text-[var(--app-text)] underline underline-offset-4 decoration-[var(--app-border)] hover:decoration-[var(--app-text)] transition-colors"
+                    >
+                      master@goguma.app
+                    </a>
+                  </dd>
+                </div>
+              </dl>
             </article>
           )}
         </div>

@@ -1462,6 +1462,16 @@ export default function App() {
               >
                 {t.footer.licenses}
               </button>
+              <span aria-hidden="true" className="opacity-40 select-none">
+                ·
+              </span>
+              <button
+                type="button"
+                onClick={() => modals.openLegal('business')}
+                className="px-2 py-1 rounded-md hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+              >
+                {t.footer.business}
+              </button>
             </nav>
           </div>
         </footer>

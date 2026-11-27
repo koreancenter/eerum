@@ -342,6 +342,7 @@ export interface TranslationDictionary {
     privacy: string;
     terms: string;
     licenses: string;
+    business: string;
   };
   toasts: {
     sampleSaved: string;
@@ -740,6 +741,7 @@ export const TRANSLATIONS: Record<AppLocale, TranslationDictionary> = {
       privacy: '개인정보처리방침',
       terms: '이용약관',
       licenses: '라이선스 · 오픈소스',
+      business: '사업자 정보',
     },
     toasts: {
       sampleSaved: '체험 모드에 임시 저장되었습니다. 영구 보관하려면 로컬 계정을 만들어 주세요.',
@@ -1150,6 +1152,7 @@ export const TRANSLATIONS: Record<AppLocale, TranslationDictionary> = {
       privacy: 'Privacy Policy',
       terms: 'Terms of Service',
       licenses: 'Licenses · Open Source',
+      business: 'Business Info',
     },
     toasts: {
       sampleSaved: 'Saved temporarily in Sample Mode. Create a local account to keep it permanently.',
