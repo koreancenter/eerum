@@ -72,6 +72,11 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bgImageInputRef = useRef<HTMLInputElement>(null);
   const [isProcessingBgImage, setIsProcessingBgImage] = useState(false);
+  const [hoveredLayoutId, setHoveredLayoutId] = useState<CardLayoutType | null>(null);
+
+  const activeLayoutPreset =
+    LAYOUT_PRESETS.find((p) => p.id === (hoveredLayoutId || layoutType)) ||
+    LAYOUT_PRESETS[0];
 
   const resolvedCanvasHex = resolveThemeStyles(theme, features.custom_bg_color).canvasHex;
   const activeCustomHex = normalizeHexColor(features.custom_bg_color);
@@ -346,16 +351,16 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
             </div>
           </section>
 
-          {/* Architectural Layouts (Zero Box-in-Box, Zero Name/Ratio Text — Tooltips Only) */}
+          {/* Architectural Layouts (Zero Box-in-Box, Stationary Inline Description Bar) */}
           <section className="border-t border-[var(--editor-divider)] pt-4 sm:pt-6 space-y-3 sm:space-y-3.5">
-            <h4
-              className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide inline-block"
-              title="명함 레이아웃 구도 선택 (가로 9:5 / 세로 5:8)"
-            >
+            <h4 className="text-xs font-semibold text-[var(--editor-section-title)] tracking-wide inline-block">
               레이아웃
             </h4>
 
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+            <div
+              className="grid grid-cols-2 gap-2.5 sm:gap-3"
+              onMouseLeave={() => setHoveredLayoutId(null)}
+            >
               {LAYOUT_PRESETS.map((preset) => {
                 const isSelected = layoutType === preset.id;
                 const vertical = isVerticalLayout(preset.id);
@@ -364,8 +369,12 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                     <button
                       type="button"
                       onClick={() => onChangeLayout(preset.id)}
-                      title={`${preset.name} (${preset.aspectRatio}) · ${preset.description}`}
-                      aria-label={`${preset.name} (${preset.aspectRatio})`}
+                      onMouseEnter={() => setHoveredLayoutId(preset.id)}
+                      onFocus={() => setHoveredLayoutId(preset.id)}
+                      onBlur={() =>
+                        setHoveredLayoutId((prev) => (prev === preset.id ? null : prev))
+                      }
+                      aria-label={`${preset.name} (${preset.aspectRatio}) · ${preset.description}`}
                       aria-pressed={isSelected}
                       className={`${
                         vertical ? 'w-[56%] aspect-[5/8]' : 'w-full aspect-[9/5]'
@@ -381,6 +390,21 @@ export const TemplateModeEditor: React.FC<TemplateModeEditorProps> = ({
                 );
               })}
             </div>
+
+            {activeLayoutPreset && (
+              <p
+                aria-live="polite"
+                className="min-h-[2.25rem] text-xs leading-[1.125rem] text-[var(--app-fg-muted,var(--app-text-muted))] transition-colors"
+              >
+                <span className="font-medium text-[var(--editor-text)]">
+                  {activeLayoutPreset.name}
+                </span>
+                <span className="mx-1.5 opacity-50" aria-hidden="true">
+                  ·
+                </span>
+                <span>{activeLayoutPreset.description}</span>
+              </p>
+            )}
           </section>
         </div>
       )}

@@ -816,6 +816,7 @@ export default function App() {
             }
           }}
           onOpenAbout={() => modals.openAbout('philosophy')}
+          onOpenLegal={modals.openLegal}
           onOpenReset={modals.openReset}
           onShowToast={showToast}
         />
@@ -1405,7 +1406,7 @@ export default function App() {
 
         {/* Footer */}
         <footer className="shrink-0 border-t border-[var(--app-border)] py-2.5 sm:py-3 pb-[calc(0.625rem+env(safe-area-inset-bottom,0px))] px-4 sm:px-8 font-sans">
-          <div className="max-w-5xl mx-auto w-full flex items-center justify-center">
+          <div className="max-w-5xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-1 sm:gap-4">
             {isUnauthenticatedExternalVisitor ? (
               <a
                 href="https://nettodot.org/pages/chapter01/abstract"
@@ -1424,6 +1425,39 @@ export default function App() {
                 eerum · Net to Dot Movement
               </button>
             )}
+
+            <nav
+              aria-label="약관 및 라이선스"
+              className="flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 text-[11px] text-[var(--app-text-muted)]"
+            >
+              <button
+                type="button"
+                onClick={() => modals.openLegal('privacy')}
+                className="px-2 py-1 rounded-md hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+              >
+                개인정보처리방침
+              </button>
+              <span aria-hidden="true" className="opacity-40 select-none">
+                ·
+              </span>
+              <button
+                type="button"
+                onClick={() => modals.openLegal('terms')}
+                className="px-2 py-1 rounded-md hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+              >
+                이용약관
+              </button>
+              <span aria-hidden="true" className="opacity-40 select-none">
+                ·
+              </span>
+              <button
+                type="button"
+                onClick={() => modals.openLegal('licenses')}
+                className="px-2 py-1 rounded-md hover:text-[var(--app-text)] hover:bg-[var(--app-surface-subtle)] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
+              >
+                라이선스 · 오픈소스
+              </button>
+            </nav>
           </div>
         </footer>
 

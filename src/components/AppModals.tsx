@@ -397,6 +397,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
             isOpen={modals.isAboutOpen}
             initialTab={modals.aboutInitialTab}
             onClose={modals.closeAbout}
+            onOpenLegal={modals.openLegal}
             onShowToast={showToast}
           />
         )}
