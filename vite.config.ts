@@ -138,9 +138,9 @@ export default defineConfig(({ mode }) => {
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
         manifest: {
           id: '/',
-          name: '이룸 (eerum) - 디지털 명함 스튜디오',
-          short_name: '이룸 (eerum)',
-          description: '서버에 남지 않는 온디바이스 암호화 프라이빗 디지털 명함 스튜디오',
+          name: 'eerum — Digital Business Card',
+          short_name: 'eerum',
+          description: 'Local-first, on-device encrypted digital business card studio with instant QR/NFC sharing, P2P sync, and 300 DPI print export.',
           theme_color: '#0A0A0B',
           background_color: '#0A0A0B',
           display: 'standalone',
